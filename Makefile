@@ -94,17 +94,18 @@ build-inspector-if-needed:
 deploy:
 	PROJECT_ID=$$(gcloud config get-value project) && \
 	PROJECT_NUMBER=$$(gcloud projects describe $$PROJECT_ID --format="value(projectNumber)") && \
+	OPS_URL="https://guardian-ops-center-$$PROJECT_NUMBER.us-central1.run.app" && \
 	gcloud beta run deploy guardian \
 		--source . \
 		--memory "4Gi" \
 		--project $$PROJECT_ID \
 		--region "us-central1" \
-		--no-allow-unauthenticated \
+		--allow-unauthenticated \
 		--no-cpu-throttling \
 		--labels "created-by=adk" \
 		--update-build-env-vars "AGENT_VERSION=$(shell awk -F'"' '/^version = / {print $$2}' pyproject.toml || echo '0.0.0')" \
 		--update-env-vars \
-		"APP_URL=https://guardian-$$PROJECT_NUMBER.us-central1.run.app,DATA_STORE_ID=guardian-collection_documents,DATA_STORE_REGION=global" \
+		"APP_URL=https://guardian-$$PROJECT_NUMBER.us-central1.run.app,DATA_STORE_ID=guardian-collection_documents,DATA_STORE_REGION=global,GUARDIAN_CORS_ORIGINS=$$OPS_URL" \
 		$(if $(IAP),--iap) \
 		$(if $(PORT),--port=$(PORT))
 
@@ -202,11 +203,11 @@ deploy-ops-center:
 	gcloud beta run deploy guardian-ops-center \
 		--image us-central1-docker.pkg.dev/$$PROJECT_ID/cloud-run-source-deploy/guardian-ops-center:latest \
 		--memory "1Gi" \
+		--port 8080 \
 		--project $$PROJECT_ID \
 		--region "us-central1" \
 		--allow-unauthenticated \
-		--labels "created-by=adk,role=ops-center" \
-		--update-env-vars "PORT=8080" && \
+		--labels "created-by=adk,role=ops-center" && \
 	OPS_URL="https://guardian-ops-center-$$PROJECT_NUMBER.us-central1.run.app" && \
 	echo "" && \
 	echo "✓ Ops Center deployed: $$OPS_URL"
