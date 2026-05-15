@@ -23,7 +23,21 @@ from google.adk.sessions import InMemorySessionService
 
 from peers.park_service.agent import app as adk_app
 
-_, project_id = google.auth.default()
+# Guard import-time auth so the service still binds a port in CI / no-ADC
+# environments. Real Gemini calls fail later with a clear error rather than
+# crashing at import. Symmetric to the fix in app/agent.py and the peer
+# agent.py modules (codex /review 2026-05-15).
+try:
+    _, project_id = google.auth.default()
+except Exception as _adc_err:
+    import logging as _logging
+
+    _logging.warning(
+        "ADC unavailable when starting park_service FastAPI app — service "
+        "will start but live Gemini calls fail until ADC is present: %s",
+        _adc_err,
+    )
+    project_id = None
 
 runner = Runner(
     app=adk_app,

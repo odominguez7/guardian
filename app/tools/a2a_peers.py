@@ -12,7 +12,9 @@ import logging
 import os
 import time
 import uuid
+from urllib.parse import urlparse
 
+import google.auth.transport.requests
 import httpx
 from a2a.client import A2ACardResolver, A2AClient, A2AClientError
 from a2a.types import (
@@ -22,12 +24,51 @@ from a2a.types import (
     SendMessageRequest,
     TextPart,
 )
+from google.oauth2 import id_token
 
 logger = logging.getLogger(__name__)
 
 # Cap how long we wait for a peer to respond. The peer can do real work
-# (call its model + tool) so 30s is generous but not infinite.
-_A2A_TIMEOUT_S = 30.0
+# (call its model + tool) so 30s is generous but not infinite. Use a split
+# timeout so connect failures fail fast instead of hanging.
+_A2A_TIMEOUT = httpx.Timeout(connect=5.0, read=30.0, write=10.0, pool=10.0)
+
+# Cache short-lived ID tokens per audience so we don't refetch on every call.
+# Cloud Run ID tokens are valid for 1 hour; we expire after 45 min to be safe.
+_ID_TOKEN_TTL_S = 45 * 60
+_id_token_cache: dict[str, tuple[str, float]] = {}
+
+
+def _is_local(url: str) -> bool:
+    """True if the URL points at a local dev peer (no auth needed)."""
+    host = urlparse(url).hostname or ""
+    return host in {"localhost", "127.0.0.1", "0.0.0.0"} or host.endswith(".local")
+
+
+def _fetch_id_token(audience: str) -> str | None:
+    """Fetch a Cloud Run-compatible ID token for the audience (peer base URL).
+
+    Returns None for local-dev URLs so we don't waste a metadata-server call.
+    Uses a process-local cache to amortize the metadata round-trip.
+    """
+    if _is_local(audience):
+        return None
+    cached = _id_token_cache.get(audience)
+    if cached is not None:
+        token, expires_at = cached
+        if time.time() < expires_at:
+            return token
+    try:
+        auth_req = google.auth.transport.requests.Request()
+        token = id_token.fetch_id_token(auth_req, audience)
+        _id_token_cache[audience] = (token, time.time() + _ID_TOKEN_TTL_S)
+        return token
+    except Exception as e:
+        # No ADC, or service account lacks roles/run.invoker on the peer.
+        # Surface the failure as a clear error envelope upstream instead of
+        # silently sending an unauthenticated request that 401s.
+        logger.warning("ID token fetch failed for audience %s: %s", audience, e)
+        return None
 
 
 def mint_incident_id(seed: str | None = None) -> str:
@@ -37,21 +78,25 @@ def mint_incident_id(seed: str | None = None) -> str:
     the LLM's free-form generation). The same id flows into both peer calls
     so park_service and sponsor_sustainability records reconcile.
 
-    Form: `GU-YYYYMMDD-<10hex>`. If `seed` is provided, the hex is derived
-    deterministically from (date, seed) — replaying the same incident yields
-    the same id. If `seed` is None, falls back to a monotonic timestamp +
-    uuid suffix.
-    """
-    from datetime import datetime, timezone
+    Form: `GU-<12hex>`. When `seed` is provided (e.g. camera id + observation
+    timestamp), the hex is derived deterministically from seed alone — NO
+    wall-clock dependency, so reprocessing the same event across midnight UTC
+    or after a multi-day delay yields the same id. When `seed` is None, falls
+    back to a monotonic timestamp + uuid suffix (still non-replayable, but
+    that's the intended behavior of the unseeded path).
 
-    date_part = datetime.now(timezone.utc).strftime("%Y%m%d")
+    Why not bake the date? Codex challenge 2026-05-15 flagged that
+    GU-YYYYMMDD-... reprocessing crosses date boundaries → distinct ids →
+    audit/dedup breakage. The date prefix gave human-readable bucketing but
+    cost more than it's worth.
+    """
     if seed:
-        digest = hashlib.sha256(f"{date_part}|{seed}".encode()).hexdigest()
-        return f"GU-{date_part}-{digest[:10].upper()}"
+        digest = hashlib.sha256(seed.encode()).hexdigest()
+        return f"GU-{digest[:12].upper()}"
     # Non-seeded fallback: time-monotonic to avoid uuid collision risk.
     fallback = f"{time.time_ns()}-{uuid.uuid4().hex}"
     digest = hashlib.sha256(fallback.encode()).hexdigest()
-    return f"GU-{date_part}-{digest[:10].upper()}"
+    return f"GU-{digest[:12].upper()}"
 
 # Peer registry. Single source of truth for env var + URL path for each peer.
 # Add a new peer here and call _call_peer(name, ...) from a tool function.
@@ -69,15 +114,22 @@ _PEERS: dict[str, dict[str, str]] = {
 }
 
 
+def _peer_base_url(peer_name: str) -> str:
+    """Return the peer's base URL (origin only, no path). Defensive against
+    misconfigured env vars that accidentally include the A2A path."""
+    cfg = _PEERS[peer_name]
+    raw = os.environ.get(cfg["env_var"], cfg["default_url"]).rstrip("/")
+    # Strip any accidentally-included path component; we want origin only.
+    parsed = urlparse(raw)
+    if not parsed.scheme or not parsed.netloc:
+        # Bare hostname or weird value — fall through and let the call fail loudly
+        return raw
+    return f"{parsed.scheme}://{parsed.netloc}"
+
+
 def _peer_rpc_url(peer_name: str) -> str:
     cfg = _PEERS[peer_name]
-    base = os.environ.get(cfg["env_var"], cfg["default_url"]).rstrip("/")
-    return f"{base}{cfg['a2a_path']}"
-
-
-def _peer_base_url(peer_name: str) -> str:
-    cfg = _PEERS[peer_name]
-    return os.environ.get(cfg["env_var"], cfg["default_url"]).rstrip("/")
+    return f"{_peer_base_url(peer_name)}{cfg['a2a_path']}"
 
 
 async def _call_peer(peer_name: str, instruction: str) -> dict:
@@ -85,10 +137,31 @@ async def _call_peer(peer_name: str, instruction: str) -> dict:
 
     Returns the peer's tool result dict, with `_peer` injected for chain-of-
     custody. Transport / JSON-RPC errors become structured error envelopes.
+
+    For Cloud Run peers deployed with --no-allow-unauthenticated, fetches a
+    service-account ID token for the peer's audience and includes it as a
+    Bearer credential. Localhost dev peers skip auth.
     """
+    base_url = _peer_base_url(peer_name)
     rpc_url = _peer_rpc_url(peer_name)
+
+    headers: dict[str, str] = {}
+    if not _is_local(base_url):
+        token = _fetch_id_token(base_url)
+        if token is None:
+            return {
+                "status": "error",
+                "error": (
+                    "auth_unavailable: could not fetch ID token for peer audience "
+                    f"{base_url}. In Cloud Run, ensure the orchestrator's service "
+                    "account has roles/run.invoker on the peer service."
+                ),
+                "_peer": peer_name,
+            }
+        headers["Authorization"] = f"Bearer {token}"
+
     try:
-        async with httpx.AsyncClient(timeout=_A2A_TIMEOUT_S) as http:
+        async with httpx.AsyncClient(timeout=_A2A_TIMEOUT, headers=headers) as http:
             client = A2AClient(httpx_client=http, url=rpc_url)
             request = SendMessageRequest(
                 id=str(uuid.uuid4()),
@@ -122,11 +195,28 @@ async def _call_peer(peer_name: str, instruction: str) -> dict:
 
 
 async def _resolve_peer_card(peer_name: str) -> dict:
-    """Fetch a peer's public agent card. Used for diagnostics + A2A discovery."""
+    """Fetch a peer's public agent card. Used for diagnostics + A2A discovery.
+
+    Same auth model as `_call_peer`: localhost is unauthenticated, Cloud Run
+    URLs get a service-account ID token for the peer audience.
+    """
     base = _peer_base_url(peer_name)
     cfg = _PEERS[peer_name]
+    headers: dict[str, str] = {}
+    if not _is_local(base):
+        token = _fetch_id_token(base)
+        if token is None:
+            return {
+                "status": "error",
+                "error": (
+                    "auth_unavailable: could not fetch ID token for peer audience "
+                    f"{base}. Card endpoint requires invoker role on Cloud Run."
+                ),
+                "_peer": peer_name,
+            }
+        headers["Authorization"] = f"Bearer {token}"
     try:
-        async with httpx.AsyncClient(timeout=10.0) as http:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(connect=5.0, read=10.0, write=10.0, pool=10.0), headers=headers) as http:
             resolver = A2ACardResolver(
                 httpx_client=http,
                 base_url=base,
@@ -364,9 +454,15 @@ def _try_parse_json_blob(blob: str) -> dict | None:
 
     A2A peer responses bundle the full conversation history (the echoed
     instruction plus the actual tool result). The tool result is always last,
-    so we scan tail-first. ADK also wraps tool returns as
-    `{"<tool_name>_response": {...real result...}}`; we unwrap that single
-    layer so the orchestrator gets the operational fields at the top level.
+    so we scan tail-first.
+
+    Three unwrap cases handled:
+      1. `{"<tool>_response": {...}}` — ADK auto-wrapper (single key, ends in
+         _response). Drill in once.
+      2. `{"<tool>_response": [...]}` — same wrapper but tool returned a list
+         (e.g. multi-result query). Wrap as {"results": [...]} so the caller
+         still gets a dict.
+      3. Naked dict. Pass through.
     """
     if not blob:
         return None
@@ -394,7 +490,10 @@ def _try_parse_json_blob(blob: str) -> dict | None:
     if len(last_obj) == 1:
         only_key = next(iter(last_obj))
         only_val = last_obj[only_key]
-        if only_key.endswith("_response") and isinstance(only_val, dict):
-            return only_val
+        if only_key.endswith("_response"):
+            if isinstance(only_val, dict):
+                return only_val
+            if isinstance(only_val, list):
+                return {"results": only_val, "_wrapped_from": only_key}
 
     return last_obj

@@ -35,7 +35,45 @@ All P2/P3 informational; none blocks the demo. Scheduled for the D17 security/po
 
 ## P1 — Pending verification (eng review)
 
-- **AgentPhone MCP existence (D1).** Verify whether AgentPhone is a real MCP server. If yes, use it for Dispatch agent (D8) — Track 3 MCP signaling bonus. If no, fall back to Twilio direct API. ~30 min verification. _Status: assigned for D1 today._
+- ~~**AgentPhone MCP existence (D1).** Verify whether AgentPhone is a real MCP server.~~ ✅ **VERIFIED 2026-05-15.** Real ADK-native MCP via `McpToolset` + npx `agentphone-mcp`. `send_message` tool for SMS. No Twilio fallback needed.
+
+## P2 — Codex challenge findings (2026-05-15 sweep)
+
+Items below are from the codex adversarial challenge after D1 work. P0 + 6 P1s were fixed inline; these P2s defer to D17 polish.
+
+- **A2A task store is in-memory.** `peers/*/fast_api_app.py:28-37` use `InMemoryTaskStore`. On Cloud Run scale-to-zero or multi-instance, streaming/task follow-ups can lose history/artifacts or land on a different instance. Fix: migrate to Firestore-backed task store for production. ~2 hr.
+
+- **No A2A-layer idempotency.** Each `_call_peer` mints a fresh `message_id` via `uuid.uuid4()`. If we add retries (below), the peer sees a new id per retry and double-dispatches rangers / double-files TNFD. Fix: derive idempotency key from `incident_id + peer_name + operation`. ~1 hr.
+
+- **No retry / backoff on transient peer failures.** Cold-start of a peer Cloud Run service can take 5-10s; the first A2A call after idle may timeout. Add exponential backoff (3 attempts) + circuit breaker. ~1 hr. _Tied to idempotency above._
+
+- **SSRF surface via env var.** Orchestrator blindly calls whatever URL is in `PARK_SERVICE_URL` / `SPONSOR_SUSTAINABILITY_URL`. A compromised env var becomes SSRF into metadata/internal services. Fix: host allowlist (e.g. `*.run.app`, project number prefix). ~30 min.
+
+- **Severity can diverge between peer calls.** Park dispatch logic and sponsor materiality both hinge on severity, but nothing enforces same-value reuse across the fan-out. Fix: pass severity in `new_incident_id`'s seed, or expose a separate `start_incident` tool that returns the bundle of {incident_id, severity}. ~45 min.
+
+- **No canonical sponsored-species list.** Routing rule says "sponsor call if a sponsored species is involved" — LLM-driven, subjective. Fix: ship a static species → sponsor mapping in code, deterministic check. ~30 min.
+
+- **Tool surface is unguarded.** Any user prompt can trigger `notify_*` calls with arbitrary payloads; no policy gate or rate limiting. Fix: add a thin pre-tool guard that requires the incident to come from Stream Watcher's escalation flag, not free-form user input. ~1 hr.
+
+- **`requires_escalation=True` triggers on low confidence.** A noisy model spams real-world ops. Fix: add `overall_confidence >= 0.6` AND threat-signals-non-empty as a compound gate in the orchestrator instruction. ~15 min.
+
+- **`--no-cpu-throttling` cost.** Both peers deployed with `--no-cpu-throttling` + 2Gi RAM. Idle instances still bill CPU. Fix for prod: drop to default throttled mode + 1Gi RAM (cold start +1-2s acceptable). ~10 min, but trades latency for cost.
+
+- **Sponsor uses Pro for every filing.** `gemini-2.5-pro` on every notify_sponsor_sustainability call; no throttling/dedup. Cost spikes on noisy streams. Fix: switch to Flash with structured-output mode for the deterministic TNFD entry. Verified Flash can't do 6-arg tool calls reliably so this is non-trivial. ~2 hr.
+
+- **Search engine LLM add-on charges per query.** `SEARCH_ADD_ON_LLM` + query expansion + spell correction = LLM billing per query. Fix: drop the LLM add-on for normal queries, enable only for natural-language search. ~15 min.
+
+- **BigQuery analytics auto-init.** `app/agent.py` initializes BigQuery dataset whenever `GOOGLE_CLOUD_PROJECT` is set. Production opt-in should be explicit. Fix: gate behind `GUARDIAN_ENABLE_BQ_ANALYTICS=true`. ~10 min.
+
+- **No dedup across frames.** Identical incidents from successive camera frames fan out repeatedly with new ids when seed is omitted. Fix: enforce seed via tool description + dedup window in `mint_incident_id`. ~30 min.
+
+- **Bucket creation race in `ingest_corpus.py`.** Only handles `AlreadyExists`; a globally existing bucket in another project/region raises `Conflict/Forbidden` and hard-fails. Fix: catch `Conflict` + fall back to existing bucket if owned by this project. ~15 min.
+
+- **Manifest path collision on concurrent ingests.** `corpus/_manifest.jsonl` is overwritten on each ingest run. Concurrent imports can read partial/mismatched manifests. Fix: timestamp-suffixed manifest paths. ~10 min.
+
+- **`ReconciliationMode.INCREMENTAL` never removes stale docs.** Deletions/renames persist forever. Fix: switch to `FULL` mode on a scheduled reindex cadence, or add an explicit delete step. ~30 min.
+
+- **`SEARCH_ADD_ON_LLM` no fallback on quota miss.** If the project lacks the allowlist, `create_engine` fails with no fallback. Fix: try with add-on, fall back without on quota error. ~30 min.
 
 ## Process
 

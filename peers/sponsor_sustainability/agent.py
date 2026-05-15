@@ -16,6 +16,22 @@ import os
 from datetime import datetime, timezone
 
 import google.auth
+
+
+def _parse_observation_ts(ts: str) -> datetime | None:
+    """Parse an ISO 8601 timestamp tolerant of trailing Z. Returns None on
+    failure so callers can return a structured error envelope."""
+    if not ts:
+        return None
+    cleaned = ts.strip()
+    if cleaned.endswith("Z"):
+        cleaned = cleaned[:-1] + "+00:00"
+    try:
+        dt = datetime.fromisoformat(cleaned)
+        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+    except (ValueError, TypeError):
+        return None
+
 from google.adk.agents import Agent
 from google.adk.apps import App
 from google.adk.models import Gemini
@@ -120,9 +136,28 @@ def file_tnfd_entry(
     if threat not in allowed_threats:
         return {"status": "error", "error": f"unknown threat_type: {threat_type}"}
 
-    # Stable filing_id derived from incident_id so re-filings don't duplicate.
-    digest = hashlib.sha256(f"{incident_id}|{species_affected}".encode()).hexdigest()
-    filing_id = f"TNFD-{datetime.now(timezone.utc).year}-{digest[:10].upper()}"
+    # Reporting period MUST come from observation_timestamp, not wall-clock,
+    # so late reprocessing of an old event still files into the correct
+    # quarter. Codex challenge 2026-05-15 flagged the wall-clock version.
+    obs_dt = _parse_observation_ts(observation_timestamp)
+    if obs_dt is None:
+        return {
+            "status": "error",
+            "error": (
+                "observation_timestamp must be ISO 8601 (e.g. 2026-05-15T02:14:00Z)"
+            ),
+        }
+    reporting_period = (
+        f"{obs_dt.year}-Q{((obs_dt.month - 1) // 3) + 1}"
+    )
+
+    # Stable filing_id derived from incident_id ALONE. Codex challenge
+    # 2026-05-15 flagged the species-string version: "African elephant" vs
+    # "African bush elephant" used to yield distinct filings for the same
+    # incident. The orchestrator's incident_id is the canonical key; species
+    # is metadata, not identity.
+    digest = hashlib.sha256(incident_id.encode()).hexdigest()
+    filing_id = f"TNFD-{obs_dt.year}-{digest[:10].upper()}"
     materiality = _SEVERITY_TO_MATERIALITY[sev]
     filed_at = datetime.now(timezone.utc).isoformat()
     dashboard_url = (
@@ -143,7 +178,7 @@ def file_tnfd_entry(
         "incident_id": incident_id,
         "observation_timestamp": observation_timestamp,
         "filed_at": filed_at,
-        "reporting_period": f"{datetime.now(timezone.utc).year}-Q{((datetime.now(timezone.utc).month - 1) // 3) + 1}",
+        "reporting_period": reporting_period,
         "compliance_frameworks": ["TNFD", "CSRD-ESRS-E4"],
     }
 

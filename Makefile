@@ -122,6 +122,8 @@ backend: deploy
 # PARK_SERVICE_URL env var with `make wire-park-service PARK_URL=...`.
 deploy-park-service:
 	PROJECT_ID=$$(gcloud config get-value project) && \
+	PROJECT_NUMBER=$$(gcloud projects describe $$PROJECT_ID --format="value(projectNumber)") && \
+	APP_URL="https://guardian-park-service-$$PROJECT_NUMBER.us-central1.run.app" && \
 	COMMIT_SHA=$$(git rev-parse --short HEAD) && \
 	gcloud builds submit . \
 		--config peers/park_service/cloudbuild.yaml \
@@ -135,7 +137,7 @@ deploy-park-service:
 		--no-allow-unauthenticated \
 		--no-cpu-throttling \
 		--labels "created-by=adk,peer=park-service" \
-		--update-env-vars "AGENT_VERSION=0.1.0"
+		--update-env-vars "AGENT_VERSION=0.1.0,APP_URL=$$APP_URL"
 
 # After deploy-park-service, point GUARDIAN at the new URL and redeploy.
 # Usage: make wire-park-service PARK_URL=https://guardian-park-service-XXX.us-central1.run.app
@@ -153,6 +155,8 @@ wire-park-service:
 # GUARDIAN at it.
 deploy-sponsor-sustainability:
 	PROJECT_ID=$$(gcloud config get-value project) && \
+	PROJECT_NUMBER=$$(gcloud projects describe $$PROJECT_ID --format="value(projectNumber)") && \
+	APP_URL="https://guardian-sponsor-sustainability-$$PROJECT_NUMBER.us-central1.run.app" && \
 	COMMIT_SHA=$$(git rev-parse --short HEAD) && \
 	gcloud builds submit . \
 		--config peers/sponsor_sustainability/cloudbuild.yaml \
@@ -166,7 +170,7 @@ deploy-sponsor-sustainability:
 		--no-allow-unauthenticated \
 		--no-cpu-throttling \
 		--labels "created-by=adk,peer=sponsor-sustainability" \
-		--update-env-vars "AGENT_VERSION=0.1.0"
+		--update-env-vars "AGENT_VERSION=0.1.0,APP_URL=$$APP_URL"
 
 # Wire GUARDIAN to a deployed sponsor_sustainability peer URL.
 wire-sponsor-sustainability:
@@ -188,12 +192,18 @@ setup-datastore:
 	terraform apply --var-file vars/env.tfvars --var dev_project_id=$$PROJECT_ID --auto-approve \
 		-target=google_discovery_engine_search_engine.search_engine_dev)
 
-# Upload sample data and trigger initial sync
+# Upload sample data + corpus and trigger initial sync.
+# Note: the canonical wildlife corpus ingest path is the Python script
+# `deployment/search/ingest_corpus.py` (it provisions GCS, builds the manifest
+# JSONL, and triggers ImportDocuments natively). This Makefile target remains
+# for the legacy connector-driven flow if you ever need it; it now uses
+# `gcloud storage cp -r` so subdirectories like sample_data/wildlife_corpus/
+# are actually uploaded (codex challenge 2026-05-15 caught the silent skip).
 data-ingestion:
 	PROJECT_ID=$$(gcloud config get-value project) && \
 	DATA_STORE_REGION=$$(grep 'data_store_region' deployment/terraform/dev/vars/env.tfvars | sed 's/.*= *"//;s/".*//') && \
-	gcloud storage cp sample_data/* gs://$$PROJECT_ID-guardian-docs/ && \
-	uv run deployment/terraform/scripts/start_connector_run.py $$PROJECT_ID $$DATA_STORE_REGION guardian-collection --wait
+	gcloud storage cp -r sample_data/ gs://$$PROJECT_ID-guardian-docs/sample_data/ && \
+	echo "Note: connector-driven sync is legacy. Prefer 'uv run deployment/search/ingest_corpus.py'."
 
 # Trigger an on-demand sync for the GCS Data Connector
 sync-data:
