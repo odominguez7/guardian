@@ -1,0 +1,18 @@
+{
+  "id": "species-loxodonta-africana",
+  "structData": {
+    "doc_type": "species_fact_sheet",
+    "scientific_name": "Loxodonta africana",
+    "common_name": "African bush elephant",
+    "iucn_status": "Endangered",
+    "iucn_assessed": "2021",
+    "cites_appendix": "I",
+    "trophic_level": "herbivore",
+    "habitat": ["savanna", "forest", "wetland"],
+    "range": ["Botswana", "Zimbabwe", "Tanzania", "Kenya", "South Africa"]
+  },
+  "content": {
+    "mimeType": "text/plain",
+    "rawText": "Loxodonta africana — African bush elephant\n\nIUCN Red List status: ENDANGERED (assessed 2021). The African bush elephant population declined by over 60% in the past 50 years, primarily from poaching for ivory and ongoing habitat loss. The species was reclassified from Vulnerable to Endangered in the 2021 IUCN assessment.\n\nCITES status: Appendix I (most-strict trade restrictions). All international commercial trade in African elephants and their parts is prohibited under CITES Appendix I. Limited exemptions exist for sport-hunting trophies from specific southern African populations listed under Appendix II.\n\nKey threats:\n1. Poaching for ivory — primary driver. Roughly 15,000-20,000 elephants poached annually across Africa.\n2. Habitat loss and fragmentation from agriculture and infrastructure expansion.\n3. Human-elephant conflict in agricultural areas.\n4. Climate change (drought, water source loss).\n\nKnown behaviors:\n- Strongly matriarchal herd structure. Adult females and calves form herds led by the oldest matriarch.\n- Bulls form looser bachelor groups or roam solo.\n- Long-distance seasonal migration between water and food sources.\n- Highly intelligent, with documented mourning behavior around dead conspecifics.\n\nThreat-signal indicators detectable from camera traps:\n- Vehicle tracks within 200m of established herd routes (suggests poacher reconnaissance).\n- Tusk-down posture or low-headed shuffling gait (elephants signaling distress).\n- Cluster of vultures over savanna (carcass indicator).\n- Distant low-frequency rumbling concurrent with absence of herd from waterhole (alarm propagation).\n\nReporting frameworks: African elephant range states report to CITES Standing Committee under the Monitoring Illegal Killing of Elephants (MIKE) programme. Corporate disclosure under TNFD references African elephant population status as a Material Dependency on Biome 'Tropical-Subtropical Forests' and 'Tropical-Subtropical Grasslands'."
+  }
+}

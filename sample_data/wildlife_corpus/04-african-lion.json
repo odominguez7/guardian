@@ -1,0 +1,18 @@
+{
+  "id": "species-panthera-leo",
+  "structData": {
+    "doc_type": "species_fact_sheet",
+    "scientific_name": "Panthera leo",
+    "common_name": "Lion",
+    "iucn_status": "Vulnerable",
+    "iucn_assessed": "2023",
+    "cites_appendix": "II",
+    "trophic_level": "apex_predator",
+    "habitat": ["savanna", "grassland", "open_woodland"],
+    "range": ["Tanzania", "Kenya", "Zambia", "Zimbabwe", "South Africa", "Botswana", "Namibia"]
+  },
+  "content": {
+    "mimeType": "text/plain",
+    "rawText": "Panthera leo — Lion\n\nIUCN Red List status: VULNERABLE (reassessed 2023). The African lion population has declined by approximately 43% over the past two decades. Roughly 20,000-25,000 wild lions remain across sub-Saharan Africa, down from 200,000 a century ago. West and Central African lion populations are now classified separately as Critically Endangered.\n\nCITES status: Appendix II — international commercial trade is regulated but not prohibited. Trade in lion bones and other parts has been a growing concern, with some range states proposing Appendix I listings.\n\nKey threats:\n1. Human-lion conflict — primary driver. Retaliatory killings by herders losing cattle account for an estimated 60% of recent population losses.\n2. Habitat loss and prey base depletion (bushmeat poaching reduces ungulate prey).\n3. Trophy hunting controversy — legal in some range states but contributes to mane-loss genetics and disrupts pride structure.\n4. Bone trade for traditional Asian medicine markets.\n5. Snares set for bushmeat catch lions as bycatch.\n\nKnown behaviors:\n- Only social cat species. Prides typically 5-15 individuals: related females + offspring + 1-4 adult males.\n- Adult females do most hunting; cooperative hunting in groups of 2-6.\n- Adult males defend pride territory against rival coalitions; turnover events kill cubs.\n- Strongly territorial; territories range 20-400 km² depending on prey density.\n- Most active at night and during cool dawn / dusk hours.\n\nThreat-signal indicators detectable from camera traps:\n- Pride at unusual time/location (suggests territorial disruption from human activity).\n- Wire snares visible in adjacent vegetation.\n- Cattle carcass with deliberate poison signs (Furadan / aldicarb killings).\n- Lone limping individuals (snare injury).\n\nReporting frameworks: Lion population is a TNFD core nature-positive indicator for sub-Saharan biome sponsors. CSRD ESRS-E4 lists apex predator population trends as a material biodiversity impact indicator for any reporting entity with operations in lion range states."
+  }
+}

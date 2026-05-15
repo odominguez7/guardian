@@ -1,0 +1,18 @@
+{
+  "id": "species-acinonyx-jubatus",
+  "structData": {
+    "doc_type": "species_fact_sheet",
+    "scientific_name": "Acinonyx jubatus",
+    "common_name": "Cheetah",
+    "iucn_status": "Vulnerable",
+    "iucn_assessed": "2021",
+    "cites_appendix": "I",
+    "trophic_level": "predator",
+    "habitat": ["savanna", "open_grassland", "arid_shrubland"],
+    "range": ["Namibia", "Botswana", "South Africa", "Zimbabwe", "Tanzania", "Kenya", "Iran"]
+  },
+  "content": {
+    "mimeType": "text/plain",
+    "rawText": "Acinonyx jubatus — Cheetah\n\nIUCN Red List status: VULNERABLE (assessed 2021). Global population has declined from approximately 100,000 in 1900 to fewer than 7,100 mature individuals today. The Asiatic subspecies (A. j. venaticus) is Critically Endangered with fewer than 50 individuals remaining in Iran. The Northwest African subspecies is also Critically Endangered.\n\nCITES status: Appendix I — most-strict trade restrictions. Despite this, illegal trafficking of cheetah cubs to the Gulf states for private collections is an active threat: an estimated 300 cubs are smuggled annually, with mortality rates near 70% in transit.\n\nKey threats:\n1. Habitat fragmentation — cheetahs require very large home ranges (50-1,500 km²) and don't fare well in fenced reserves.\n2. Human-wildlife conflict with livestock farmers.\n3. Cub trafficking for exotic pet trade (primarily to Gulf states).\n4. Prey base reduction from bushmeat hunting.\n5. Low genetic diversity from ancient population bottleneck — increases disease vulnerability.\n\nKnown behaviors:\n- Diurnal hunter (unique among large cats), reducing competition with lions and leopards.\n- Solitary females with cubs; males form coalitions of 2-3 (typically brothers).\n- Speed-based ambush hunter — top speed 95-110 km/h, sustainable for ~30 seconds.\n- Uses prominent perches (termite mounds, fallen trees) for surveying terrain.\n- Vocalize via chirps and purrs (not the deep roar of Panthera species).\n\nThreat-signal indicators detectable from camera traps:\n- Cheetahs displaced from typical mid-morning hunting grounds (suggests human disturbance).\n- Vehicles parked stationary at known cheetah resting sites for extended periods (poacher staging).\n- Vehicle tracks suggesting pursuit patterns through long grass.\n- Absence of cubs in expected females' ranges (cub-snatching event).\n\nReporting frameworks: Cheetah is listed as Critically Endangered subspecies in TNFD nature-related disclosure guidelines for the Sahara-Sahel and Middle East biomes. CSRD ESRS-E4 cub trafficking is specifically called out in supply-chain due diligence guidance for entities operating in Gulf Cooperation Council markets."
+  }
+}

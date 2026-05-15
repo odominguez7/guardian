@@ -1,0 +1,18 @@
+{
+  "id": "species-diceros-bicornis",
+  "structData": {
+    "doc_type": "species_fact_sheet",
+    "scientific_name": "Diceros bicornis",
+    "common_name": "Black rhinoceros",
+    "iucn_status": "Critically Endangered",
+    "iucn_assessed": "2020",
+    "cites_appendix": "I",
+    "trophic_level": "herbivore",
+    "habitat": ["savanna", "shrubland", "thornveld"],
+    "range": ["Namibia", "South Africa", "Zimbabwe", "Kenya", "Tanzania"]
+  },
+  "content": {
+    "mimeType": "text/plain",
+    "rawText": "Diceros bicornis — Black rhinoceros\n\nIUCN Red List status: CRITICALLY ENDANGERED (assessed 2020). Population fell from ~70,000 in 1970 to a low of 2,400 in the mid-1990s due to a horn-poaching crisis. Conservation has recovered the population to approximately 6,400 as of 2022, but the species remains Critically Endangered.\n\nCITES status: Appendix I. International commercial trade in black rhinos and their parts is prohibited. Limited Appendix II listing exists for sport-hunting trophies and live exports from South Africa and Eswatini.\n\nKey threats:\n1. Poaching for horn — Black rhino horn fetches $50,000-$100,000/kg on illegal Asian markets. ONE rhino killed every 22 hours on average across Africa during peak poaching years.\n2. Habitat loss from cattle ranching and crop expansion.\n3. Small population genetic risks (founder effect, inbreeding).\n\nKnown behaviors:\n- Solitary except for mother-calf pairs.\n- Highly territorial; bulls maintain dung middens to mark range.\n- Mostly browsers (twigs, shoots, leaves) — distinguishes them from white rhinos (grazers).\n- Active at dawn, dusk, and during cool nights.\n- Poor eyesight but excellent hearing and smell.\n\nThreat-signal indicators detectable from camera traps:\n- Unusual vehicle activity near known territorial markings.\n- Audible chainsaw or angle-grinder sounds (poachers cut horn in field).\n- Helicopter overflights at low altitude near established home ranges (dehorning operations require coordination, but poacher reconnaissance also uses overflights).\n- Discovery of carcass with horn missing — chain-of-custody evidence requires preservation.\n\nReporting frameworks: Sites with black rhinos are subject to dedicated CITES Standing Committee monitoring. Under TNFD, black rhino presence elevates a site's biodiversity Material Impact rating to High. CSRD ESRS-E4 requires disclosure of any operations within or adjacent to black rhino habitat."
+  }
+}

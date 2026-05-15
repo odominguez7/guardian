@@ -1,0 +1,18 @@
+{
+  "id": "species-ceratotherium-simum",
+  "structData": {
+    "doc_type": "species_fact_sheet",
+    "scientific_name": "Ceratotherium simum",
+    "common_name": "White rhinoceros (southern)",
+    "iucn_status": "Near Threatened",
+    "iucn_assessed": "2020",
+    "cites_appendix": "II (South Africa, Eswatini); I (rest)",
+    "trophic_level": "herbivore",
+    "habitat": ["savanna", "grassland"],
+    "range": ["South Africa", "Namibia", "Kenya", "Zimbabwe", "Uganda"]
+  },
+  "content": {
+    "mimeType": "text/plain",
+    "rawText": "Ceratotherium simum — White rhinoceros (southern subspecies)\n\nIUCN Red List status: NEAR THREATENED (assessed 2020). The southern white rhino is the conservation success story of African megafauna: recovered from fewer than 100 individuals at the start of the 20th century to over 16,000 today. However, the population is declining again, primarily due to poaching pressure that began intensifying around 2008.\n\nCITES status: Appendix II for South Africa and Eswatini populations (limited live exports and hunting trophies permitted). Appendix I for all other range states.\n\nKey threats:\n1. Horn poaching — same illegal market as black rhino. South Africa alone lost 1,054 rhinos to poaching in 2016; numbers have declined since but remain in the hundreds annually.\n2. Population concentration risk — over 80% of all white rhinos live in fewer than 10 protected areas.\n3. Genetic bottleneck from historical founder population.\n\nKnown behaviors:\n- Most social of all rhino species. Adult females and subadults form 'crashes' of up to 14 individuals.\n- Pure grazers (grass only); distinguish from black rhino by square 'wide' upper lip.\n- Diurnal — most active during morning and late afternoon.\n- Slow to react when disturbed; relies on bulk + horn for defense.\n- Frequent waterhole use, predictable daily patterns make them especially vulnerable to ambush.\n\nThreat-signal indicators detectable from camera traps:\n- Vehicles approaching waterholes at unusual times (especially pre-dawn or post-dusk).\n- Coordinated approach by multiple humans on foot near established crash grazing areas.\n- Drone activity over reserves (poaching syndicates use drones for reconnaissance).\n- Carcass clusters near fence breaks (indicator of organized syndicate operations).\n\nReporting frameworks: TNFD nature-related disclosures require sponsors to declare any economic dependency or impact on white rhino habitat areas. CSRD ESRS-E4 specifically lists rhino species as 'biodiversity loss material' impact category."
+  }
+}
