@@ -26,6 +26,8 @@ from a2a.types import (
 )
 from google.oauth2 import id_token
 
+from app import events
+
 logger = logging.getLogger(__name__)
 
 # Cap how long we wait for a peer to respond. The peer can do real work
@@ -132,7 +134,7 @@ def _peer_rpc_url(peer_name: str) -> str:
     return f"{_peer_base_url(peer_name)}{cfg['a2a_path']}"
 
 
-async def _call_peer(peer_name: str, instruction: str) -> dict:
+async def _call_peer(peer_name: str, instruction: str, *, incident_id: str | None = None) -> dict:
     """Send a SendMessageRequest to a registered peer and unwrap the response.
 
     Returns the peer's tool result dict, with `_peer` injected for chain-of-
@@ -141,15 +143,28 @@ async def _call_peer(peer_name: str, instruction: str) -> dict:
     For Cloud Run peers deployed with --no-allow-unauthenticated, fetches a
     service-account ID token for the peer's audience and includes it as a
     Bearer credential. Localhost dev peers skip auth.
+
+    Emits A2A request/response events to the firehose so the Ops Center UI
+    can visualize the fan-out in real time.
     """
     base_url = _peer_base_url(peer_name)
     rpc_url = _peer_rpc_url(peer_name)
+
+    t0 = time.monotonic_ns()
+    events.emit(
+        kind="a2a_request",
+        agent="root_agent",
+        tool=f"notify_{peer_name}",
+        incident_id=incident_id,
+        severity="high",
+        payload={"peer": peer_name, "rpc_url": rpc_url},
+    )
 
     headers: dict[str, str] = {}
     if not _is_local(base_url):
         token = _fetch_id_token(base_url)
         if token is None:
-            return {
+            result = {
                 "status": "error",
                 "error": (
                     "auth_unavailable: could not fetch ID token for peer audience "
@@ -158,6 +173,16 @@ async def _call_peer(peer_name: str, instruction: str) -> dict:
                 ),
                 "_peer": peer_name,
             }
+            events.emit(
+                kind="a2a_response",
+                agent=peer_name,
+                tool=f"notify_{peer_name}",
+                incident_id=incident_id,
+                severity="error",
+                payload={"error": result["error"]},
+                latency_ms=(time.monotonic_ns() - t0) // 1_000_000,
+            )
+            return result
         headers["Authorization"] = f"Bearer {token}"
 
     try:
@@ -177,21 +202,33 @@ async def _call_peer(peer_name: str, instruction: str) -> dict:
                 ),
             )
             response = await client.send_message(request=request)
-            return _unwrap_response(response, peer_name=peer_name)
+            result = _unwrap_response(response, peer_name=peer_name)
     except A2AClientError as e:
         logger.warning("A2A call to %s failed: %s", peer_name, e)
-        return {
+        result = {
             "status": "error",
             "error": f"a2a_transport: {type(e).__name__}: {e}",
             "_peer": peer_name,
         }
     except httpx.HTTPError as e:
         logger.warning("HTTP error calling %s peer: %s", peer_name, e)
-        return {
+        result = {
             "status": "error",
             "error": f"http_transport: {type(e).__name__}: {e}",
             "_peer": peer_name,
         }
+
+    severity = "error" if result.get("status") == "error" else "high"
+    events.emit(
+        kind="a2a_response",
+        agent=peer_name,
+        tool=f"notify_{peer_name}",
+        incident_id=incident_id,
+        severity=severity,
+        payload=result,
+        latency_ms=(time.monotonic_ns() - t0) // 1_000_000,
+    )
+    return result
 
 
 async def _resolve_peer_card(peer_name: str) -> dict:
@@ -284,7 +321,7 @@ async def notify_park_service(
         f"dispatch_rangers with these fields and return the result verbatim:\n"
         f"{json.dumps(payload, indent=2)}"
     )
-    return await _call_peer("park_service", instruction)
+    return await _call_peer("park_service", instruction, incident_id=incident_id)
 
 
 async def get_park_service_card() -> dict:
@@ -368,7 +405,7 @@ async def notify_sponsor_sustainability(
         f"file_tnfd_entry with these fields and return the result verbatim:\n"
         f"{json.dumps(payload, indent=2)}"
     )
-    return await _call_peer("sponsor_sustainability", instruction)
+    return await _call_peer("sponsor_sustainability", instruction, incident_id=incident_id)
 
 
 async def get_sponsor_sustainability_card() -> dict:

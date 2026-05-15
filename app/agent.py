@@ -17,6 +17,7 @@ from google.adk.tools import LongRunningFunctionTool
 from google.cloud import bigquery
 from google.genai import types
 
+from app import events
 from app.agents.stream_watcher import stream_watcher_agent
 from app.tools.a2a_peers import (
     get_park_service_card,
@@ -41,9 +42,18 @@ def new_incident_id(seed: str = "") -> dict:
             same camera event is re-processed.
 
     Returns:
-        {"incident_id": "GU-YYYYMMDD-<hex>"}
+        {"incident_id": "GU-<hex>"}
     """
-    return {"incident_id": mint_incident_id(seed or None)}
+    iid = mint_incident_id(seed or None)
+    events.emit(
+        kind="incident_event",
+        agent="root_agent",
+        tool="new_incident_id",
+        incident_id=iid,
+        severity="info",
+        payload={"seed_provided": bool(seed)},
+    )
+    return {"incident_id": iid}
 
 # --- Environment setup (Vertex AI auth) ---------------------------------------
 # Resolve project_id from ADC if available; fall back to env so the module

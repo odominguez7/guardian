@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import asyncio
 import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -25,7 +26,8 @@ from a2a.utils.constants import (
     AGENT_CARD_WELL_KNOWN_PATH,
     EXTENDED_AGENT_CARD_PATH,
 )
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 from google.adk.a2a.executor.a2a_agent_executor import A2aAgentExecutor
 from google.adk.a2a.utils.agent_card_builder import AgentCardBuilder
 from google.adk.artifacts import GcsArtifactService, InMemoryArtifactService
@@ -33,6 +35,7 @@ from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.cloud import logging as google_cloud_logging
 
+from app import events as _events
 from app.agent import app as adk_app
 from app.app_utils.telemetry import setup_telemetry
 from app.app_utils.typing import Feedback
@@ -107,6 +110,224 @@ def collect_feedback(feedback: Feedback) -> dict[str, str]:
     """
     logger.log_struct(feedback.model_dump(), severity="INFO")
     return {"status": "success"}
+
+
+# --- Ops Center event firehose -----------------------------------------------
+# WebSocket + HTTP endpoints that surface the orchestrator's structured event
+# stream to the Operations Center frontend. New subscribers get the recent
+# ring-buffer replayed before live events resume.
+#
+# CORS — Ops Center frontend on a different Cloud Run URL needs cross-origin
+# access. Default to permissive ALL ORIGINS; tighten via env once we know the
+# final frontend URL.
+_cors_origins = os.environ.get("GUARDIAN_CORS_ORIGINS", "*")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[o.strip() for o in _cors_origins.split(",") if o.strip()],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.get("/events/replay")
+async def events_replay() -> dict:
+    """Snapshot the ring buffer for HTTP polling clients.
+
+    Returns the most recent ~200 events. Use the WebSocket endpoint for live
+    streaming; this is a fallback for environments that don't support WS.
+    """
+    snap = await _events.snapshot()
+    return {
+        "subscribers": _events.subscriber_count(),
+        "buffer_depth": _events.buffer_depth(),
+        "events": snap,
+    }
+
+
+@app.websocket("/events/stream")
+async def events_stream(websocket: WebSocket) -> None:
+    """Live event stream WebSocket.
+
+    Behavior:
+      - Accept connection.
+      - Replay ring buffer (up to ~200 events) so the client has context.
+      - Stream every subsequent event as it's emitted.
+      - Heartbeat every 25s so Cloud Run / proxy idle timeouts don't kill us.
+      - On disconnect, deregister cleanly.
+    """
+    await websocket.accept()
+    heartbeat_task: asyncio.Task | None = None
+
+    async def heartbeat() -> None:
+        try:
+            while True:
+                await asyncio.sleep(25)
+                await websocket.send_json({"kind": "heartbeat", "ts": _events._now_iso()})
+        except (WebSocketDisconnect, RuntimeError):
+            return
+
+    try:
+        heartbeat_task = asyncio.create_task(heartbeat())
+        async for evt in _events.subscribe():
+            try:
+                await websocket.send_json(evt)
+            except (WebSocketDisconnect, RuntimeError):
+                break
+    finally:
+        if heartbeat_task and not heartbeat_task.done():
+            heartbeat_task.cancel()
+
+
+# --- Demo scenario endpoints -------------------------------------------------
+# Server-side scripted incidents the Ops Center can fire via a single button.
+# Each scenario runs the orchestrator + peer fan-out end-to-end with a stable
+# seed so the same scenario can be replayed for a video.
+
+from fastapi import HTTPException  # noqa: E402
+
+from app.tools.a2a_peers import (  # noqa: E402
+    mint_incident_id,
+    notify_park_service,
+    notify_sponsor_sustainability,
+)
+
+_SCENARIOS = {
+    "poacher_truck": {
+        "title": "Poacher Truck — Serengeti Sector C",
+        "narrative": (
+            "Pickup truck detected approaching an African elephant herd at "
+            "02:14 local time on a known poaching corridor in Serengeti "
+            "Sector C. Audio confirms engine noise. Pattern agent flags "
+            "historical poaching corridor."
+        ),
+        "seed": "scenario:poacher_truck|serengeti-sector-c|2026-05-15T02:14:00Z",
+        "park_args": {
+            "location": "Serengeti Sector C, north fence (Tanzania)",
+            "severity": "critical",
+            "summary": (
+                "Pickup truck approaching elephant herd at 02:14; audio "
+                "confirms engine; pattern matches known poaching corridor."
+            ),
+        },
+        "sponsor_args": {
+            "location": "Serengeti Sector C, north fence (Tanzania)",
+            "species_affected": "African elephant",
+            "threat_type": "vehicle_intrusion",
+            "severity": "critical",
+            "observation_timestamp": "2026-05-15T02:14:00Z",
+        },
+    },
+    "audio_gunshot": {
+        "title": "Audio Gunshot — Kruger Northern Sector",
+        "narrative": (
+            "Audio agent classified a high-confidence gunshot signal at 03:42 "
+            "near a Kruger black rhino crash. Stream Watcher confirms vehicle "
+            "tail-lights in the same frame. Critical poaching event in progress."
+        ),
+        "seed": "scenario:audio_gunshot|kruger-north|2026-05-15T03:42:00Z",
+        "park_args": {
+            "location": "Kruger Northern Sector, ranger road 7 (South Africa)",
+            "severity": "critical",
+            "summary": (
+                "Gunshot audio classification + vehicle tail-lights at 03:42 "
+                "near black rhino crash. Active poaching event."
+            ),
+        },
+        "sponsor_args": {
+            "location": "Kruger Northern Sector, ranger road 7 (South Africa)",
+            "species_affected": "Black rhinoceros",
+            "threat_type": "poaching",
+            "severity": "critical",
+            "observation_timestamp": "2026-05-15T03:42:00Z",
+        },
+    },
+    "sponsored_species": {
+        "title": "Sponsored Species Encounter — Etosha cheetah crossing",
+        "narrative": (
+            "Stream Watcher identified two cheetahs (sponsored species, IUCN "
+            "Vulnerable) crossing fence break-point F-14 in Etosha at 17:22. "
+            "Medium severity but mandatory sponsor disclosure required."
+        ),
+        "seed": "scenario:sponsored_species|etosha-f14|2026-05-15T17:22:00Z",
+        "park_args": {
+            "location": "Etosha National Park, fence break F-14 (Namibia)",
+            "severity": "high",
+            "summary": (
+                "Two cheetahs crossing fence break F-14 at 17:22; investigate "
+                "fence integrity + log for sponsor disclosure."
+            ),
+        },
+        "sponsor_args": {
+            "location": "Etosha National Park, fence break F-14 (Namibia)",
+            "species_affected": "Cheetah",
+            "threat_type": "fence_breach",
+            "severity": "high",
+            "observation_timestamp": "2026-05-15T17:22:00Z",
+        },
+    },
+}
+
+
+@app.get("/demo/scenarios")
+def list_scenarios() -> dict:
+    """Public list of available demo scenarios for the Ops Center UI."""
+    return {
+        "scenarios": [
+            {"id": k, "title": v["title"], "narrative": v["narrative"]}
+            for k, v in _SCENARIOS.items()
+        ]
+    }
+
+
+@app.post("/demo/run/{scenario_id}")
+async def run_scenario(scenario_id: str) -> dict:
+    """Fire a scripted scenario end-to-end and return the incident record.
+
+    The scenario is deterministic: seed → mint_incident_id → notify both
+    peers in parallel → return the consolidated record. Every step emits to
+    the firehose so subscribed clients see the dance in real time.
+    """
+    scenario = _SCENARIOS.get(scenario_id)
+    if scenario is None:
+        raise HTTPException(status_code=404, detail=f"Unknown scenario: {scenario_id}")
+
+    incident_id = mint_incident_id(scenario["seed"])
+    _events.emit(
+        kind="incident_event",
+        agent="ops_center",
+        tool=f"scenario:{scenario_id}",
+        incident_id=incident_id,
+        severity=scenario["park_args"]["severity"],
+        payload={
+            "scenario_id": scenario_id,
+            "title": scenario["title"],
+            "narrative": scenario["narrative"],
+        },
+    )
+
+    park_task = notify_park_service(incident_id=incident_id, **scenario["park_args"])
+    sponsor_task = notify_sponsor_sustainability(
+        incident_id=incident_id, **scenario["sponsor_args"]
+    )
+    park, sponsor = await asyncio.gather(park_task, sponsor_task)
+
+    record = {
+        "incident_id": incident_id,
+        "scenario_id": scenario_id,
+        "title": scenario["title"],
+        "park_service": park,
+        "sponsor_sustainability": sponsor,
+    }
+    _events.emit(
+        kind="incident_event",
+        agent="ops_center",
+        tool=f"scenario:{scenario_id}:complete",
+        incident_id=incident_id,
+        severity="info",
+        payload={"park_status": park.get("status"), "sponsor_status": sponsor.get("status")},
+    )
+    return record
 
 
 # Main execution
