@@ -1,0 +1,26 @@
+# Cloud Build config for the Sponsor Sustainability A2A peer. Builds the
+# peer's Dockerfile from the repo root so build context can copy ./peers
+# and ./pyproject.toml. Pushed to Artifact Registry.
+
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-f'
+      - 'peers/sponsor_sustainability/Dockerfile'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/guardian-sponsor-sustainability:${COMMIT_SHA}'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/guardian-sponsor-sustainability:latest'
+      - '--build-arg'
+      - 'COMMIT_SHA=${COMMIT_SHA}'
+      - '--build-arg'
+      - 'AGENT_VERSION=0.1.0'
+      - '.'
+
+images:
+  - 'us-central1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/guardian-sponsor-sustainability:${COMMIT_SHA}'
+  - 'us-central1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/guardian-sponsor-sustainability:latest'
+
+options:
+  logging: CLOUD_LOGGING_ONLY

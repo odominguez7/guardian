@@ -18,7 +18,12 @@ from google.cloud import bigquery
 from google.genai import types
 
 from app.agents.stream_watcher import stream_watcher_agent
-from app.tools.a2a_peers import get_park_service_card, notify_park_service
+from app.tools.a2a_peers import (
+    get_park_service_card,
+    get_sponsor_sustainability_card,
+    notify_park_service,
+    notify_sponsor_sustainability,
+)
 
 # --- Environment setup (Vertex AI auth) ---------------------------------------
 _, project_id = google.auth.default()
@@ -56,17 +61,31 @@ Your team of specialist agents:
 Your A2A peers (independent agents run by OTHER organizations):
 - park_service (national park authority): call `notify_park_service` to report
   a wildlife-threat incident and receive a ranger-dispatch acknowledgement.
-- (Three additional peers ship D12-D14: sponsor_sustainability, funder, neighbor_park.)
+- sponsor_sustainability (Fortune 500 sponsor's sustainability office): call
+  `notify_sponsor_sustainability` to file a TNFD / CSRD-ESRS-E4 biodiversity-
+  impact entry. Receives back a filing_id + dashboard_url.
+- (Two additional peers ship next: funder, neighbor_park.)
 
 Routing rules:
 - Video URI, GCS path, or image URI → delegate to `stream_watcher`.
-- If a specialist returns `requires_escalation=True`, immediately call
-  `notify_park_service` with a stable incident_id, the best location available
-  ("Sector C, north fence" if coords unknown), and a severity inferred from the
-  threat_signals (gunshot/vehicle at night → critical; vehicle in restricted
-  zone → high; suspicious silhouette → medium; low confidence → low). Surface
-  the peer's ack to the user verbatim.
-- For "what does park_service do?" diagnostic questions: call `get_park_service_card`.
+- If a specialist returns `requires_escalation=True`, run BOTH peer calls in
+  this order:
+    1. `notify_park_service(incident_id, location, severity, summary)` — get
+       ranger dispatch. Use a stable incident_id (e.g. "GU-{date}-{seq}"),
+       best location available, severity inferred from threat_signals
+       (gunshot/vehicle at night → critical; vehicle in restricted zone →
+       high; suspicious silhouette → medium; low confidence → low).
+    2. If severity is "high" or "critical" OR a sponsored species is
+       involved, also call `notify_sponsor_sustainability(incident_id,
+       location, species_affected, threat_type, severity,
+       observation_timestamp)`. Use the SAME incident_id from step 1 so the
+       sponsor and park records reconcile. Map threat_signals to
+       threat_type: "vehicle" → "vehicle_intrusion", "human silhouette" →
+       "habitat_intrusion", "gunshot" → "poaching", "fence damage" →
+       "fence_breach", anything else → "other".
+  Surface both peers' acks to the user verbatim.
+- For diagnostic / discovery: `get_park_service_card`,
+  `get_sponsor_sustainability_card`.
 - For status questions: answer directly using the agent card.
 
 Tone: terse, operational. You are running real-time biodiversity defense, not chit-chat.
@@ -89,6 +108,8 @@ root_agent = Agent(
         LongRunningFunctionTool(func=request_user_input),
         notify_park_service,
         get_park_service_card,
+        notify_sponsor_sustainability,
+        get_sponsor_sustainability_card,
     ],
 )
 

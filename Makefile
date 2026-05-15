@@ -142,11 +142,40 @@ deploy-park-service:
 wire-park-service:
 	@if [ -z "$(PARK_URL)" ]; then echo "ERROR: set PARK_URL=https://..."; exit 1; fi
 	PROJECT_ID=$$(gcloud config get-value project) && \
-	PROJECT_NUMBER=$$(gcloud projects describe $$PROJECT_ID --format="value(projectNumber)") && \
 	gcloud beta run services update guardian \
 		--region us-central1 \
 		--project $$PROJECT_ID \
 		--update-env-vars "PARK_SERVICE_URL=$(PARK_URL)"
+
+# Deploy the Sponsor Sustainability peer agent as its own Cloud Run service.
+# Same build-then-deploy two-step as park_service. After deploy, run
+# `make wire-sponsor-sustainability SPONSOR_URL=https://...` to point
+# GUARDIAN at it.
+deploy-sponsor-sustainability:
+	PROJECT_ID=$$(gcloud config get-value project) && \
+	COMMIT_SHA=$$(git rev-parse --short HEAD) && \
+	gcloud builds submit . \
+		--config peers/sponsor_sustainability/cloudbuild.yaml \
+		--substitutions COMMIT_SHA=$$COMMIT_SHA \
+		--project $$PROJECT_ID && \
+	gcloud beta run deploy guardian-sponsor-sustainability \
+		--image us-central1-docker.pkg.dev/$$PROJECT_ID/cloud-run-source-deploy/guardian-sponsor-sustainability:latest \
+		--memory "2Gi" \
+		--project $$PROJECT_ID \
+		--region "us-central1" \
+		--no-allow-unauthenticated \
+		--no-cpu-throttling \
+		--labels "created-by=adk,peer=sponsor-sustainability" \
+		--update-env-vars "AGENT_VERSION=0.1.0"
+
+# Wire GUARDIAN to a deployed sponsor_sustainability peer URL.
+wire-sponsor-sustainability:
+	@if [ -z "$(SPONSOR_URL)" ]; then echo "ERROR: set SPONSOR_URL=https://..."; exit 1; fi
+	PROJECT_ID=$$(gcloud config get-value project) && \
+	gcloud beta run services update guardian \
+		--region us-central1 \
+		--project $$PROJECT_ID \
+		--update-env-vars "SPONSOR_SUSTAINABILITY_URL=$(SPONSOR_URL)"
 
 # ==============================================================================
 # Data Ingestion (Vertex AI Search)
