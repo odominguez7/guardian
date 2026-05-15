@@ -118,13 +118,17 @@ def collect_feedback(feedback: Feedback) -> dict[str, str]:
 # ring-buffer replayed before live events resume.
 #
 # CORS — Ops Center frontend on a different Cloud Run URL needs cross-origin
-# access. Default to permissive ALL ORIGINS; tighten via env once we know the
-# final frontend URL.
-_cors_origins = os.environ.get("GUARDIAN_CORS_ORIGINS", "*")
+# access. Codex challenge 2026-05-15 flagged: allow_origins=["*"] +
+# allow_credentials=True is browser-rejected. Drop credentials when no
+# specific origins are configured; only enable credentials when caller passed
+# an explicit allowlist.
+_cors_raw = os.environ.get("GUARDIAN_CORS_ORIGINS", "*")
+_cors_origins = [o.strip() for o in _cors_raw.split(",") if o.strip()]
+_cors_credentials = bool(_cors_origins and _cors_origins != ["*"])
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[o.strip() for o in _cors_origins.split(",") if o.strip()],
-    allow_credentials=True,
+    allow_origins=_cors_origins,
+    allow_credentials=_cors_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -280,6 +284,26 @@ def list_scenarios() -> dict:
     }
 
 
+# --- Demo abuse guard --------------------------------------------------------
+# Codex challenge 2026-05-15 flagged: /demo/run was non-idempotent +
+# unrate-limited. A single user could spam it and fan out unlimited LLM calls
+# to peers. Add a per-scenario cooldown (15s between runs) + in-flight lock
+# (only one concurrent run per scenario). Process-local; for multi-instance
+# protection a shared store would be needed (Redis/Firestore) — out of scope
+# for hackathon, captured in TODOS.md.
+_SCENARIO_COOLDOWN_S = 15.0
+_scenario_last_run: dict[str, float] = {}
+_scenario_in_flight: dict[str, asyncio.Lock] = {}
+
+
+def _scenario_lock(scenario_id: str) -> asyncio.Lock:
+    lock = _scenario_in_flight.get(scenario_id)
+    if lock is None:
+        lock = asyncio.Lock()
+        _scenario_in_flight[scenario_id] = lock
+    return lock
+
+
 @app.post("/demo/run/{scenario_id}")
 async def run_scenario(scenario_id: str) -> dict:
     """Fire a scripted scenario end-to-end and return the incident record.
@@ -287,47 +311,76 @@ async def run_scenario(scenario_id: str) -> dict:
     The scenario is deterministic: seed → mint_incident_id → notify both
     peers in parallel → return the consolidated record. Every step emits to
     the firehose so subscribed clients see the dance in real time.
+
+    Guards:
+    - 15-second cooldown per scenario (returns 429 if hit too fast)
+    - Per-scenario in-flight lock so concurrent triggers serialize rather
+      than interleave with the same incident_id
     """
     scenario = _SCENARIOS.get(scenario_id)
     if scenario is None:
         raise HTTPException(status_code=404, detail=f"Unknown scenario: {scenario_id}")
 
-    incident_id = mint_incident_id(scenario["seed"])
-    _events.emit(
-        kind="incident_event",
-        agent="ops_center",
-        tool=f"scenario:{scenario_id}",
-        incident_id=incident_id,
-        severity=scenario["park_args"]["severity"],
-        payload={
+    import time as _time
+
+    now = _time.monotonic()
+    last = _scenario_last_run.get(scenario_id, 0.0)
+    if now - last < _SCENARIO_COOLDOWN_S:
+        wait = _SCENARIO_COOLDOWN_S - (now - last)
+        raise HTTPException(
+            status_code=429,
+            detail=f"Scenario '{scenario_id}' on cooldown. Retry in {wait:.1f}s.",
+        )
+
+    lock = _scenario_lock(scenario_id)
+    async with lock:
+        # Re-check cooldown under the lock so concurrent triggers serialize.
+        now = _time.monotonic()
+        last = _scenario_last_run.get(scenario_id, 0.0)
+        if now - last < _SCENARIO_COOLDOWN_S:
+            wait = _SCENARIO_COOLDOWN_S - (now - last)
+            raise HTTPException(
+                status_code=429,
+                detail=f"Scenario '{scenario_id}' on cooldown. Retry in {wait:.1f}s.",
+            )
+        _scenario_last_run[scenario_id] = now
+
+        incident_id = mint_incident_id(scenario["seed"])
+        _events.emit(
+            kind="incident_event",
+            agent="ops_center",
+            tool=f"scenario:{scenario_id}",
+            incident_id=incident_id,
+            severity=scenario["park_args"]["severity"],
+            payload={
+                "scenario_id": scenario_id,
+                "title": scenario["title"],
+                "narrative": scenario["narrative"],
+            },
+        )
+
+        park_task = notify_park_service(incident_id=incident_id, **scenario["park_args"])
+        sponsor_task = notify_sponsor_sustainability(
+            incident_id=incident_id, **scenario["sponsor_args"]
+        )
+        park, sponsor = await asyncio.gather(park_task, sponsor_task)
+
+        record = {
+            "incident_id": incident_id,
             "scenario_id": scenario_id,
             "title": scenario["title"],
-            "narrative": scenario["narrative"],
-        },
-    )
-
-    park_task = notify_park_service(incident_id=incident_id, **scenario["park_args"])
-    sponsor_task = notify_sponsor_sustainability(
-        incident_id=incident_id, **scenario["sponsor_args"]
-    )
-    park, sponsor = await asyncio.gather(park_task, sponsor_task)
-
-    record = {
-        "incident_id": incident_id,
-        "scenario_id": scenario_id,
-        "title": scenario["title"],
-        "park_service": park,
-        "sponsor_sustainability": sponsor,
-    }
-    _events.emit(
-        kind="incident_event",
-        agent="ops_center",
-        tool=f"scenario:{scenario_id}:complete",
-        incident_id=incident_id,
-        severity="info",
-        payload={"park_status": park.get("status"), "sponsor_status": sponsor.get("status")},
-    )
-    return record
+            "park_service": park,
+            "sponsor_sustainability": sponsor,
+        }
+        _events.emit(
+            kind="incident_event",
+            agent="ops_center",
+            tool=f"scenario:{scenario_id}:complete",
+            incident_id=incident_id,
+            severity="info",
+            payload={"park_status": park.get("status"), "sponsor_status": sponsor.get("status")},
+        )
+        return record
 
 
 # Main execution

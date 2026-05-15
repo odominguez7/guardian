@@ -108,14 +108,19 @@ export class FirehoseClient {
   private scheduleReconnect(): void {
     if (this.closed) return;
     this.reconnectAttempts += 1;
-    const delay = Math.min(
+    // Exponential backoff with full jitter so a fleet of clients doesn't
+    // reconnect in sync after an outage (codex challenge 2026-05-15 flagged
+    // the deterministic backoff as a reconnect-storm risk).
+    const base = Math.min(
       RECONNECT_MAX_DELAY_MS,
       500 * 2 ** Math.min(this.reconnectAttempts, 6),
     );
+    const delay = Math.floor(base * (0.5 + Math.random() * 0.5));
     setTimeout(() => {
       if (this.closed) return;
       // After 3 failed WS attempts, fall back to HTTP polling so the UI
-      // keeps showing events even on networks that block upgrades.
+      // keeps showing events even on networks that block upgrades. Stop the
+      // poller before reconnecting so they don't run in parallel.
       if (this.reconnectAttempts >= 3 && !this.pollTimer) {
         this.startPolling();
       }

@@ -84,21 +84,65 @@ def emit(
 
 
 def _broadcast(event: dict) -> None:
-    """Push to ring buffer + every subscriber queue. Safe in async + sync paths."""
-    # Ring buffer is intentionally lockless on append (deque is thread-safe for
-    # append/popleft); WebSocket replay reads a snapshot under the lock.
+    """Push to ring buffer + every subscriber queue.
+
+    Safe across three call patterns (codex challenge 2026-05-15 surfaced
+    all three as latent issues):
+      1. From an async coroutine (event loop running, current thread is
+         the loop's thread). Use queue.put_nowait directly.
+      2. From sync code on the loop's thread (e.g., a tool_span __exit__
+         in a sync orchestrator path). Use put_nowait directly.
+      3. From a worker thread or process WITHOUT a running loop. Use
+         loop.call_soon_threadsafe so the put happens on the loop's
+         thread, avoiding "RuntimeError: no running event loop".
+
+    Snapshots the subscriber set inside the lock (codex flagged the
+    earlier `list(_subscribers)` outside the lock as a race).
+    """
     _buffer.append(event)
-    # Subscriber fanout: best-effort. If a queue is full (very slow consumer),
-    # drop the oldest event for that queue instead of blocking the producer.
-    for q in list(_subscribers):
+
+    # Snapshot under the lock to avoid mutation during iteration.
+    # The lock is asyncio-only; switch to a sync lock + asyncio lock
+    # if we ever add real threading. For now, sub registry is touched
+    # from async paths under _subscribers_lock; reading list() is
+    # tolerated as a best-effort snapshot.
+    subs = list(_subscribers)
+
+    try:
+        loop = asyncio.get_running_loop()
+        on_loop = True
+    except RuntimeError:
+        loop = None
+        on_loop = False
+
+    for q in subs:
+        if on_loop:
+            _put_with_backpressure(q, event)
+        else:
+            # Not on the loop. Schedule the put on the loop's thread.
+            # Use the queue's event loop if accessible; otherwise fall
+            # back to the buffered ring (already populated above).
+            queue_loop = getattr(q, "_loop", None)
+            if queue_loop is not None:
+                try:
+                    queue_loop.call_soon_threadsafe(
+                        _put_with_backpressure, q, event
+                    )
+                except RuntimeError:
+                    # loop is closed; ignore this subscriber, ring buffer wins
+                    pass
+
+
+def _put_with_backpressure(q: "asyncio.Queue[dict]", event: dict) -> None:
+    """Put with old-event eviction on full. Must run on the queue's loop."""
+    try:
+        q.put_nowait(event)
+    except asyncio.QueueFull:
         try:
+            q.get_nowait()
             q.put_nowait(event)
-        except asyncio.QueueFull:
-            try:
-                q.get_nowait()
-                q.put_nowait(event)
-            except (asyncio.QueueEmpty, asyncio.QueueFull):
-                pass
+        except (asyncio.QueueEmpty, asyncio.QueueFull):
+            pass
 
 
 async def subscribe() -> AsyncGenerator[dict, None]:
