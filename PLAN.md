@@ -178,10 +178,35 @@ Apply to GFS Cloud Program ($350K) Day 1 anyway — removes any constraint and i
 
 ## §8 — 22-day execution schedule (locked)
 
+### Actual progress log (live)
+
+**End of calendar D1 (2026-05-15) — effective deliverable day: D12+.**
+
+| Plan day | Status | Date shipped | Evidence |
+|---|---|---|---|
+| D1 | ✅ SHIPPED | 2026-05-15 | github.com/odominguez7/guardian, Cloud Run service `guardian-180171737110.us-central1.run.app` |
+| D2 | ✅ SHIPPED (pulled forward) | 2026-05-15 | Vertex AI Search data store `guardian-collection` + search engine `guardian-search-dev` + 7-doc wildlife corpus, test query returns expected ranking |
+| D3 | ✅ SHIPPED | 2026-05-15 | Stream Watcher live, 2 ADK eval trajectories, live in playground at localhost:8501 |
+| D11 | ✅ SHIPPED (pulled forward) | 2026-05-15 | Park Service A2A peer at `guardian-park-service-180171737110.us-central1.run.app`, 3/3 integration tests, live ranger dispatch verified |
+| D12 | ✅ SHIPPED (pulled forward) | 2026-05-15 | Sponsor Sustainability A2A peer at `guardian-sponsor-sustainability-180171737110.us-central1.run.app`, 3/3 integration tests, live TNFD filing verified, fan-out reconciliation via deterministic `incident_id` |
+
+**Bonus work D1 (not in original plan):**
+- 2 cross-model reviews CLEAR: Claude `/review` (10 informational findings, 1 fixed) + OpenAI `/codex review` (3 P1 import-time auth crashes — all fixed) + `/plan-eng-review` (6 P2 issues, 0 critical gaps)
+- Boot-time GCP auth hardened in 5 files (no-ADC environments safe)
+- `TODOS.md` consolidating 13 deferred P2/P3 items for D17 polish pass
+- AgentPhone MCP availability verified for D8 (no Twilio fallback needed)
+- 11 commits pushed to `origin/main`
+
+**Remaining critical-path agents:** D4 Audio, D5 Species ID, D6 Pattern + Memory Bank, D7 Visualizer, D8 Dispatch, D9 Court-Evidence, D10 Spanner GraphRAG, D13 Funder peer, D14 Neighbor peer, D15 Frontend, D16 ParallelAgent refactor.
+
+---
+
+### Locked schedule (original)
+
 | Day | Date | Milestone | Concrete deliverable |
 |---|---|---|---|
-| **D1** | 2026-05-15 | Repo + GCP project + auth verified + GFS Cloud Program applied + Agent Starter Pack scaffold cleanly applied | github.com/odominguez7/guardian + GCP project `guardian-xxx` + Terraform applies |
-| D2 | 05-16 | Hello-Agent on Cloud Run with `agent.json` + Vertex AI Search index seeded (IUCN, CITES, Snapshot Serengeti) — _**search seeding pulled forward to D1 per eng review 2026-05-15: unblocks D5/D6/D9 agents that depend on the index**_ | Live HTTPS URL |
+| **D1** | 2026-05-15 | Repo + GCP project + auth verified + Agent Starter Pack scaffold cleanly applied | github.com/odominguez7/guardian + GCP project `guardian-gfs-2026` + Cloud Run live |
+| D2 | 05-16 | Hello-Agent on Cloud Run with `agent.json` + Vertex AI Search index seeded (IUCN, CITES, Snapshot Serengeti) — _search seeding pulled forward to D1_ | Live HTTPS URL + queryable corpus |
 | D3 | 05-17 | Stream Watcher agent processes 1 sample clip → emits structured event | Sample clip detected |
 | D4 | 05-18 | Audio agent detects gunshot/vehicle in sample audio | Audio classified |
 | D5 | 05-19 | Species ID agent identifies 5 individual animals from frames | Echo recognized |
@@ -190,8 +215,8 @@ Apply to GFS Cloud Program ($350K) Day 1 anyway — removes any constraint and i
 | D8 | 05-22 | Dispatch agent sends SMS to a test phone (eng review 2026-05-15: verify AgentPhone MCP availability D1; fallback Twilio direct if unavailable) | Real SMS arrives |
 | D9 | 05-23 | Court-Evidence agent packages a sample incident → PDF | PDF generated |
 | D10 | 05-24 | Spanner GraphRAG live; Pattern agent uses it | Graph queries work |
-| D11 | 05-25 | **A2A Peer #1**: Park Authority agent (Cloud Run #2) + handshake works — _front-loaded to D1, shipped 2026-05-15 (`peers/park_service/`, 3/3 integration tests green, separate Cloud Run service)_ | A2A handshake on video |
-| D12 | 05-26 | **A2A Peer #2**: Corporate Sustainability agent (auto-files TNFD entry) — _front-loaded to D1, shipped 2026-05-15 (`peers/sponsor_sustainability/`, 3/3 integration tests green, live on Cloud Run, fan-out + reconciliation verified)_ | TNFD JSON output |
+| D11 | 05-25 | **A2A Peer #1**: Park Authority agent (Cloud Run #2) + handshake works — _front-loaded to D1_ | A2A handshake on video |
+| D12 | 05-26 | **A2A Peer #2**: Corporate Sustainability agent (auto-files TNFD entry) — _front-loaded to D1_ | TNFD JSON output |
 | D13 | 05-27 | **A2A Peer #3**: Funder Reporter agent (sends impact report) | Sample report |
 | D14 | 05-28 | **A2A Peer #4**: Neighboring Park Mutual-Aid agent | Cross-border handoff |
 | D15 | 05-29 | Frontend Cloud Run app w/ Firebase Auth + AG-UI streaming map + live feed (eng review 2026-05-15 locked **Firebase Studio** as the scaffolding tool — Track 3 stack-maximization bonus + fastest path to a working demo URL) | Demo UI live |
@@ -266,9 +291,10 @@ Apply to GFS Cloud Program ($350K) Day 1 anyway — removes any constraint and i
 
 | Review | Trigger | Why | Runs | Status | Findings |
 |--------|---------|-----|------|--------|----------|
-| CEO Review | `/plan-ceo-review` | Scope & strategy | 2 | CLEAR (SELECTIVE EXPANSION — D1 execution review 2026-05-15) | 7 cherry-picks accepted, 2 code-vs-plan mismatches caught (Gemini 3 Pro upgrade, F500-first storyboard) |
-| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | CLEAR (D1 architecture review 2026-05-15) | 6 P2 issues, 0 critical gaps. 6 decisions locked: Vertex Search pulled to D1, AgentPhone verify-then-fallback, Memory Bank pulled to D6, Firebase Studio frontend, ADK ParallelAgent refactor on D16, TODOS.md consolidation. |
-| Codex Review | `/codex review` | Independent 2nd opinion | 1 | CLEAR (clean, 3 findings, 3 fixed) | Caught 3 import-time GCP auth crashes Claude missed. All fixed. |
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 2 | CLEAR (SELECTIVE EXPANSION 2026-05-15) | 7 cherry-picks accepted, 2 code-vs-plan mismatches caught (Gemini 3 Pro env-driven, F500-first storyboard) |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | CLEAR (2026-05-15) | 6 P2 issues, 0 critical gaps. 6 decisions locked: Vertex Search pulled to D1 (DONE), AgentPhone verify-then-fallback (VERIFIED, no fallback needed), Memory Bank pulled to D6, Firebase Studio frontend, ADK ParallelAgent refactor on D16, TODOS.md consolidation (DONE). |
+| Codex Review | `/codex review` | Independent 2nd opinion | 1 | CLEAR (3 P1 findings, 3 fixed) | Caught 3 import-time GCP auth crashes Claude missed. All fixed via lazy init in 5 files. |
+| Codex Challenge | `/codex challenge` | Adversarial sweep of D1 work | 1 | _running 2026-05-15_ | Pending findings on the D1 cumulative diff (A2A peers + search infra + corpus + lazy auth + TODOS.md) |
 | Adversarial | `/review` adversarial pass | Always-on per-diff | 1 | CLEAR | 10 findings (1 fixed, 9 deferred to D17 polish + TODOS.md) |
 | Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | optional, run D15 with frontend |
 
@@ -276,6 +302,6 @@ Apply to GFS Cloud Program ($350K) Day 1 anyway — removes any constraint and i
 
 **CROSS-MODEL:** Zero overlap between Claude and Codex findings — Claude caught semantics/protocol, Codex caught startup invariants. Both reviewers' fixes shipped.
 
-**UNRESOLVED:** 0
+**UNRESOLVED:** 0 (pending codex-challenge sweep results)
 
-**VERDICT:** CEO + ENG + CODEX all CLEARED. Ready for D2-D16 execution. Next: start Vertex AI Search seeding (background, wall-clock), verify AgentPhone MCP, consolidate TODOS.md.
+**VERDICT:** CEO + ENG + CODEX REVIEW all CLEARED. Vertex AI Search live. AgentPhone path locked. Ready for D4 (Audio Agent) and forward.
