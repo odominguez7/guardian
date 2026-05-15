@@ -1,0 +1,39 @@
+# secrets
+.env
+.env.*
+*.key
+*.pem
+service-account*.json
+gcloud-creds*.json
+
+# build
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+venv/
+dist/
+build/
+.next/
+.turbo/
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
+
+# parse artifacts (big PDFs)
+parse_result_*.json
+
+# local
+.local/
+*.log
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+
+# demo artifacts
+demo-renders/
+*.mp4
+*.mov
