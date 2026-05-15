@@ -116,18 +116,26 @@ backend: deploy
 # ==============================================================================
 
 # Deploy the Park Service peer agent as its own Cloud Run service.
-# Independent from `make deploy`. After deploy, copy the printed URL into the
-# GUARDIAN orchestrator's PARK_SERVICE_URL env var and re-deploy GUARDIAN.
+# Two-step: Cloud Build builds the peer's Dockerfile with the repo as context,
+# then Cloud Run pulls the image. Independent from `make deploy`.
+# After deploy, copy the printed URL into the GUARDIAN orchestrator's
+# PARK_SERVICE_URL env var with `make wire-park-service PARK_URL=...`.
 deploy-park-service:
 	PROJECT_ID=$$(gcloud config get-value project) && \
+	COMMIT_SHA=$$(git rev-parse --short HEAD) && \
+	gcloud builds submit . \
+		--config peers/park_service/cloudbuild.yaml \
+		--substitutions COMMIT_SHA=$$COMMIT_SHA \
+		--project $$PROJECT_ID && \
 	gcloud beta run deploy guardian-park-service \
-		--source . \
-		--dockerfile peers/park_service/Dockerfile \
+		--image us-central1-docker.pkg.dev/$$PROJECT_ID/cloud-run-source-deploy/guardian-park-service:latest \
 		--memory "2Gi" \
 		--project $$PROJECT_ID \
 		--region "us-central1" \
 		--no-allow-unauthenticated \
-		--labels "created-by=adk,peer=park-service"
+		--no-cpu-throttling \
+		--labels "created-by=adk,peer=park-service" \
+		--update-env-vars "AGENT_VERSION=0.1.0"
 
 # After deploy-park-service, point GUARDIAN at the new URL and redeploy.
 # Usage: make wire-park-service PARK_URL=https://guardian-park-service-XXX.us-central1.run.app

@@ -190,7 +190,7 @@ Apply to GFS Cloud Program ($350K) Day 1 anyway — removes any constraint and i
 | D8 | 05-22 | Dispatch agent sends SMS to a test phone | Real SMS arrives |
 | D9 | 05-23 | Court-Evidence agent packages a sample incident → PDF | PDF generated |
 | D10 | 05-24 | Spanner GraphRAG live; Pattern agent uses it | Graph queries work |
-| D11 | 05-25 | **A2A Peer #1**: Park Authority agent (Cloud Run #2) + handshake works | A2A handshake on video |
+| D11 | 05-25 | **A2A Peer #1**: Park Authority agent (Cloud Run #2) + handshake works — _front-loaded to D1, shipped 2026-05-15 (`peers/park_service/`, 3/3 integration tests green, separate Cloud Run service)_ | A2A handshake on video |
 | D12 | 05-26 | **A2A Peer #2**: Corporate Sustainability agent (auto-files TNFD entry) | TNFD JSON output |
 | D13 | 05-27 | **A2A Peer #3**: Funder Reporter agent (sends impact report) | Sample report |
 | D14 | 05-28 | **A2A Peer #4**: Neighboring Park Mutual-Aid agent | Cross-border handoff |
