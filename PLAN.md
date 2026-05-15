@@ -191,11 +191,16 @@ Apply to GFS Cloud Program ($350K) Day 1 anyway — removes any constraint and i
 | D12 | ✅ SHIPPED (pulled forward) | 2026-05-15 | Sponsor Sustainability A2A peer at `guardian-sponsor-sustainability-180171737110.us-central1.run.app`, 3/3 integration tests, live TNFD filing verified, fan-out reconciliation via deterministic `incident_id` |
 
 **Bonus work D1 (not in original plan):**
-- 2 cross-model reviews CLEAR: Claude `/review` (10 informational findings, 1 fixed) + OpenAI `/codex review` (3 P1 import-time auth crashes — all fixed) + `/plan-eng-review` (6 P2 issues, 0 critical gaps)
-- Boot-time GCP auth hardened in 5 files (no-ADC environments safe)
-- `TODOS.md` consolidating 13 deferred P2/P3 items for D17 polish pass
+- 4 cross-model / structured reviews CLEAR: Claude `/review`, `/plan-ceo-review`, `/plan-eng-review`, OpenAI `/codex review` AND `/codex challenge` adversarial sweep
+- Codex challenge caught 1 P0 demo-blocker (Cloud Run service-to-service ID token auth) + 6 P1 correctness fixes — all shipped + redeployed + verified end-to-end
+- Boot-time GCP auth hardened in 7 files (5 from /codex review, 2 from /codex challenge)
+- Deterministic `incident_id` no longer date-baked (reprocessing safe across midnight UTC)
+- Sponsor `filing_id` + `reporting_period` now anchored on `observation_timestamp` (late reprocessing files into the right quarter)
+- Peer agent cards advertise correct Cloud Run URLs (APP_URL injected on deploy)
+- `TODOS.md` consolidating 30+ deferred P2/P3 items for D17 polish pass
 - AgentPhone MCP availability verified for D8 (no Twilio fallback needed)
-- 11 commits pushed to `origin/main`
+- 13 commits pushed to `origin/main`
+- Live verified: orchestrator-in-Cloud-Run → peer-in-Cloud-Run round-trip with service-to-service auth working end-to-end
 
 **Remaining critical-path agents:** D4 Audio, D5 Species ID, D6 Pattern + Memory Bank, D7 Visualizer, D8 Dispatch, D9 Court-Evidence, D10 Spanner GraphRAG, D13 Funder peer, D14 Neighbor peer, D15 Frontend, D16 ParallelAgent refactor.
 
@@ -294,7 +299,7 @@ Apply to GFS Cloud Program ($350K) Day 1 anyway — removes any constraint and i
 | CEO Review | `/plan-ceo-review` | Scope & strategy | 2 | CLEAR (SELECTIVE EXPANSION 2026-05-15) | 7 cherry-picks accepted, 2 code-vs-plan mismatches caught (Gemini 3 Pro env-driven, F500-first storyboard) |
 | Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | CLEAR (2026-05-15) | 6 P2 issues, 0 critical gaps. 6 decisions locked: Vertex Search pulled to D1 (DONE), AgentPhone verify-then-fallback (VERIFIED, no fallback needed), Memory Bank pulled to D6, Firebase Studio frontend, ADK ParallelAgent refactor on D16, TODOS.md consolidation (DONE). |
 | Codex Review | `/codex review` | Independent 2nd opinion | 1 | CLEAR (3 P1 findings, 3 fixed) | Caught 3 import-time GCP auth crashes Claude missed. All fixed via lazy init in 5 files. |
-| Codex Challenge | `/codex challenge` | Adversarial sweep of D1 work | 1 | _running 2026-05-15_ | Pending findings on the D1 cumulative diff (A2A peers + search infra + corpus + lazy auth + TODOS.md) |
+| Codex Challenge | `/codex challenge` | Adversarial sweep of D1 work | 1 | CLEAR (1 P0 fixed, 6 P1 fixed, 20+ P2 to TODOS.md) | Caught Cloud Run service-to-service ID token auth gap (would have broken the demo for any judge clicking the live URL). All P0/P1 fixed inline + verified: orchestrator-in-Cloud-Run → peer-in-Cloud-Run round-trip returns "Acks received". Agent cards now advertise correct Cloud Run URLs. |
 | Adversarial | `/review` adversarial pass | Always-on per-diff | 1 | CLEAR | 10 findings (1 fixed, 9 deferred to D17 polish + TODOS.md) |
 | Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | optional, run D15 with frontend |
 
