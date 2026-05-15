@@ -112,6 +112,35 @@ deploy:
 backend: deploy
 
 # ==============================================================================
+# A2A Peer Deployment Targets
+# ==============================================================================
+
+# Deploy the Park Service peer agent as its own Cloud Run service.
+# Independent from `make deploy`. After deploy, copy the printed URL into the
+# GUARDIAN orchestrator's PARK_SERVICE_URL env var and re-deploy GUARDIAN.
+deploy-park-service:
+	PROJECT_ID=$$(gcloud config get-value project) && \
+	gcloud beta run deploy guardian-park-service \
+		--source . \
+		--dockerfile peers/park_service/Dockerfile \
+		--memory "2Gi" \
+		--project $$PROJECT_ID \
+		--region "us-central1" \
+		--no-allow-unauthenticated \
+		--labels "created-by=adk,peer=park-service"
+
+# After deploy-park-service, point GUARDIAN at the new URL and redeploy.
+# Usage: make wire-park-service PARK_URL=https://guardian-park-service-XXX.us-central1.run.app
+wire-park-service:
+	@if [ -z "$(PARK_URL)" ]; then echo "ERROR: set PARK_URL=https://..."; exit 1; fi
+	PROJECT_ID=$$(gcloud config get-value project) && \
+	PROJECT_NUMBER=$$(gcloud projects describe $$PROJECT_ID --format="value(projectNumber)") && \
+	gcloud beta run services update guardian \
+		--region us-central1 \
+		--project $$PROJECT_ID \
+		--update-env-vars "PARK_SERVICE_URL=$(PARK_URL)"
+
+# ==============================================================================
 # Data Ingestion (Vertex AI Search)
 # ==============================================================================
 

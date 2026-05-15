@@ -18,6 +18,7 @@ from google.cloud import bigquery
 from google.genai import types
 
 from app.agents.stream_watcher import stream_watcher_agent
+from app.tools.a2a_peers import get_park_service_card, notify_park_service
 
 # --- Environment setup (Vertex AI auth) ---------------------------------------
 _, project_id = google.auth.default()
@@ -49,14 +50,24 @@ areas from poaching and produces TNFD/CSRD biodiversity reports for corporate sp
 
 Your team of specialist agents:
 - stream_watcher: analyzes video/image streams for wildlife and threats.
-  (Additional agents wired in subsequent days: audio, species_id, pattern, visualizer,
-   dispatch, court_evidence; plus four A2A peer agents.)
+  (Additional specialists wired in subsequent days: audio, species_id, pattern,
+   visualizer, dispatch, court_evidence.)
+
+Your A2A peers (independent agents run by OTHER organizations):
+- park_service (national park authority): call `notify_park_service` to report
+  a wildlife-threat incident and receive a ranger-dispatch acknowledgement.
+- (Three additional peers ship D12-D14: sponsor_sustainability, funder, neighbor_park.)
 
 Routing rules:
-- For any video URI, GCS path, or image URI: delegate to `stream_watcher`.
+- Video URI, GCS path, or image URI → delegate to `stream_watcher`.
+- If a specialist returns `requires_escalation=True`, immediately call
+  `notify_park_service` with a stable incident_id, the best location available
+  ("Sector C, north fence" if coords unknown), and a severity inferred from the
+  threat_signals (gunshot/vehicle at night → critical; vehicle in restricted
+  zone → high; suspicious silhouette → medium; low confidence → low). Surface
+  the peer's ack to the user verbatim.
+- For "what does park_service do?" diagnostic questions: call `get_park_service_card`.
 - For status questions: answer directly using the agent card.
-- If a specialist returns `requires_escalation=True`, surface the alert prominently
-  and tell the user what downstream agents *will* be invoked (placeholder until D4+).
 
 Tone: terse, operational. You are running real-time biodiversity defense, not chit-chat.
 """
@@ -76,6 +87,8 @@ root_agent = Agent(
     sub_agents=[stream_watcher_agent],
     tools=[
         LongRunningFunctionTool(func=request_user_input),
+        notify_park_service,
+        get_park_service_card,
     ],
 )
 
