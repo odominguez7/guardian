@@ -29,6 +29,7 @@ import hashlib
 import json
 import logging
 import os
+import threading
 import time
 from collections import deque
 from collections.abc import AsyncGenerator
@@ -46,6 +47,13 @@ _buffer_lock = asyncio.Lock()
 # their oldest event dropped to keep the broadcast moving.
 _subscribers: set[asyncio.Queue[dict]] = set()
 _subscribers_lock = asyncio.Lock()
+
+# Thread-level lock for the registry + ring buffer. asyncio.Lock only protects
+# coroutines on the same event loop; if any code path emits from a worker
+# thread (e.g., google.cloud SDKs that run in thread executors) the buffer +
+# subscriber-set need real OS-thread mutual exclusion.
+# Codex challenge 2026-05-15 (final sweep) flagged this gap.
+_thread_lock = threading.Lock()
 
 
 def _now_iso() -> str:
@@ -96,17 +104,16 @@ def _broadcast(event: dict) -> None:
          loop.call_soon_threadsafe so the put happens on the loop's
          thread, avoiding "RuntimeError: no running event loop".
 
-    Snapshots the subscriber set inside the lock (codex flagged the
-    earlier `list(_subscribers)` outside the lock as a race).
+    Ring buffer append + subscriber snapshot are protected by an OS-thread
+    lock (codex final sweep 2026-05-15 flagged the asyncio-only locks as
+    insufficient for cross-thread emit calls; if any tool runs in a thread
+    executor, the deque append + set iteration would race).
     """
-    _buffer.append(event)
-
-    # Snapshot under the lock to avoid mutation during iteration.
-    # The lock is asyncio-only; switch to a sync lock + asyncio lock
-    # if we ever add real threading. For now, sub registry is touched
-    # from async paths under _subscribers_lock; reading list() is
-    # tolerated as a best-effort snapshot.
-    subs = list(_subscribers)
+    with _thread_lock:
+        _buffer.append(event)
+        # Snapshot under the thread lock so the iteration below isn't
+        # racing with concurrent add/remove from subscribe()/unsubscribe.
+        subs = list(_subscribers)
 
     try:
         loop = asyncio.get_running_loop()
@@ -157,39 +164,42 @@ async def subscribe() -> AsyncGenerator[dict, None]:
     """
     queue: asyncio.Queue[dict] = asyncio.Queue(maxsize=_BUFFER_SIZE)
 
-    async with _subscribers_lock:
+    with _thread_lock:
         _subscribers.add(queue)
+        # Replay buffer snapshot under the same lock so a concurrent
+        # _broadcast doesn't slip an event past us between snapshot + listen.
+        replay = list(_buffer)
 
     try:
-        # Replay buffer snapshot
-        async with _buffer_lock:
-            for evt in list(_buffer):
-                try:
-                    queue.put_nowait(evt)
-                except asyncio.QueueFull:
-                    break
+        for evt in replay:
+            try:
+                queue.put_nowait(evt)
+            except asyncio.QueueFull:
+                break
 
         while True:
             evt = await queue.get()
             yield evt
     finally:
-        async with _subscribers_lock:
+        with _thread_lock:
             _subscribers.discard(queue)
 
 
 async def snapshot() -> list[dict]:
     """Return a copy of the current ring buffer. Used by HTTP replay endpoint."""
-    async with _buffer_lock:
+    with _thread_lock:
         return list(_buffer)
 
 
 def subscriber_count() -> int:
     """Lightweight gauge for /health diagnostics."""
-    return len(_subscribers)
+    with _thread_lock:
+        return len(_subscribers)
 
 
 def buffer_depth() -> int:
-    return len(_buffer)
+    with _thread_lock:
+        return len(_buffer)
 
 
 # ---- Instrumentation helpers used by the orchestrator + peer agents ---------

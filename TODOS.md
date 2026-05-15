@@ -75,6 +75,16 @@ Items below are from the codex adversarial challenge after D1 work. P0 + 6 P1s w
 
 - **`SEARCH_ADD_ON_LLM` no fallback on quota miss.** If the project lacks the allowlist, `create_engine` fails with no fallback. Fix: try with add-on, fall back without on quota error. ~30 min.
 
+## P2 — Codex final-sweep findings (2026-05-15 evening, post-Ops-Center)
+
+- **Mobile / small-window layout unusable.** Fixed 3-column grid + `overflow-hidden` on body means panels are clipped on narrow viewports with no scroll. Desktop-first hackathon demo so deferred. Fix: switch to CSS grid with min-content rows + flex-wrap below ~1024px breakpoint. ~1 hr.
+  Refs: `ops-center/src/app/page.tsx:199`, `ops-center/src/app/layout.tsx:31`
+
+- **Firebase ID token-in-URL leakage path (dead code).** `firehose.ts` ships code to put a Firebase ID token in the WebSocket URL query string, which gets logged by proxies/Cloud Run. The server never validates it. Dead-code-but-latent. Fix when wiring real Firebase auth: use a server-side WebSocket proxy with header-based auth instead. ~2 hr.
+  Refs: `ops-center/src/lib/firehose.ts:154`, `app/fast_api_app.py:152`
+
+- **Mapbox token in build logs + shell history.** Token is passed via Cloud Build `--substitutions _MAPBOX_TOKEN=$MAPBOX_TOKEN` which logs to Cloud Build logs (visible to anyone with `roles/cloudbuild.builds.viewer`) and the make invocation lives in shell history. Mitigation already documented in `MAPBOX_USAGE_MONITORING.md` — when Omar's back, he creates a URL-restricted custom token; the leaked default token then becomes unusable from the wrong origin. ~15 min for the dashboard work.
+
 ## Process
 
 - After D17 polish pass, this file should be empty or only contain items that genuinely don't matter for the submission. Anything left here on D22 morning is officially "won't fix for the hackathon."

@@ -180,7 +180,7 @@ Apply to GFS Cloud Program ($350K) Day 1 anyway — removes any constraint and i
 
 ### Actual progress log (live)
 
-**End of calendar D1 (2026-05-15) — effective deliverable day: D12+.**
+**End of calendar D1 (2026-05-15) — effective deliverable day: D15+ (Operations Center shipped 14 days early).**
 
 | Plan day | Status | Date shipped | Evidence |
 |---|---|---|---|
@@ -189,18 +189,37 @@ Apply to GFS Cloud Program ($350K) Day 1 anyway — removes any constraint and i
 | D3 | ✅ SHIPPED | 2026-05-15 | Stream Watcher live, 2 ADK eval trajectories, live in playground at localhost:8501 |
 | D11 | ✅ SHIPPED (pulled forward) | 2026-05-15 | Park Service A2A peer at `guardian-park-service-180171737110.us-central1.run.app`, 3/3 integration tests, live ranger dispatch verified |
 | D12 | ✅ SHIPPED (pulled forward) | 2026-05-15 | Sponsor Sustainability A2A peer at `guardian-sponsor-sustainability-180171737110.us-central1.run.app`, 3/3 integration tests, live TNFD filing verified, fan-out reconciliation via deterministic `incident_id` |
+| **D15** | ✅ **SHIPPED (pulled forward 14 days)** | 2026-05-15 | **GUARDIAN Operations Center at `guardian-ops-center-180171737110.us-central1.run.app`. Next.js 16 + Mapbox GL JS + Firebase Auth + Framer Motion. Live event firehose (WebSocket), 3 demo scenarios, animated incident cards, ranger + TNFD ack cards, dashed A2A fan-out arrows on the map. Cinema-grade demo surface judges can click + screen-record.** |
 
 **Bonus work D1 (not in original plan):**
-- 4 cross-model / structured reviews CLEAR: Claude `/review`, `/plan-ceo-review`, `/plan-eng-review`, OpenAI `/codex review` AND `/codex challenge` adversarial sweep
-- Codex challenge caught 1 P0 demo-blocker (Cloud Run service-to-service ID token auth) + 6 P1 correctness fixes — all shipped + redeployed + verified end-to-end
-- Boot-time GCP auth hardened in 7 files (5 from /codex review, 2 from /codex challenge)
-- Deterministic `incident_id` no longer date-baked (reprocessing safe across midnight UTC)
-- Sponsor `filing_id` + `reporting_period` now anchored on `observation_timestamp` (late reprocessing files into the right quarter)
-- Peer agent cards advertise correct Cloud Run URLs (APP_URL injected on deploy)
-- `TODOS.md` consolidating 30+ deferred P2/P3 items for D17 polish pass
+- 5 cross-model / structured reviews CLEAR: Claude `/review`, `/plan-ceo-review` (x2), `/plan-eng-review`, OpenAI `/codex review`, AND `/codex challenge` adversarial sweep (x3 — peers, Ops Center, final)
+- Codex challenge sweeps caught 1 P0 + 13 P1 issues — all 14 fixed inline + redeployed + verified end-to-end
+- Boot-time GCP auth hardened in 7 files; service-to-service Cloud Run ID token auth wired into A2A client; APP_URL injected so agent cards advertise correct URLs in prod
+- Deterministic `incident_id` (no UTC date baked in); sponsor `filing_id` + `reporting_period` anchored on `observation_timestamp`
+- /demo/run protected by 15s per-scenario cooldown + asyncio.Lock (no spam-abuse, no incident_id collisions on concurrent triggers)
+- CORS credentials properly gated; event firehose loop-safe across sync/async/threadpool callers
+- **GUARDIAN Operations Center**: full Live Operations dashboard at `guardian-ops-center-...run.app` — Next.js 16, Mapbox GL JS, Firebase Auth scaffold, real-time WebSocket event stream, animated incident cards, dashed A2A fan-out arrows on the map. Verified live: scenario click → map pin pulse + amber arrows → incident card with ranger PSR-XXXX (8min ETA) + TNFD-2026-XXXXX filing ack. Cinema for the 3-min video.
+- `TODOS.md` cataloging 30+ deferred P2/P3 items; `MAPBOX_USAGE_MONITORING.md` documenting free-tier limits + token-restriction polish path
 - AgentPhone MCP availability verified for D8 (no Twilio fallback needed)
-- 13 commits pushed to `origin/main`
-- Live verified: orchestrator-in-Cloud-Run → peer-in-Cloud-Run round-trip with service-to-service auth working end-to-end
+- ~20 commits pushed to `origin/main`
+
+**CEO review 2026-05-15 (evening) cherry-picks for D2-D22:**
+
+| # | Decision | Direction | Rationale |
+|---|---|---|---|
+| 1 | Peers #3 + #4 next | PRIORITIZE before more sub-agents | Locks 4-peer Track 3 mandate; template copies, ½ day each |
+| 2 | Pattern Agent (D6) | YES build | Produces visible "historical poaching corridor" narrative in demo |
+| 3 | Spanner GraphRAG | DOWNSCOPE to BigQuery-only | Saves $86 + 1 day; demo doesn't notice the difference |
+| 4 | Court-Evidence Agent (D9) | YES build | Real PDF artifact judges can click; high demo value |
+| 5 | Audio Agent (D4) | SHIP THIN | One-tool classifier; ~2 hr; needed for multi-modal story |
+| 6 | Species ID (D5) | SHIP THIN | Vertex Vector Search over existing corpus; ~3 hr |
+| 7 | Visualizer (D7) | CUT or pre-render | Imagen sketch is cinema-only; pre-rendered placeholder in demo video saves 1 day |
+| 8 | Dispatch (D8) | STUB with AgentPhone hook | Mock dispatch_rangers ack; keep AgentPhone MCP code path documented |
+| 9 | ParallelAgent (D16) | PULL FORWARD to D5 | Each new sub-agent benefits; foundational |
+| 10 | Frontend polish | +map-load counter widget, scenario history | ~30 min each |
+| 11 | F500 voiceover | Research already done (KPMG quote) | Use `docs/demo-opener-quotes.md` |
+| 12 | Marketplace listing draft | YES D18 | Track 3 mandate |
+| 13 | Demo video | D19-D21 from live Ops Center | Press scenario button + screen-record |
 
 **Remaining critical-path agents:** D4 Audio, D5 Species ID, D6 Pattern + Memory Bank, D7 Visualizer, D8 Dispatch, D9 Court-Evidence, D10 Spanner GraphRAG, D13 Funder peer, D14 Neighbor peer, D15 Frontend, D16 ParallelAgent refactor.
 

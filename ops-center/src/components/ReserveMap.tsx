@@ -2,8 +2,9 @@
 
 import { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
-import "mapbox-gl/dist/mapbox-gl.css";
-import { RESERVES, type Reserve } from "@/lib/reserves";
+// Mapbox CSS is loaded globally in app/globals.css (per Next.js App Router
+// rules; client-component CSS imports can break builds in some toolchains).
+import { RESERVES } from "@/lib/reserves";
 
 interface Props {
   activeReserveId: string | null;

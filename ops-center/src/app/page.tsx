@@ -173,11 +173,27 @@ export default function Home() {
   const runScenario = useCallback(
     async (id: string) => {
       setRunningScenarioId(id);
+      // Codex challenge 2026-05-15 (final) flagged: if the firehose dies or
+      // :complete event is never received, the toolbar stays disabled
+      // forever. Belt-and-suspenders timeout resets the running flag after
+      // 90s regardless. The cooldown on the server is 15s so this is
+      // generous but not infinite.
+      const fallbackResetMs = 90_000;
+      const fallback = setTimeout(() => setRunningScenarioId((cur) => (cur === id ? null : cur)), fallbackResetMs);
       try {
         const res = await fetch(`${ORCH_URL}/demo/run/${id}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
         });
+        if (res.status === 429) {
+          // Cooldown hit. Don't clear runningScenarioId — the previously-
+          // running scenario is still in flight. Log and exit silently;
+          // the firehose :complete event from the first run will reset us.
+          console.warn(`Scenario ${id} on cooldown; first run still in flight`);
+          // Clear the fallback only because we won't get the success path.
+          // The firehose-driven reset is still expected.
+          return;
+        }
         if (!res.ok) {
           throw new Error(`Demo scenario failed: ${res.status}`);
         }
@@ -185,7 +201,10 @@ export default function Home() {
         // The :complete event arrives on the firehose and resets running flag.
       } catch (err) {
         console.error(err);
-        setRunningScenarioId(null);
+        // Only clear if the running scenario is still us (don't stomp a
+        // newer click).
+        setRunningScenarioId((cur) => (cur === id ? null : cur));
+        clearTimeout(fallback);
       }
     },
     [],
