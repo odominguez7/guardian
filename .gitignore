@@ -242,3 +242,7 @@ tools/a2a-inspector/
 
 # venv from scaffold
 .venv/
+
+# ADK runtime session/state directories (regenerated on each run)
+.adk/
+**/.adk/
