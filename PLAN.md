@@ -76,10 +76,10 @@ _Locked 2026-05-15. Track 3 (Refactor for Marketplace + Gemini Enterprise). Subm
 
 | Agent | Job | Model | Distinguishing tool |
 |---|---|---|---|
-| **Orchestrator** | Routes signals to specialists, manages task state, exposes A2A interface to all 4 peers | Gemini 3 Pro | A2A SDK · ADK LlmAgent |
+| **Orchestrator** | Routes signals to specialists, manages task state, exposes A2A interface to all 4 peers | Gemini 2.5 Pro (env-driven, see §5) | A2A SDK · ADK LlmAgent |
 | **Stream Watcher** | 24/7 watches camera feeds (in prod) / processes recorded clips (in demo) | Gemini Live (video) | Gemini Live API |
 | **Audio Agent** | Listens for gunshots, vehicles, distress, human voices | Gemini Live (audio) + Speech-to-Text | Audio classification |
-| **Species ID** | Identifies species + individual animals (matriarch Echo) from frames | Gemini 3 Pro Vision | Vertex AI Vector Search over species embeddings |
+| **Species ID** | Identifies species + individual animals (matriarch Echo) from frames | Gemini 2.5 Pro Vision | Vertex AI Vector Search over species embeddings |
 | **Pattern Agent** | Cross-references with historical poaching, identifies entry routes, predicts next strike | Gemini 2.5 Flash | Spanner GraphRAG · BigQuery |
 | **Visualizer** | Generates suspect sketch from low-res frames; renders heatmaps | Imagen 4 + Nano Banana Pro | Imagen API |
 | **Dispatch** | Notifies rangers via SMS/voice/radio | Gemini 2.5 Flash | AgentPhone MCP |
@@ -133,7 +133,7 @@ Bootstrap via Agent Starter Pack: `uvx agent-starter-pack create guardian -a adk
 |---|---|---|
 | B2B core function | Fortune 500 TNFD/CSRD compliance reporting; conservation orgs; insurance underwriters | Pricing page, customer persona doc |
 | Cloud-Native Runtime | All 5+ Cloud Run services with Terraform | `infra/main.tf` |
-| Google Cloud Powered Intelligence | Gemini 3 Pro orchestrator (env-driven, see below) + 2.5 Flash sub-agents + Gemini Live | `ORCHESTRATOR_MODEL` env var, default `gemini-2.5-pro` until 3 Pro lands on Vertex for this project |
+| Google Cloud Powered Intelligence | Gemini 2.5 Pro orchestrator + 2.5 Flash sub-agents + Gemini 3 Flash Preview for evals + Gemini Live (later) | `GUARDIAN_ORCHESTRATOR_MODEL` env var, ships on 2.5 Pro; auto-upgrades to 3 Pro by env flip when Vertex allowlist lands |
 | **A2A Interoperability** | 4 distinct peer agents in separate Cloud Run services, each with `agent.json` + mTLS. Tiered: Park + Corp Sustainability = full bidirectional A2A flows; Funder + Neighbor = lighter request/response. | Public agent.json URLs |
 | Marketplace-ready | **Real Marketplace listing submission attempt** to Google by D22 + pricing page + SOC 2 readiness checklist | `marketplace/` folder + actual submission receipt |
 
@@ -220,7 +220,7 @@ Apply to GFS Cloud Program ($350K) Day 1 anyway — removes any constraint and i
 | 0:45-1:45 | **THE LIVE DEMO** | Split-screen mode optional. Real-time agents collaborating: Stream Watcher detects vehicle → Audio agent confirms engine noise → Species ID identifies endangered elephant herd in path → Pattern agent flags route as historical poaching corridor → Visualizer generates suspect sketch → A2A handshake with Park Authority agent → Dispatch sends ranger SMS → Court-Evidence agent bundles legal packet → **Corporate Sustainability agent A2A handshake auto-files TNFD entry into the F500 dashboard** (close on this — it's the punchline). **All 4 A2A peers visible on screen.** |
 | 1:45-2:15 | The architecture | 10-second architecture diagram walkthrough. Highlight 5 Cloud Run services + Vertex AI Search + Spanner GraphRAG + Memory Bank + AgentOps eval suite. |
 | 2:15-2:45 | The business case | "$300B biodiversity reporting market. EU CSRD mandates compliance for every Fortune 500. GUARDIAN ships on Google Cloud Marketplace with 4-peer A2A interop, 30 golden trajectory evals, and SOC 2 readiness." |
-| 2:45-3:00 | The ask | "Built on Gemini 3 Pro, ADK, A2A, and Cloud Run. Live at guardian.{domain}.com. Source: github.com/odominguez7/guardian." |
+| 2:45-3:00 | The ask | "Built on Gemini, ADK, A2A, and Cloud Run. Live at guardian.{domain}.com. Source: github.com/odominguez7/guardian." |
 
 ---
 
