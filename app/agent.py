@@ -21,9 +21,29 @@ from app.agents.stream_watcher import stream_watcher_agent
 from app.tools.a2a_peers import (
     get_park_service_card,
     get_sponsor_sustainability_card,
+    mint_incident_id,
     notify_park_service,
     notify_sponsor_sustainability,
 )
+
+
+def new_incident_id(seed: str = "") -> dict:
+    """Mint a fresh GUARDIAN incident_id to share across A2A peer calls.
+
+    Call this ONCE at the start of any incident-response sequence. Pass the
+    returned id into BOTH `notify_park_service` and
+    `notify_sponsor_sustainability` so the park record and the sponsor
+    filing reconcile.
+
+    Args:
+        seed: Optional deterministic seed (e.g. the source camera + timestamp).
+            Same seed → same incident_id, useful for de-duplication when the
+            same camera event is re-processed.
+
+    Returns:
+        {"incident_id": "GU-YYYYMMDD-<hex>"}
+    """
+    return {"incident_id": mint_incident_id(seed or None)}
 
 # --- Environment setup (Vertex AI auth) ---------------------------------------
 _, project_id = google.auth.default()
@@ -68,21 +88,22 @@ Your A2A peers (independent agents run by OTHER organizations):
 
 Routing rules:
 - Video URI, GCS path, or image URI → delegate to `stream_watcher`.
-- If a specialist returns `requires_escalation=True`, run BOTH peer calls in
-  this order:
-    1. `notify_park_service(incident_id, location, severity, summary)` — get
-       ranger dispatch. Use a stable incident_id (e.g. "GU-{date}-{seq}"),
-       best location available, severity inferred from threat_signals
-       (gunshot/vehicle at night → critical; vehicle in restricted zone →
-       high; suspicious silhouette → medium; low confidence → low).
+- If a specialist returns `requires_escalation=True`, run this sequence:
+    0. FIRST call `new_incident_id` to mint a single shared incident_id.
+       Pass it into BOTH peer calls below so park + sponsor records
+       reconcile. Never invent your own GU-... id by hand.
+    1. `notify_park_service(incident_id, location, severity, summary)` —
+       get ranger dispatch. Use best location available, severity inferred
+       from threat_signals (gunshot/vehicle at night → critical; vehicle
+       in restricted zone → high; suspicious silhouette → medium; low
+       confidence → low).
     2. If severity is "high" or "critical" OR a sponsored species is
        involved, also call `notify_sponsor_sustainability(incident_id,
        location, species_affected, threat_type, severity,
-       observation_timestamp)`. Use the SAME incident_id from step 1 so the
-       sponsor and park records reconcile. Map threat_signals to
-       threat_type: "vehicle" → "vehicle_intrusion", "human silhouette" →
-       "habitat_intrusion", "gunshot" → "poaching", "fence damage" →
-       "fence_breach", anything else → "other".
+       observation_timestamp)`. Use the SAME incident_id from step 0.
+       Map threat_signals to threat_type: "vehicle" → "vehicle_intrusion",
+       "human silhouette" → "habitat_intrusion", "gunshot" → "poaching",
+       "fence damage" → "fence_breach", anything else → "other".
   Surface both peers' acks to the user verbatim.
 - For diagnostic / discovery: `get_park_service_card`,
   `get_sponsor_sustainability_card`.
@@ -106,6 +127,7 @@ root_agent = Agent(
     sub_agents=[stream_watcher_agent],
     tools=[
         LongRunningFunctionTool(func=request_user_input),
+        new_incident_id,
         notify_park_service,
         get_park_service_card,
         notify_sponsor_sustainability,

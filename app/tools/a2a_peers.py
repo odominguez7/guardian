@@ -6,9 +6,11 @@
 # JSON-RPC over HTTPS, with the peer's agent card auto-discovered at
 # `<peer_url>/a2a/<peer_name>/.well-known/agent-card.json`.
 
+import hashlib
 import json
 import logging
 import os
+import time
 import uuid
 
 import httpx
@@ -26,6 +28,30 @@ logger = logging.getLogger(__name__)
 # Cap how long we wait for a peer to respond. The peer can do real work
 # (call its model + tool) so 30s is generous but not infinite.
 _A2A_TIMEOUT_S = 30.0
+
+
+def mint_incident_id(seed: str | None = None) -> str:
+    """Mint a stable GUARDIAN incident_id.
+
+    Use this once per incident in the orchestrator's pre-tool wiring (NOT in
+    the LLM's free-form generation). The same id flows into both peer calls
+    so park_service and sponsor_sustainability records reconcile.
+
+    Form: `GU-YYYYMMDD-<10hex>`. If `seed` is provided, the hex is derived
+    deterministically from (date, seed) — replaying the same incident yields
+    the same id. If `seed` is None, falls back to a monotonic timestamp +
+    uuid suffix.
+    """
+    from datetime import datetime, timezone
+
+    date_part = datetime.now(timezone.utc).strftime("%Y%m%d")
+    if seed:
+        digest = hashlib.sha256(f"{date_part}|{seed}".encode()).hexdigest()
+        return f"GU-{date_part}-{digest[:10].upper()}"
+    # Non-seeded fallback: time-monotonic to avoid uuid collision risk.
+    fallback = f"{time.time_ns()}-{uuid.uuid4().hex}"
+    digest = hashlib.sha256(fallback.encode()).hexdigest()
+    return f"GU-{date_part}-{digest[:10].upper()}"
 
 # Peer registry. Single source of truth for env var + URL path for each peer.
 # Add a new peer here and call _call_peer(name, ...) from a tool function.
