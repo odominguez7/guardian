@@ -181,21 +181,21 @@ Apply to GFS Cloud Program ($350K) Day 1 anyway — removes any constraint and i
 | Day | Date | Milestone | Concrete deliverable |
 |---|---|---|---|
 | **D1** | 2026-05-15 | Repo + GCP project + auth verified + GFS Cloud Program applied + Agent Starter Pack scaffold cleanly applied | github.com/odominguez7/guardian + GCP project `guardian-xxx` + Terraform applies |
-| D2 | 05-16 | Hello-Agent on Cloud Run with `agent.json` + Vertex AI Search index seeded (IUCN, CITES, Snapshot Serengeti) | Live HTTPS URL |
+| D2 | 05-16 | Hello-Agent on Cloud Run with `agent.json` + Vertex AI Search index seeded (IUCN, CITES, Snapshot Serengeti) — _**search seeding pulled forward to D1 per eng review 2026-05-15: unblocks D5/D6/D9 agents that depend on the index**_ | Live HTTPS URL |
 | D3 | 05-17 | Stream Watcher agent processes 1 sample clip → emits structured event | Sample clip detected |
 | D4 | 05-18 | Audio agent detects gunshot/vehicle in sample audio | Audio classified |
 | D5 | 05-19 | Species ID agent identifies 5 individual animals from frames | Echo recognized |
-| D6 | 05-20 | Pattern agent online with BigQuery historical data + initial Spanner schema | Cross-reference works |
+| D6 | 05-20 | Pattern agent online with BigQuery historical data + initial Spanner schema + **Memory Bank wired** (eng review 2026-05-15 pulled Memory Bank forward from D16 to avoid Pattern Agent refactor) | Cross-reference works |
 | D7 | 05-21 | Visualizer agent generates suspect sketch from blurry frame + heatmap | Imagen output visible |
-| D8 | 05-22 | Dispatch agent sends SMS to a test phone | Real SMS arrives |
+| D8 | 05-22 | Dispatch agent sends SMS to a test phone (eng review 2026-05-15: verify AgentPhone MCP availability D1; fallback Twilio direct if unavailable) | Real SMS arrives |
 | D9 | 05-23 | Court-Evidence agent packages a sample incident → PDF | PDF generated |
 | D10 | 05-24 | Spanner GraphRAG live; Pattern agent uses it | Graph queries work |
 | D11 | 05-25 | **A2A Peer #1**: Park Authority agent (Cloud Run #2) + handshake works — _front-loaded to D1, shipped 2026-05-15 (`peers/park_service/`, 3/3 integration tests green, separate Cloud Run service)_ | A2A handshake on video |
 | D12 | 05-26 | **A2A Peer #2**: Corporate Sustainability agent (auto-files TNFD entry) — _front-loaded to D1, shipped 2026-05-15 (`peers/sponsor_sustainability/`, 3/3 integration tests green, live on Cloud Run, fan-out + reconciliation verified)_ | TNFD JSON output |
 | D13 | 05-27 | **A2A Peer #3**: Funder Reporter agent (sends impact report) | Sample report |
 | D14 | 05-28 | **A2A Peer #4**: Neighboring Park Mutual-Aid agent | Cross-border handoff |
-| D15 | 05-29 | Frontend Cloud Run app w/ Firebase Auth + AG-UI streaming map + live feed | Demo UI live |
-| D16 | 05-30 | Memory Bank wired (per-park, per-animal); Vertex AI eval green. **Trajectory tests already at ~30 from continuous 2/agent ramp.** | Eval green on PR |
+| D15 | 05-29 | Frontend Cloud Run app w/ Firebase Auth + AG-UI streaming map + live feed (eng review 2026-05-15 locked **Firebase Studio** as the scaffolding tool — Track 3 stack-maximization bonus + fastest path to a working demo URL) | Demo UI live |
+| D16 | 05-30 | Vertex AI eval green. **Trajectory tests already at ~30 from continuous 2/agent ramp.** (Memory Bank moved to D6 per eng review.) **Refactor specialist chain to ADK `ParallelAgent`** so Stream/Audio/Species/Pattern run concurrently — cuts real-time chain latency ~90s → ~30-40s, strengthens Innovation 20% story | Eval green on PR + parallel chain in playground |
 | D17 | 05-31 | Looker Studio dashboard public + Cloud Trace permalinks; security pass (mTLS, RLS) | Dashboard URL |
 | D18 | 06-01 | **Real Marketplace listing submission attempt to Google** + pricing page + SOC 2 readiness checklist | Marketplace submission receipt + `marketplace/` folder |
 | D19 | 06-02 | Pre-record demo clips + run agent end-to-end live | Demo footage |
@@ -267,10 +267,15 @@ Apply to GFS Cloud Program ($350K) Day 1 anyway — removes any constraint and i
 | Review | Trigger | Why | Runs | Status | Findings |
 |--------|---------|-----|------|--------|----------|
 | CEO Review | `/plan-ceo-review` | Scope & strategy | 2 | CLEAR (SELECTIVE EXPANSION — D1 execution review 2026-05-15) | 7 cherry-picks accepted, 2 code-vs-plan mismatches caught (Gemini 3 Pro upgrade, F500-first storyboard) |
-| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 0 | — | run after D6 (Pattern Agent scaffold) |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | CLEAR (D1 architecture review 2026-05-15) | 6 P2 issues, 0 critical gaps. 6 decisions locked: Vertex Search pulled to D1, AgentPhone verify-then-fallback, Memory Bank pulled to D6, Firebase Studio frontend, ADK ParallelAgent refactor on D16, TODOS.md consolidation. |
+| Codex Review | `/codex review` | Independent 2nd opinion | 1 | CLEAR (clean, 3 findings, 3 fixed) | Caught 3 import-time GCP auth crashes Claude missed. All fixed. |
+| Adversarial | `/review` adversarial pass | Always-on per-diff | 1 | CLEAR | 10 findings (1 fixed, 9 deferred to D17 polish + TODOS.md) |
 | Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | optional, run D15 with frontend |
-| Codex Review | `/codex review` | Independent 2nd opinion | 0 | — | run D21 pre-submission |
-| Outside Voice | — | Cross-model challenge | 0 | — | run D21 pre-submission |
+
+**CODEX:** 3 import-time auth crashes (app/agent.py, app/tools/vision.py, app/app_utils/telemetry.py) — all fixed via lazy init + try/except guards, symmetrically applied to both peer agents.
+
+**CROSS-MODEL:** Zero overlap between Claude and Codex findings — Claude caught semantics/protocol, Codex caught startup invariants. Both reviewers' fixes shipped.
 
 **UNRESOLVED:** 0
-**VERDICT:** GUARDIAN locked. D1 execution proceeds with 7 accepted upgrades. Next: upgrade orchestrator to Gemini 3 Pro, backfill 2 Stream Watcher trajectory tests, redeploy.
+
+**VERDICT:** CEO + ENG + CODEX all CLEARED. Ready for D2-D16 execution. Next: start Vertex AI Search seeding (background, wall-clock), verify AgentPhone MCP, consolidate TODOS.md.
