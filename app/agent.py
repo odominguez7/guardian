@@ -46,10 +46,21 @@ def new_incident_id(seed: str = "") -> dict:
     return {"incident_id": mint_incident_id(seed or None)}
 
 # --- Environment setup (Vertex AI auth) ---------------------------------------
-_, project_id = google.auth.default()
-os.environ["GOOGLE_CLOUD_PROJECT"] = project_id
-os.environ["GOOGLE_CLOUD_LOCATION"] = "global"
-os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "True"
+# Resolve project_id from ADC if available; fall back to env so the module
+# imports cleanly in CI / no-credential environments. Actual Vertex calls
+# fail later with a meaningful error rather than crashing at import.
+try:
+    _, _resolved_project_id = google.auth.default()
+    if _resolved_project_id:
+        os.environ.setdefault("GOOGLE_CLOUD_PROJECT", _resolved_project_id)
+except Exception as _adc_err:  # google.auth.exceptions.DefaultCredentialsError + transient
+    logging.warning(
+        "ADC unavailable at import — GUARDIAN will load but live GCP calls "
+        "will fail until credentials are present: %s",
+        _adc_err,
+    )
+os.environ.setdefault("GOOGLE_CLOUD_LOCATION", "global")
+os.environ.setdefault("GOOGLE_GENAI_USE_VERTEXAI", "True")
 
 # Orchestrator model. PLAN.md targets gemini-3-pro; not yet available in this
 # project's Vertex AI (404 across all regions as of 2026-05-15). Fall back to

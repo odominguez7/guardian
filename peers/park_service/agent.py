@@ -19,10 +19,21 @@ from google.adk.models import Gemini
 from google.genai import types
 
 # --- Environment setup (Vertex AI auth) ---------------------------------------
-_, project_id = google.auth.default()
-os.environ["GOOGLE_CLOUD_PROJECT"] = project_id
-os.environ["GOOGLE_CLOUD_LOCATION"] = "global"
-os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "True"
+# Resolve project_id from ADC if available; fall back so the module imports
+# cleanly in no-credential environments. Real Gemini calls fail later with a
+# clear error rather than crashing at import.
+try:
+    _, _resolved_project_id = google.auth.default()
+    if _resolved_project_id:
+        os.environ.setdefault("GOOGLE_CLOUD_PROJECT", _resolved_project_id)
+except Exception as _adc_err:
+    logging.warning(
+        "ADC unavailable at import — park_service will load but live Gemini "
+        "calls fail until credentials are present: %s",
+        _adc_err,
+    )
+os.environ.setdefault("GOOGLE_CLOUD_LOCATION", "global")
+os.environ.setdefault("GOOGLE_GENAI_USE_VERTEXAI", "True")
 
 PEER_MODEL = os.environ.get("PARK_SERVICE_MODEL", "gemini-2.5-flash")
 

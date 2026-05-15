@@ -53,8 +53,19 @@ def setup_telemetry() -> str | None:
             "Prompt-response logging disabled (set LOGS_BUCKET_NAME=gs://your-bucket and OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=NO_CONTENT to enable)"
         )
 
-    # Set up OpenTelemetry exporters for Cloud Trace and Cloud Logging
-    credentials, project_id = google.auth.default()
+    # Set up OpenTelemetry exporters for Cloud Trace and Cloud Logging.
+    # If ADC is unavailable (CI, fresh clone, unit tests), skip GCP exporter
+    # setup so the service still starts; local console logging remains.
+    try:
+        credentials, project_id = google.auth.default()
+    except Exception as adc_err:
+        logging.warning(
+            "ADC unavailable in setup_telemetry — GCP trace/log exporters "
+            "disabled for this process: %s",
+            adc_err,
+        )
+        return bucket
+
     otel_hooks = get_gcp_exporters(
         enable_cloud_tracing=True,
         enable_cloud_metrics=False,

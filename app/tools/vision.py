@@ -2,6 +2,7 @@
 # Vision analysis tools — wraps Gemini Vision for wildlife scene understanding.
 
 import json
+import logging
 import os
 from typing import Optional
 
@@ -9,13 +10,23 @@ import google.auth
 from google import genai
 from google.genai import types as genai_types
 
-# Configure Vertex AI client once at import time.
-_, _PROJECT_ID = google.auth.default()
-_LOCATION = os.environ.get("GOOGLE_CLOUD_LOCATION", "global")
-_client = genai.Client(vertexai=True, project=_PROJECT_ID, location=_LOCATION)
-
 # Use Flash for high-volume frame analysis. Pro for tough scenes (e.g., low-light).
 _DEFAULT_VISION_MODEL = "gemini-2.5-flash"
+_LOCATION = os.environ.get("GOOGLE_CLOUD_LOCATION", "global")
+
+# Lazy Vertex AI client. Built on first use so this module imports cleanly
+# in environments without Application Default Credentials (CI, fresh clones,
+# unit tests). Real calls into Gemini will fail with a clear error if ADC is
+# still missing at call time.
+_client: "genai.Client | None" = None
+
+
+def _get_client() -> "genai.Client":
+    global _client
+    if _client is None:
+        _, project_id = google.auth.default()
+        _client = genai.Client(vertexai=True, project=project_id, location=_LOCATION)
+    return _client
 
 _STREAM_WATCHER_PROMPT = """You are GUARDIAN's Stream Watcher, a wildlife camera-trap analyst.
 
@@ -69,7 +80,7 @@ def analyze_video_clip(video_uri: str) -> dict:
 
     try:
         part = _build_video_part(video_uri)
-        response = _client.models.generate_content(
+        response = _get_client().models.generate_content(
             model=_DEFAULT_VISION_MODEL,
             contents=[part, _STREAM_WATCHER_PROMPT],
             config=genai_types.GenerateContentConfig(
@@ -115,7 +126,7 @@ def analyze_image_frame(image_uri: str, focus: Optional[str] = None) -> dict:
 
     try:
         part = _build_image_part(image_uri)
-        response = _client.models.generate_content(
+        response = _get_client().models.generate_content(
             model=_DEFAULT_VISION_MODEL,
             contents=[part, instruction],
             config=genai_types.GenerateContentConfig(
