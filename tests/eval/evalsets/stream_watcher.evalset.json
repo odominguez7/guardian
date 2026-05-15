@@ -1,0 +1,91 @@
+{
+  "eval_set_id": "stream_watcher_eval",
+  "name": "Stream Watcher Trajectory Evaluation",
+  "description": "Golden trajectories for the Stream Watcher specialist agent (D3 deliverable). Verifies: (1) the orchestrator routes video/image URIs to stream_watcher rather than answering directly, and (2) stream_watcher invokes the correct vision tool (analyze_video_clip vs analyze_image_frame) without summarizing the structured payload.",
+  "eval_cases": [
+    {
+      "eval_id": "wildlife_video_routing",
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "Analyze this clip for wildlife and threat signals: gs://guardian-gfs-2026-samples/wildlife/animals.mp4"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Stream Watcher analysis of gs://guardian-gfs-2026-samples/wildlife/animals.mp4: a structured event listing detected species, total animal count, behaviors, threat signals, time-of-day inference, environmental context, overall confidence, and whether the scene requires escalation. The full tool payload is returned verbatim (no summarization)."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "transfer_to_agent",
+                "args": {
+                  "agent_name": "stream_watcher"
+                }
+              },
+              {
+                "name": "analyze_video_clip",
+                "args": {
+                  "video_uri": "gs://guardian-gfs-2026-samples/wildlife/animals.mp4"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "session_input": {
+        "app_name": "app",
+        "user_id": "eval_user",
+        "state": {}
+      }
+    },
+    {
+      "eval_id": "image_frame_routing",
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "Single frame from a camera trap, what do you see? https://storage.googleapis.com/cloud-samples-data/generative-ai/image/scones.jpg"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Stream Watcher analysis of the still frame at https://storage.googleapis.com/cloud-samples-data/generative-ai/image/scones.jpg. The image tool returned a structured observation event with species (empty or zero count for a non-wildlife frame), behaviors, threat signals, and overall confidence. The full tool payload is returned verbatim."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "transfer_to_agent",
+                "args": {
+                  "agent_name": "stream_watcher"
+                }
+              },
+              {
+                "name": "analyze_image_frame",
+                "args": {
+                  "image_uri": "https://storage.googleapis.com/cloud-samples-data/generative-ai/image/scones.jpg"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "session_input": {
+        "app_name": "app",
+        "user_id": "eval_user",
+        "state": {}
+      }
+    }
+  ]
+}

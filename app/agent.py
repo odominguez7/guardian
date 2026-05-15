@@ -25,6 +25,11 @@ os.environ["GOOGLE_CLOUD_PROJECT"] = project_id
 os.environ["GOOGLE_CLOUD_LOCATION"] = "global"
 os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "True"
 
+# Orchestrator model. PLAN.md targets gemini-3-pro; not yet available in this
+# project's Vertex AI (404 across all regions as of 2026-05-15). Fall back to
+# 2.5 Pro until allowlist lands. Flip via env when 3 Pro is callable.
+ORCHESTRATOR_MODEL = os.environ.get("GUARDIAN_ORCHESTRATOR_MODEL", "gemini-2.5-pro")
+
 
 def request_user_input(message: str) -> dict:
     """Request additional input from the user.
@@ -60,7 +65,7 @@ Tone: terse, operational. You are running real-time biodiversity defense, not ch
 root_agent = Agent(
     name="root_agent",
     model=Gemini(
-        model="gemini-2.5-pro",
+        model=ORCHESTRATOR_MODEL,
         retry_options=types.HttpRetryOptions(attempts=3),
     ),
     description=(
