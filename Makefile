@@ -182,6 +182,49 @@ wire-sponsor-sustainability:
 		--update-env-vars "SPONSOR_SUSTAINABILITY_URL=$(SPONSOR_URL)"
 
 # ==============================================================================
+# Ops Center frontend (Next.js 16 + Mapbox + Firebase Auth)
+# ==============================================================================
+
+# Deploy the Ops Center frontend. Reads NEXT_PUBLIC_* values from env vars
+# (MAPBOX_TOKEN, FIREBASE_API_KEY, FIREBASE_AUTH_DOMAIN, FIREBASE_PROJECT_ID,
+# FIREBASE_APP_ID) and forwards them as Cloud Build substitutions so they
+# get baked into the static bundle. Public (--allow-unauthenticated) so
+# judges can click + see the demo.
+deploy-ops-center:
+	PROJECT_ID=$$(gcloud config get-value project) && \
+	PROJECT_NUMBER=$$(gcloud projects describe $$PROJECT_ID --format="value(projectNumber)") && \
+	ORCH_URL="https://guardian-$$PROJECT_NUMBER.us-central1.run.app" && \
+	COMMIT_SHA=$$(git rev-parse --short HEAD) && \
+	gcloud builds submit . \
+		--config ops-center/cloudbuild.yaml \
+		--substitutions "COMMIT_SHA=$$COMMIT_SHA,_ORCHESTRATOR_URL=$$ORCH_URL,_MAPBOX_TOKEN=$${MAPBOX_TOKEN:-},_FIREBASE_API_KEY=$${FIREBASE_API_KEY:-},_FIREBASE_AUTH_DOMAIN=$${FIREBASE_AUTH_DOMAIN:-},_FIREBASE_PROJECT_ID=$${FIREBASE_PROJECT_ID:-},_FIREBASE_APP_ID=$${FIREBASE_APP_ID:-}" \
+		--project $$PROJECT_ID && \
+	gcloud beta run deploy guardian-ops-center \
+		--image us-central1-docker.pkg.dev/$$PROJECT_ID/cloud-run-source-deploy/guardian-ops-center:latest \
+		--memory "1Gi" \
+		--project $$PROJECT_ID \
+		--region "us-central1" \
+		--allow-unauthenticated \
+		--labels "created-by=adk,role=ops-center" \
+		--update-env-vars "PORT=8080" && \
+	OPS_URL="https://guardian-ops-center-$$PROJECT_NUMBER.us-central1.run.app" && \
+	echo "" && \
+	echo "✓ Ops Center deployed: $$OPS_URL"
+
+# Update the orchestrator to accept CORS requests from the ops-center frontend
+# AND grant ops-center's service account roles/run.invoker on the orchestrator.
+# Run after `make deploy-ops-center` once you know the ops-center URL is stable.
+wire-ops-center:
+	PROJECT_ID=$$(gcloud config get-value project) && \
+	PROJECT_NUMBER=$$(gcloud projects describe $$PROJECT_ID --format="value(projectNumber)") && \
+	OPS_URL="https://guardian-ops-center-$$PROJECT_NUMBER.us-central1.run.app" && \
+	gcloud beta run services update guardian \
+		--region us-central1 \
+		--project $$PROJECT_ID \
+		--update-env-vars "GUARDIAN_CORS_ORIGINS=$$OPS_URL" && \
+	echo "✓ Orchestrator CORS now allows: $$OPS_URL"
+
+# ==============================================================================
 # Data Ingestion (Vertex AI Search)
 # ==============================================================================
 
