@@ -139,7 +139,8 @@ See `BUYER_PERSONA.md`. Lead buyer: F500 Chief Sustainability Officer or Directo
 
 ## Producer info
 
-- **Producer:** GUARDIAN (Omar Dominguez, MIT MBA 2026)
+- **Producer:** GuardIAn Wildlife
+- **Founder + CEO:** Omar Dominguez Mondragon (MIT Sloan)
 - **Listing contact:** `omar.dominguez7@gmail.com`
 - **Producer portal entry:** see `SUBMISSION_NOTES.md`
 

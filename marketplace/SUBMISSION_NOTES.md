@@ -63,19 +63,42 @@ What we will NOT have:
 
 ---
 
-## Producer Portal submission steps performed
+## Producer Portal submission attempt log
 
-_To be appended with timestamped action evidence on D17-D18 (2026-05-31 to 2026-06-01)._
+### 2026-05-15 - D1 first attempt (early submission test)
 
-1. _[D17 planned]_ Open `console.cloud.google.com/producer-portal` in `guardian-gfs-2026` GCP project.
-2. _[D17 planned]_ Create a new SaaS / Subscription listing entry.
-3. _[D17 planned]_ Paste listing copy from `LISTING.md` into producer portal form fields.
-4. _[D17 planned]_ Upload `marketplace/screenshots/*.png` as listing media.
-5. _[D17 planned]_ Set pricing per `PRICING.md` (Subscription, USD, 3 tiers).
-6. _[D17 planned]_ Configure deployment via Terraform module reference.
-7. _[D17 planned]_ Submit for Google review.
-8. _[D17 planned]_ Screenshot the submission confirmation page → save to `marketplace/screenshots/submission-receipt.png`.
-9. _[D17 planned]_ Save the listing URL (will be a draft URL until approval) → append to this file.
+Omar opened https://console.cloud.google.com/producer-portal/overview?project=guardian-gfs-2026 against the `guardian-gfs-2026` GCP project.
+
+**Result:** "Failed to load. There was an error while loading /producer-portal/overview?project=guardian-gfs-2026. Please try again. It may be a browser or network issue."
+
+**Google Request ID:** `3745174922461967479` (timestamp 2026-05-15)
+
+**Root cause diagnosed via `gcloud` from the project:**
+1. Project has `roles/owner` for `omar.dominguez7@gmail.com` (account-level access is fine).
+2. Cloud Identity org `omar-dominguez7-org` exists (org-level access is fine).
+3. **5 billing accounts available** (Producer Portal billing precondition satisfied).
+4. **Cloud Marketplace Producer API is NOT enabled** in `guardian-gfs-2026`.
+5. **Project is NOT enrolled as a Marketplace Producer** (separate signup beyond Owner role).
+
+The "Failed to load" page is Google's frontend hitting the disabled producer-portal API on the project. It is the documented onboarding gate, not a bug.
+
+**Screenshot of the error:** `marketplace/screenshots/submission-block-20260515.png` (captured the error page including Request ID for evidence trail).
+
+**Decision:** Do NOT pursue full Producer enrollment for hackathon submission. Producer enrollment requires:
+1. Cloud Marketplace Producer Agreement signing (one-time, blocks the Portal until done)
+2. Stripe Connect billing onboarding (requires business bank account)
+3. Google internal review (1-3 day wall-clock)
+
+These three steps are post-hackathon scope. The submission attempt + the gate screenshot satisfy Track 3's "structural evidence the product is built as a Marketplace SKU" rubric criterion. The listing package (LISTING.md, PRICING.md, SKU_OVERVIEW.md, BUYER_PERSONA.md, marketplace-preview.html) is complete and ready to paste into the Portal once enrollment lands.
+
+### D17-D18 planned steps if Producer enrollment completes in time
+
+1. _[D17 planned]_ If enrollment cleared: paste listing copy from `LISTING.md` into Producer Portal form fields.
+2. _[D17 planned]_ Set pricing per `PRICING.md` (Subscription, USD, 3 tiers).
+3. _[D17 planned]_ Upload screenshots + Ops Center media.
+4. _[D17 planned]_ Submit for Google review.
+5. _[D17 planned]_ Screenshot the submission confirmation page → save to `marketplace/screenshots/submission-receipt-20260531.png`.
+6. _[D17 planned]_ Save the listing URL (draft state until approval) → append to this file.
 
 ---
 
@@ -103,4 +126,4 @@ That covers the Business Case scoring axis in full.
 | Google reviewer rejects listing for "no legal entity yet" | Listing artifacts still satisfy hackathon judging; legal entity is a post-hackathon side-quest. |
 | Producer Portal flow demands SOC 2 readiness questionnaire upfront | Enterprise SKU lists SOC 2 evidence pack; Core + Portfolio do not require it. Decline question or mark "in progress." |
 | Marketplace categorization restricts to "AI & ML" only (no "Sustainability") | Add `Industry Solutions → Sustainability & ESG` as secondary; primary tagging can be `Generative AI / Multi-Agent`. |
-| Listing requires legal name, address for Stripe Connect | Use founder name + MIT MBA address as legal-entity-of-record proxy for hackathon submission; flag as transitional. |
+| Listing requires legal name, address for Stripe Connect | Use founder name (Omar Dominguez Mondragon) + MIT Sloan address as legal-entity-of-record proxy for hackathon submission; flag as transitional. |

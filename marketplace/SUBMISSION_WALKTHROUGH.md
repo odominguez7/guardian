@@ -15,7 +15,7 @@ If first time, complete:
 | Required | Status | Action |
 |---|---|---|
 | Producer agreement signed | TBD | One-click acceptance in Producer Portal |
-| Legal entity of record | TBD | Use personal name + MIT MBA address as transitional. Real LLC formation is post-hackathon. |
+| Legal entity of record | TBD | Use personal name + MIT Sloan address as transitional. Real LLC formation is post-hackathon. |
 | Tax form (W-9 US or W-8BEN non-US) | TBD | Fill personal W-9 if no LLC yet. |
 | Stripe Connect billing onboarding | TBD | Skip for "Free trial only" listing first; add billing pre-D17. |
 | GCP project owner role | DONE | `guardian-gfs-2026` is Omar's |
@@ -34,7 +34,7 @@ Form fields:
 |---|---|
 | Product name | `GUARDIAN - Biodiversity Operations Platform for Enterprise` |
 | Product ID (slug) | `guardian-biodiversity-ops` |
-| Producer name | `Omar Dominguez (MIT MBA 2026)` |
+| Producer name | `Omar Dominguez Mondragon - CEO & Founder, GuardIAn Wildlife (MIT Sloan)` |
 | Producer support email | `omar.dominguez7@gmail.com` |
 | Primary category | `AI & ML > Multi-Agent Systems` (or closest available; fall back to `AI & ML > Generative AI`) |
 | Secondary category | `Industry Solutions > Sustainability & ESG` (or closest available) |
