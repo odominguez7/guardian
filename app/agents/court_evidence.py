@@ -51,7 +51,12 @@ court_evidence_agent = Agent(
         "impact reports, and host-park internal incident reviews."
     ),
     model=Gemini(
-        model="gemini-2.5-flash",
+        # gemini-2.5-pro for legal-evidence output: codex flagged Flash flake
+        # under concurrent load on other peers (echoed input instead of
+        # tool-calling). Court-evidence packets are legally durable artifacts;
+        # Pro reliability matters more than the cost delta at hackathon volume.
+        # Env-overridable via COURT_EVIDENCE_MODEL.
+        model=__import__("os").environ.get("COURT_EVIDENCE_MODEL", "gemini-2.5-pro"),
         retry_options=types.HttpRetryOptions(attempts=3),
     ),
     instruction=COURT_EVIDENCE_INSTRUCTION,

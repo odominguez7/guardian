@@ -27,8 +27,17 @@ def bundle_incident(incident_id: str) -> dict:
     Orchestrator needs to assemble a legal-evidence packet. Walks the event
     ring buffer for everything tagged with the incident_id, partitions by
     event kind (specialist tool calls, A2A requests, A2A responses), computes
-    a SHA-256 chain hash for tamper detection, and returns a structured bundle
-    a downstream Document AI / PDF renderer can format.
+    a SHA-256 internal-consistency hash, and returns a structured bundle a
+    downstream Document AI / PDF renderer can format.
+
+    Integrity scope (be precise about what the hash guarantees):
+    The chain_hash proves the events RETURNED in this bundle are internally
+    consistent at the moment of generation. It does NOT prove the events
+    were never dropped before reaching the buffer (the buffer is in-memory
+    and bounded by GUARDIAN_EVENT_BUFFER). For a fully durable evidence
+    chain, pair this bundle with a persistent log sink (BigQuery / Cloud
+    Logging - both are wired). The `buffer_depth` and `buffer_size` fields
+    in the response let an auditor sanity-check completeness.
 
     Args:
         incident_id: GUARDIAN's incident reference (e.g., GU-466F7A6FA1F3).
@@ -67,7 +76,14 @@ def bundle_incident(incident_id: str) -> dict:
             s = datetime.fromisoformat(start.replace("Z", "+00:00"))
             e = datetime.fromisoformat(end.replace("Z", "+00:00"))
             duration_s = (e - s).total_seconds()
-        except ValueError:
+        except ValueError as parse_err:
+            # Codex flagged this as silent data loss. Log so an operator
+            # can find which incident's timestamps were corrupted.
+            logger.warning(
+                "court_evidence: ISO timestamp parse failed for "
+                "incident=%s start=%r end=%r err=%s",
+                incident_id, start, end, parse_err,
+            )
             duration_s = None
 
     chain_hash = _chain_hash(evts)
@@ -100,22 +116,40 @@ def bundle_incident(incident_id: str) -> dict:
                 "identifier": _peer_identifier(e.get("agent"), payload),
             })
 
+    # Buffer-state context lets an auditor reason about completeness rather
+    # than rely on a single heuristic flag. Codex flagged the prior heuristic
+    # (len<=2) as missing partial-truncation cases.
+    buffer_depth = _events.buffer_depth()
+    buffer_size = _events._BUFFER_SIZE  # underscore = module-private constant, intentional read
+    # "Suspicious gap" signal: real 4-peer fan-out produces ~15+ events
+    # (1 incident_event + 4 a2a_request + 4 a2a_response + N tool spans).
+    # Sub-10 event count OR buffer-full-during-capture (which suggests the
+    # ring may have evicted earlier events) flags as suspicious.
+    suspicious_gap = len(evts) < 10 or buffer_depth >= buffer_size - 1
+
     return {
         "status": "ok",
         "bundle_id": bundle_id,
         "incident_id": incident_id,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "event_count": len(evts),
+        "buffer_depth": buffer_depth,
+        "buffer_size": buffer_size,
         "time_window": {
             "start": start,
             "end": end,
             "duration_s": duration_s,
         },
         "chain_hash": chain_hash,
+        "chain_hash_scope": (
+            "Internal consistency of the buffered events returned in this "
+            "bundle. Does NOT prove completeness vs. emitted events; pair "
+            "with a persistent log sink for full chain of custody."
+        ),
         "specialists": specialists,
         "peer_acks": peer_acks,
         "timeline": evts,
-        "buffer_truncated": len(evts) <= 2,  # heuristic: real fanout produces ~15+ events
+        "suspicious_gap": suspicious_gap,
         "compliance_frameworks": ["TNFD", "CSRD-ESRS-E4", "CITES-MIKE"],
     }
 
@@ -241,10 +275,19 @@ def _format_html(bundle: dict) -> str:
     )
 
     frameworks = ", ".join(html.escape(f) for f in bundle.get("compliance_frameworks", []))
-    truncated_note = (
-        '<div class="warn">Ring buffer truncated - the timeline may be partial. '
-        'Re-fire the incident or extend GUARDIAN_EVENT_BUFFER for complete capture.</div>'
-        if bundle.get("buffer_truncated") else ""
+    suspicious_note = (
+        f'<div class="warn">Buffer state suggests this bundle may be incomplete '
+        f'(event_count={bundle["event_count"]}, buffer_depth={bundle.get("buffer_depth")} / '
+        f'buffer_size={bundle.get("buffer_size")}). Re-fire the incident or '
+        f'extend GUARDIAN_EVENT_BUFFER for full capture.</div>'
+        if bundle.get("suspicious_gap") else ""
+    )
+    # Embed the timeline JSON in the HTML so an auditor can re-derive the
+    # chain hash from the document alone. Codex flagged the prior version
+    # for claiming re-derivation without shipping the source events.
+    timeline_json = html.escape(
+        json.dumps(bundle.get("timeline", []), default=str, indent=2),
+        quote=False,
     )
 
     return f"""<!doctype html>
@@ -272,8 +315,8 @@ def _format_html(bundle: dict) -> str:
 </head>
 <body>
   <h1>GUARDIAN Chain-of-Custody Evidence Packet</h1>
-  <div class="sub">Generated for legal + sustainability audit chain. SHA-256 anchored. Compliance frameworks: {frameworks}.</div>
-  <span class="stamp">Authenticated by chain hash</span>
+  <div class="sub">Generated for legal + sustainability audit chain. SHA-256 internal-consistency anchored. Compliance frameworks: {frameworks}.</div>
+  <span class="stamp">Internal consistency hash present</span>
 
   <h2>Bundle Metadata</h2>
   <dl class="meta">
@@ -281,10 +324,11 @@ def _format_html(bundle: dict) -> str:
     <dt>Incident ID</dt>        <dd><code>{iid}</code></dd>
     <dt>Generated at</dt>       <dd>{gen}</dd>
     <dt>Observation window</dt> <dd>{win_start} - {win_end} ({win_dur_str})</dd>
-    <dt>Event count</dt>        <dd>{bundle['event_count']}</dd>
+    <dt>Event count</dt>        <dd>{bundle['event_count']} (buffer depth {bundle.get('buffer_depth')} / size {bundle.get('buffer_size')})</dd>
     <dt>Chain hash (SHA-256)</dt><dd><code>{chain}</code></dd>
+    <dt>Hash scope</dt>          <dd>Internal consistency of buffered events returned in this packet. Pair with persistent log sink for full chain of custody.</dd>
   </dl>
-  {truncated_note}
+  {suspicious_note}
 
   <h2>Specialist Agents (multi-modal analysis)</h2>
   <table>
@@ -304,9 +348,14 @@ def _format_html(bundle: dict) -> str:
     <tbody>{timeline_rows}</tbody>
   </table>
 
+  <h2>Source event log (chain-hash inputs)</h2>
+  <div class="sub">Embedded so an auditor can re-derive the chain hash from this document alone. Hash is SHA-256 of each event's <code>id</code> + <code>ts</code>, concatenated in chronological order.</div>
+  <script id="guardian-event-log" type="application/json">{timeline_json}</script>
+  <pre style="background:#0f172a;color:#e2e8f0;padding:12px;border-radius:6px;font-size:11px;max-height:400px;overflow:auto;font-family:'SF Mono',Menlo,monospace;">{timeline_json}</pre>
+
   <footer>
     GUARDIAN Chain-of-Custody Evidence Packet {bid} - generated {gen}.<br>
-    This document is a regulatory disclosure artifact. The chain hash above can be re-derived by any auditor from the underlying event log.
+    This document is a regulatory disclosure artifact. The chain hash above can be re-derived from the embedded event log via the SHA-256 algorithm described in the "Hash scope" field.
   </footer>
 </body>
 </html>

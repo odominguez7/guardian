@@ -1,0 +1,1635 @@
+diff --git a/Makefile b/Makefile
+index 85405fd..d6d8de0 100644
+--- a/Makefile
++++ b/Makefile
+@@ -182,6 +182,62 @@ wire-sponsor-sustainability:
+ 		--project $$PROJECT_ID \
+ 		--update-env-vars "SPONSOR_SUSTAINABILITY_URL=$(SPONSOR_URL)"
+ 
++# Deploy the Funder Reporter peer agent (A2A peer #3).
++deploy-funder-reporter:
++	PROJECT_ID=$$(gcloud config get-value project) && \
++	PROJECT_NUMBER=$$(gcloud projects describe $$PROJECT_ID --format="value(projectNumber)") && \
++	APP_URL="https://guardian-funder-reporter-$$PROJECT_NUMBER.us-central1.run.app" && \
++	COMMIT_SHA=$$(git rev-parse --short HEAD) && \
++	gcloud builds submit . \
++		--config peers/funder_reporter/cloudbuild.yaml \
++		--substitutions COMMIT_SHA=$$COMMIT_SHA \
++		--project $$PROJECT_ID && \
++	gcloud beta run deploy guardian-funder-reporter \
++		--image us-central1-docker.pkg.dev/$$PROJECT_ID/cloud-run-source-deploy/guardian-funder-reporter:latest \
++		--memory "2Gi" \
++		--project $$PROJECT_ID \
++		--region "us-central1" \
++		--no-allow-unauthenticated \
++		--no-cpu-throttling \
++		--labels "created-by=adk,peer=funder-reporter" \
++		--update-env-vars "AGENT_VERSION=0.1.0,APP_URL=$$APP_URL"
++
++wire-funder-reporter:
++	@if [ -z "$(FUNDER_URL)" ]; then echo "ERROR: set FUNDER_URL=https://..."; exit 1; fi
++	PROJECT_ID=$$(gcloud config get-value project) && \
++	gcloud beta run services update guardian \
++		--region us-central1 \
++		--project $$PROJECT_ID \
++		--update-env-vars "FUNDER_REPORTER_URL=$(FUNDER_URL)"
++
++# Deploy the Neighbor Park peer agent (A2A peer #4).
++deploy-neighbor-park:
++	PROJECT_ID=$$(gcloud config get-value project) && \
++	PROJECT_NUMBER=$$(gcloud projects describe $$PROJECT_ID --format="value(projectNumber)") && \
++	APP_URL="https://guardian-neighbor-park-$$PROJECT_NUMBER.us-central1.run.app" && \
++	COMMIT_SHA=$$(git rev-parse --short HEAD) && \
++	gcloud builds submit . \
++		--config peers/neighbor_park/cloudbuild.yaml \
++		--substitutions COMMIT_SHA=$$COMMIT_SHA \
++		--project $$PROJECT_ID && \
++	gcloud beta run deploy guardian-neighbor-park \
++		--image us-central1-docker.pkg.dev/$$PROJECT_ID/cloud-run-source-deploy/guardian-neighbor-park:latest \
++		--memory "2Gi" \
++		--project $$PROJECT_ID \
++		--region "us-central1" \
++		--no-allow-unauthenticated \
++		--no-cpu-throttling \
++		--labels "created-by=adk,peer=neighbor-park" \
++		--update-env-vars "AGENT_VERSION=0.1.0,APP_URL=$$APP_URL"
++
++wire-neighbor-park:
++	@if [ -z "$(NEIGHBOR_URL)" ]; then echo "ERROR: set NEIGHBOR_URL=https://..."; exit 1; fi
++	PROJECT_ID=$$(gcloud config get-value project) && \
++	gcloud beta run services update guardian \
++		--region us-central1 \
++		--project $$PROJECT_ID \
++		--update-env-vars "NEIGHBOR_PARK_URL=$(NEIGHBOR_URL)"
++
+ # ==============================================================================
+ # Ops Center frontend (Next.js 16 + Mapbox + Firebase Auth)
+ # ==============================================================================
+diff --git a/app/agent.py b/app/agent.py
+index 2930a6e..fdf7071 100644
+--- a/app/agent.py
++++ b/app/agent.py
+@@ -20,9 +20,13 @@ from google.genai import types
+ from app import events
+ from app.agents.stream_watcher import stream_watcher_agent
+ from app.tools.a2a_peers import (
++    get_funder_card,
++    get_neighbor_park_card,
+     get_park_service_card,
+     get_sponsor_sustainability_card,
+     mint_incident_id,
++    notify_funder,
++    notify_neighbor_park,
+     notify_park_service,
+     notify_sponsor_sustainability,
+ )
+@@ -105,7 +109,12 @@ Your A2A peers (independent agents run by OTHER organizations):
+ - sponsor_sustainability (Fortune 500 sponsor's sustainability office): call
+   `notify_sponsor_sustainability` to file a TNFD / CSRD-ESRS-E4 biodiversity-
+   impact entry. Receives back a filing_id + dashboard_url.
+-- (Two additional peers ship next: funder, neighbor_park.)
++- funder_reporter (conservation funder, WWF/IUCN/IFAW style): call
++  `notify_funder` to file a program-tagged impact receipt for the foundation's
++  quarterly impact report. Use funder_program="general_impact" if uncertain.
++- neighbor_park (adjacent national park, e.g. Maasai Mara): call
++  `notify_neighbor_park` to send a cross-border mutual-aid request when an
++  incident might cross the border. Pass origin_park name + crossover_corridor.
+ 
+ Routing rules:
+ - Video URI, GCS path, or image URI → delegate to `stream_watcher`.
+@@ -153,6 +162,10 @@ root_agent = Agent(
+         get_park_service_card,
+         notify_sponsor_sustainability,
+         get_sponsor_sustainability_card,
++        notify_funder,
++        get_funder_card,
++        notify_neighbor_park,
++        get_neighbor_park_card,
+     ],
+ )
+ 
+diff --git a/app/fast_api_app.py b/app/fast_api_app.py
+index 63161e1..5022076 100644
+--- a/app/fast_api_app.py
++++ b/app/fast_api_app.py
+@@ -192,6 +192,8 @@ from fastapi import HTTPException  # noqa: E402
+ 
+ from app.tools.a2a_peers import (  # noqa: E402
+     mint_incident_id,
++    notify_funder,
++    notify_neighbor_park,
+     notify_park_service,
+     notify_sponsor_sustainability,
+ )
+@@ -203,9 +205,12 @@ _SCENARIOS = {
+             "Pickup truck detected approaching an African elephant herd at "
+             "02:14 local time on a known poaching corridor in Serengeti "
+             "Sector C. Audio confirms engine noise. Pattern agent flags "
+-            "historical poaching corridor."
++            "historical poaching corridor. Cross-border risk — Maasai Mara "
++            "rangers placed on alert."
+         ),
+         "seed": "scenario:poacher_truck|serengeti-sector-c|2026-05-15T02:14:00Z",
++        # All 4 peers fire on this scenario — the Track 3 demo punchline.
++        "fanout": ["park_service", "sponsor_sustainability", "funder_reporter", "neighbor_park"],
+         "park_args": {
+             "location": "Serengeti Sector C, north fence (Tanzania)",
+             "severity": "critical",
+@@ -221,6 +226,20 @@ _SCENARIOS = {
+             "severity": "critical",
+             "observation_timestamp": "2026-05-15T02:14:00Z",
+         },
++        "funder_args": {
++            "location": "Serengeti Sector C, north fence (Tanzania)",
++            "species_affected": "African elephant",
++            "severity": "critical",
++            "funder_program": "elephants_at_risk",
++            "observation_timestamp": "2026-05-15T02:14:00Z",
++        },
++        "neighbor_args": {
++            "origin_park": "Serengeti National Park, Tanzania",
++            "severity": "critical",
++            "species_affected": "African elephant",
++            "crossover_corridor": "Mara River corridor (Serengeti-Maasai Mara border)",
++            "observation_timestamp": "2026-05-15T02:14:00Z",
++        },
+     },
+     "audio_gunshot": {
+         "title": "Audio Gunshot — Kruger Northern Sector",
+@@ -230,6 +249,8 @@ _SCENARIOS = {
+             "tail-lights in the same frame. Critical poaching event in progress."
+         ),
+         "seed": "scenario:audio_gunshot|kruger-north|2026-05-15T03:42:00Z",
++        # All 4 peers — gunshot + black rhino triggers full coordination.
++        "fanout": ["park_service", "sponsor_sustainability", "funder_reporter", "neighbor_park"],
+         "park_args": {
+             "location": "Kruger Northern Sector, ranger road 7 (South Africa)",
+             "severity": "critical",
+@@ -245,15 +266,32 @@ _SCENARIOS = {
+             "severity": "critical",
+             "observation_timestamp": "2026-05-15T03:42:00Z",
+         },
++        "funder_args": {
++            "location": "Kruger Northern Sector, ranger road 7 (South Africa)",
++            "species_affected": "Black rhinoceros",
++            "severity": "critical",
++            "funder_program": "rhino_horn_crisis",
++            "observation_timestamp": "2026-05-15T03:42:00Z",
++        },
++        "neighbor_args": {
++            "origin_park": "Kruger National Park, South Africa",
++            "severity": "critical",
++            "species_affected": "Black rhinoceros",
++            "crossover_corridor": "Limpopo River corridor (Kruger-Gonarezhou border)",
++            "observation_timestamp": "2026-05-15T03:42:00Z",
++        },
+     },
+     "sponsored_species": {
+         "title": "Sponsored Species Encounter — Etosha cheetah crossing",
+         "narrative": (
+             "Stream Watcher identified two cheetahs (sponsored species, IUCN "
+             "Vulnerable) crossing fence break-point F-14 in Etosha at 17:22. "
+-            "Medium severity but mandatory sponsor disclosure required."
++            "Medium severity but mandatory sponsor + funder disclosure required."
+         ),
+         "seed": "scenario:sponsored_species|etosha-f14|2026-05-15T17:22:00Z",
++        # 3 peers — no cross-border in Etosha (interior reserve). Skips
++        # neighbor_park to demonstrate fan-out is per-scenario, not all-or-nothing.
++        "fanout": ["park_service", "sponsor_sustainability", "funder_reporter"],
+         "park_args": {
+             "location": "Etosha National Park, fence break F-14 (Namibia)",
+             "severity": "high",
+@@ -269,6 +307,13 @@ _SCENARIOS = {
+             "severity": "high",
+             "observation_timestamp": "2026-05-15T17:22:00Z",
+         },
++        "funder_args": {
++            "location": "Etosha National Park, fence break F-14 (Namibia)",
++            "species_affected": "Cheetah",
++            "severity": "high",
++            "funder_program": "predator_coexistence",
++            "observation_timestamp": "2026-05-15T17:22:00Z",
++        },
+     },
+ }
+ 
+@@ -356,21 +401,42 @@ async def run_scenario(scenario_id: str) -> dict:
+                 "scenario_id": scenario_id,
+                 "title": scenario["title"],
+                 "narrative": scenario["narrative"],
++                "fanout": scenario.get("fanout", []),
+             },
+         )
+ 
+-        park_task = notify_park_service(incident_id=incident_id, **scenario["park_args"])
+-        sponsor_task = notify_sponsor_sustainability(
+-            incident_id=incident_id, **scenario["sponsor_args"]
+-        )
+-        park, sponsor = await asyncio.gather(park_task, sponsor_task)
++        # Dispatch only the peers listed in fanout for this scenario.
++        # Default behavior for legacy scenarios (no fanout key) is the
++        # original 2-peer fan-out for backwards compat.
++        fanout = scenario.get("fanout") or ["park_service", "sponsor_sustainability"]
++        tasks: dict[str, asyncio.Task] = {}
++        if "park_service" in fanout:
++            tasks["park_service"] = asyncio.create_task(
++                notify_park_service(incident_id=incident_id, **scenario["park_args"])
++            )
++        if "sponsor_sustainability" in fanout:
++            tasks["sponsor_sustainability"] = asyncio.create_task(
++                notify_sponsor_sustainability(incident_id=incident_id, **scenario["sponsor_args"])
++            )
++        if "funder_reporter" in fanout:
++            tasks["funder_reporter"] = asyncio.create_task(
++                notify_funder(incident_id=incident_id, **scenario["funder_args"])
++            )
++        if "neighbor_park" in fanout:
++            tasks["neighbor_park"] = asyncio.create_task(
++                notify_neighbor_park(incident_id=incident_id, **scenario["neighbor_args"])
++            )
++
++        # Await all in parallel.
++        results: dict[str, dict] = {}
++        for peer_name, task in tasks.items():
++            results[peer_name] = await task
+ 
+         record = {
+             "incident_id": incident_id,
+             "scenario_id": scenario_id,
+             "title": scenario["title"],
+-            "park_service": park,
+-            "sponsor_sustainability": sponsor,
++            **results,
+         }
+         _events.emit(
+             kind="incident_event",
+@@ -378,7 +444,10 @@ async def run_scenario(scenario_id: str) -> dict:
+             tool=f"scenario:{scenario_id}:complete",
+             incident_id=incident_id,
+             severity="info",
+-            payload={"park_status": park.get("status"), "sponsor_status": sponsor.get("status")},
++            payload={
++                f"{peer}_status": result.get("status")
++                for peer, result in results.items()
++            },
+         )
+         return record
+ 
+diff --git a/app/tools/a2a_peers.py b/app/tools/a2a_peers.py
+index f46e34f..74a3843 100644
+--- a/app/tools/a2a_peers.py
++++ b/app/tools/a2a_peers.py
+@@ -113,6 +113,16 @@ _PEERS: dict[str, dict[str, str]] = {
+         "default_url": "http://localhost:8002",
+         "a2a_path": "/a2a/sponsor_sustainability",
+     },
++    "funder_reporter": {
++        "env_var": "FUNDER_REPORTER_URL",
++        "default_url": "http://localhost:8003",
++        "a2a_path": "/a2a/funder_reporter",
++    },
++    "neighbor_park": {
++        "env_var": "NEIGHBOR_PARK_URL",
++        "default_url": "http://localhost:8004",
++        "a2a_path": "/a2a/neighbor_park",
++    },
+ }
+ 
+ 
+@@ -134,6 +144,71 @@ def _peer_rpc_url(peer_name: str) -> str:
+     return f"{_peer_base_url(peer_name)}{cfg['a2a_path']}"
+ 
+ 
++def _looks_echoed(result: dict, instruction: str) -> bool:
++    """Detect when the peer LLM echoed the instruction payload instead of
++    calling its tool. Failure mode under concurrent Gemini Pro load: the
++    response is the input JSON, not the tool result.
++
++    Heuristic: if the result has no `status` field AND it contains the
++    `_peer` we injected but no operational fields (filing_id, ranger_unit,
++    handoff_id, receipt_id, dashboard_url, posture, materiality), it's
++    almost certainly an echo. The `source: "GUARDIAN orchestrator"` marker
++    we put in every instruction payload is a strong tell.
++    """
++    if not isinstance(result, dict):
++        return False
++    if result.get("status") in ("dispatched", "filed", "accepted", "ok"):
++        return False
++    op_signals = {
++        "filing_id", "ranger_unit", "handoff_id", "receipt_id",
++        "dashboard_url", "posture", "materiality", "estimated_arrival_minutes",
++        "impact_tier", "tnfd_entry", "handoff_record", "impact_entry",
++    }
++    if any(k in result for k in op_signals):
++        return False
++    # If the response carries our orchestrator-source marker, the LLM
++    # literally regurgitated our instruction JSON.
++    if result.get("source") == "GUARDIAN orchestrator":
++        return True
++    return False
++
++
++async def _send_once(rpc_url: str, instruction: str, headers: dict, peer_name: str) -> dict:
++    """Single A2A round trip. Used by _call_peer + its retry path."""
++    try:
++        async with httpx.AsyncClient(timeout=_A2A_TIMEOUT, headers=headers) as http:
++            client = A2AClient(httpx_client=http, url=rpc_url)
++            request = SendMessageRequest(
++                id=str(uuid.uuid4()),
++                jsonrpc="2.0",
++                method="message/send",
++                params=MessageSendParams(
++                    message=Message(
++                        message_id=str(uuid.uuid4()),
++                        kind="message",
++                        role=Role.user,
++                        parts=[TextPart(kind="text", text=instruction)],
++                    )
++                ),
++            )
++            response = await client.send_message(request=request)
++            return _unwrap_response(response, peer_name=peer_name)
++    except A2AClientError as e:
++        logger.warning("A2A call to %s failed: %s", peer_name, e)
++        return {
++            "status": "error",
++            "error": f"a2a_transport: {type(e).__name__}: {e}",
++            "_peer": peer_name,
++        }
++    except httpx.HTTPError as e:
++        logger.warning("HTTP error calling %s peer: %s", peer_name, e)
++        return {
++            "status": "error",
++            "error": f"http_transport: {type(e).__name__}: {e}",
++            "_peer": peer_name,
++        }
++
++
+ async def _call_peer(peer_name: str, instruction: str, *, incident_id: str | None = None) -> dict:
+     """Send a SendMessageRequest to a registered peer and unwrap the response.
+ 
+@@ -144,6 +219,12 @@ async def _call_peer(peer_name: str, instruction: str, *, incident_id: str | Non
+     service-account ID token for the peer's audience and includes it as a
+     Bearer credential. Localhost dev peers skip auth.
+ 
++    Auto-retry-once on echo detection: under concurrent 4-peer fan-out
++    Gemini Pro intermittently echoes the input JSON instead of calling
++    its tool. We detect that pattern via `_looks_echoed` and retry the
++    same RPC once. The second attempt nearly always succeeds because
++    the cold-start has already happened.
++
+     Emits A2A request/response events to the firehose so the Ops Center UI
+     can visualize the fan-out in real time.
+     """
+@@ -185,38 +266,24 @@ async def _call_peer(peer_name: str, instruction: str, *, incident_id: str | Non
+             return result
+         headers["Authorization"] = f"Bearer {token}"
+ 
+-    try:
+-        async with httpx.AsyncClient(timeout=_A2A_TIMEOUT, headers=headers) as http:
+-            client = A2AClient(httpx_client=http, url=rpc_url)
+-            request = SendMessageRequest(
+-                id=str(uuid.uuid4()),
+-                jsonrpc="2.0",
+-                method="message/send",
+-                params=MessageSendParams(
+-                    message=Message(
+-                        message_id=str(uuid.uuid4()),
+-                        kind="message",
+-                        role=Role.user,
+-                        parts=[TextPart(kind="text", text=instruction)],
+-                    )
+-                ),
+-            )
+-            response = await client.send_message(request=request)
+-            result = _unwrap_response(response, peer_name=peer_name)
+-    except A2AClientError as e:
+-        logger.warning("A2A call to %s failed: %s", peer_name, e)
+-        result = {
+-            "status": "error",
+-            "error": f"a2a_transport: {type(e).__name__}: {e}",
+-            "_peer": peer_name,
+-        }
+-    except httpx.HTTPError as e:
+-        logger.warning("HTTP error calling %s peer: %s", peer_name, e)
+-        result = {
+-            "status": "error",
+-            "error": f"http_transport: {type(e).__name__}: {e}",
+-            "_peer": peer_name,
+-        }
++    result = await _send_once(rpc_url, instruction, headers, peer_name)
++
++    # If the peer echoed the instruction instead of calling its tool, retry
++    # once. This works around Gemini Pro flaking under concurrent fan-out.
++    if _looks_echoed(result, instruction):
++        logger.warning(
++            "Peer %s echoed instruction instead of calling tool; retrying once",
++            peer_name,
++        )
++        events.emit(
++            kind="a2a_request",
++            agent="root_agent",
++            tool=f"notify_{peer_name}",
++            incident_id=incident_id,
++            severity="high",
++            payload={"peer": peer_name, "rpc_url": rpc_url, "retry": True},
++        )
++        result = await _send_once(rpc_url, instruction, headers, peer_name)
+ 
+     severity = "error" if result.get("status") == "error" else "high"
+     events.emit(
+@@ -416,6 +483,155 @@ async def get_sponsor_sustainability_card() -> dict:
+     return await _resolve_peer_card("sponsor_sustainability")
+ 
+ 
++# ----- Peer #3: Funder Reporter ----------------------------------------------
++
++
++async def notify_funder(
++    incident_id: str,
++    location: str,
++    species_affected: str,
++    severity: str,
++    funder_program: str,
++    observation_timestamp: str,
++) -> dict:
++    """File a wildlife-incident impact receipt with the Funder Reporter peer.
++
++    A2A call to a SEPARATE agent operated by a conservation funder
++    (WWF / IUCN / IFAW style). The funder's quarterly impact report
++    auto-files every incident GUARDIAN detects on reserves the foundation
++    sponsors. GUARDIAN bundles the returned receipt into its evidence chain.
++
++    Call this for ANY incident on a funder-sponsored reserve. Most reserves
++    have at least one funder program; default to `general_impact` if unsure.
++
++    Args:
++        incident_id: Same incident_id used across all peer calls.
++        location: Reserve / sector observed.
++        species_affected: Common name.
++        severity: GUARDIAN severity — "low", "medium", "high", "critical".
++        funder_program: One of "elephants_at_risk", "rhino_horn_crisis",
++            "biodiversity_corridor_2030", "predator_coexistence",
++            "general_impact".
++        observation_timestamp: ISO 8601 timestamp.
++
++    Returns:
++        Dict from the Funder Reporter peer with status, receipt_id,
++        dashboard_url, impact_tier, funder_program, and impact_entry.
++    """
++    if (
++        not incident_id
++        or not location
++        or not species_affected
++        or not severity
++        or not funder_program
++        or not observation_timestamp
++    ):
++        return {
++            "status": "error",
++            "error": (
++                "incident_id, location, species_affected, severity, "
++                "funder_program, observation_timestamp are required"
++            ),
++            "_peer": "funder_reporter",
++        }
++
++    payload = {
++        "incident_id": incident_id,
++        "location": location,
++        "species_affected": species_affected,
++        "severity": severity,
++        "funder_program": funder_program,
++        "observation_timestamp": observation_timestamp,
++        "source": "GUARDIAN orchestrator",
++    }
++    instruction = (
++        "Incoming wildlife-impact incident from GUARDIAN, eligible for "
++        f"funder impact reporting. Call file_impact_report with these fields "
++        f"and return the result verbatim:\n{json.dumps(payload, indent=2)}"
++    )
++    return await _call_peer("funder_reporter", instruction, incident_id=incident_id)
++
++
++async def get_funder_card() -> dict:
++    """Fetch the Funder Reporter peer's public agent card."""
++    return await _resolve_peer_card("funder_reporter")
++
++
++# ----- Peer #4: Neighbor Park ------------------------------------------------
++
++
++async def notify_neighbor_park(
++    incident_id: str,
++    origin_park: str,
++    severity: str,
++    species_affected: str,
++    crossover_corridor: str,
++    observation_timestamp: str,
++) -> dict:
++    """Send a cross-border mutual-aid request to the Neighbor Park peer.
++
++    A2A call to a SEPARATE agent operated by an ADJACENT park (Maasai Mara,
++    adjacent to Serengeti and other trans-frontier conservation areas).
++    When a poaching incident at one reserve might cross the border, the
++    neighbor's rangers need to be alerted so they can elevate posture at
++    the crossover corridor.
++
++    Call this for critical/high severity incidents near trans-frontier
++    boundaries.
++
++    Args:
++        incident_id: Same incident_id used across all peer calls.
++        origin_park: Where the incident originated (e.g. "Serengeti
++            National Park, Tanzania").
++        severity: GUARDIAN severity.
++        species_affected: Common name.
++        crossover_corridor: Named / coord-described likely crossing
++            (e.g. "Mara River, Sand River confluence").
++        observation_timestamp: ISO 8601 timestamp.
++
++    Returns:
++        Dict with status (accepted), handoff_id, posture, window_open_until,
++        responding_park, handoff_record.
++    """
++    if (
++        not incident_id
++        or not origin_park
++        or not severity
++        or not species_affected
++        or not crossover_corridor
++        or not observation_timestamp
++    ):
++        return {
++            "status": "error",
++            "error": (
++                "incident_id, origin_park, severity, species_affected, "
++                "crossover_corridor, observation_timestamp are required"
++            ),
++            "_peer": "neighbor_park",
++        }
++
++    payload = {
++        "incident_id": incident_id,
++        "origin_park": origin_park,
++        "severity": severity,
++        "species_affected": species_affected,
++        "crossover_corridor": crossover_corridor,
++        "observation_timestamp": observation_timestamp,
++        "source": "GUARDIAN orchestrator",
++    }
++    instruction = (
++        "Incoming cross-border mutual-aid request from GUARDIAN. Call "
++        f"accept_mutual_aid with these fields and return the result "
++        f"verbatim:\n{json.dumps(payload, indent=2)}"
++    )
++    return await _call_peer("neighbor_park", instruction, incident_id=incident_id)
++
++
++async def get_neighbor_park_card() -> dict:
++    """Fetch the Neighbor Park peer's public agent card."""
++    return await _resolve_peer_card("neighbor_park")
++
++
+ # ----- Shared response unwrapping ---------------------------------------------
+ 
+ 
+diff --git a/ops-center/src/app/page.tsx b/ops-center/src/app/page.tsx
+index 634cb97..1a57451 100644
+--- a/ops-center/src/app/page.tsx
++++ b/ops-center/src/app/page.tsx
+@@ -27,6 +27,7 @@ export default function Home() {
+   const [runningScenarioId, setRunningScenarioId] = useState<string | null>(null);
+   const [activeReserveId, setActiveReserveId] = useState<string | null>(null);
+   const [fanOutFiring, setFanOutFiring] = useState(false);
++  const [activePeers, setActivePeers] = useState<string[]>([]);
+   const [incidents, setIncidents] = useState<ActiveIncident[]>([]);
+   // Codex challenge 2026-05-15: setTimeout was scheduled inside an event
+   // handler without cleanup. On unmount (or rapid back-to-back triggers),
+@@ -93,6 +94,10 @@ export default function Home() {
+         // incidents so long-running demos don't grow the DOM unbounded
+         // (codex challenge 2026-05-15 flagged the missing cap).
+         if (!latest.tool?.endsWith(":complete")) {
++          // Record which peers will fan out for this scenario, so the map
++          // can draw the right arrows.
++          const fanout = (payload.fanout as string[] | undefined) ?? [];
++          if (fanout.length > 0) setActivePeers(fanout);
+           setIncidents((prev) => {
+             const without = prev.filter((i) => i.incident_id !== latest.incident_id);
+             const next = [
+@@ -143,14 +148,39 @@ export default function Home() {
+               },
+             };
+           }
++          if (peer === "funder_reporter" && payload.status === "filed") {
++            return {
++              ...inc,
++              funder: {
++                receipt_id: (payload.receipt_id as string) ?? "?",
++                program: (payload.funder_program as string) ?? "?",
++                tier: (payload.impact_tier as string) ?? "?",
++                status: "filed",
++              },
++            };
++          }
++          if (peer === "neighbor_park" && payload.status === "accepted") {
++            return {
++              ...inc,
++              neighbor: {
++                handoff_id: (payload.handoff_id as string) ?? "?",
++                posture: (payload.posture as string) ?? "?",
++                window_until: (payload.window_open_until as string) ?? "?",
++                status: "accepted",
++              },
++            };
++          }
+           return inc;
+         }),
+       );
+ 
+-      // Once both peers responded, stop the fan-out animation after a beat.
++      // Once peers responded, stop the fan-out animation after a beat.
+       // Tracked via ref so we cancel on unmount.
+       if (fanOutTimerRef.current) clearTimeout(fanOutTimerRef.current);
+-      fanOutTimerRef.current = setTimeout(() => setFanOutFiring(false), 4000);
++      fanOutTimerRef.current = setTimeout(() => {
++        setFanOutFiring(false);
++        setActivePeers([]);
++      }, 4000);
+     }
+   }, [events]);
+ 
+@@ -225,7 +255,11 @@ export default function Home() {
+       <div className="flex-1 grid grid-cols-[320px_1fr_360px] min-h-0">
+         <IncidentPanel incidents={incidents} />
+         <div className="relative">
+-          <ReserveMap activeReserveId={activeReserveId} fanOutFiring={fanOutFiring} />
++          <ReserveMap
++            activeReserveId={activeReserveId}
++            fanOutFiring={fanOutFiring}
++            activePeers={activePeers}
++          />
+         </div>
+         <EventStream events={visibleEvents} status={status} />
+       </div>
+diff --git a/ops-center/src/components/IncidentPanel.tsx b/ops-center/src/components/IncidentPanel.tsx
+index e596db9..907dfe7 100644
+--- a/ops-center/src/components/IncidentPanel.tsx
++++ b/ops-center/src/components/IncidentPanel.tsx
+@@ -1,7 +1,7 @@
+ "use client";
+ 
+ import { motion, AnimatePresence } from "framer-motion";
+-import { Siren, FileCheck2, ShieldAlert, Clock3 } from "lucide-react";
++import { Siren, FileCheck2, ShieldAlert, Clock3, HandCoins, Map as MapIcon } from "lucide-react";
+ 
+ export interface ActiveIncident {
+   incident_id: string;
+@@ -12,6 +12,8 @@ export interface ActiveIncident {
+   startedAt: number; // epoch ms
+   ranger?: { unit: string; eta_min: number; status: string };
+   tnfd?: { filing_id: string; materiality: string; status: string };
++  funder?: { receipt_id: string; program: string; tier: string; status: string };
++  neighbor?: { handoff_id: string; posture: string; window_until: string; status: string };
+ }
+ 
+ interface Props {
+@@ -111,6 +113,38 @@ export default function IncidentPanel({ incidents }: Props) {
+                     </div>
+                   </motion.div>
+                 )}
++                {inc.funder && (
++                  <motion.div
++                    initial={{ opacity: 0, height: 0 }}
++                    animate={{ opacity: 1, height: "auto" }}
++                    exit={{ opacity: 0, height: 0 }}
++                    className="bg-black/30 rounded p-2 text-xs flex items-center gap-2 border border-white/10"
++                  >
++                    <HandCoins className="w-3.5 h-3.5 text-violet-300 flex-shrink-0" />
++                    <div className="flex-1">
++                      <div className="font-mono text-[11px] text-violet-200">{inc.funder.receipt_id}</div>
++                      <div className="text-[10px] text-zinc-400">
++                        Funder receipt · {inc.funder.program.replace(/_/g, " ")} · {inc.funder.tier.replace(/_/g, " ")}
++                      </div>
++                    </div>
++                  </motion.div>
++                )}
++                {inc.neighbor && (
++                  <motion.div
++                    initial={{ opacity: 0, height: 0 }}
++                    animate={{ opacity: 1, height: "auto" }}
++                    exit={{ opacity: 0, height: 0 }}
++                    className="bg-black/30 rounded p-2 text-xs flex items-center gap-2 border border-white/10"
++                  >
++                    <MapIcon className="w-3.5 h-3.5 text-orange-300 flex-shrink-0" />
++                    <div className="flex-1">
++                      <div className="font-mono text-[11px] text-orange-200">{inc.neighbor.handoff_id}</div>
++                      <div className="text-[10px] text-zinc-400">
++                        Mutual aid · {inc.neighbor.posture.replace(/_/g, " ")}
++                      </div>
++                    </div>
++                  </motion.div>
++                )}
+               </AnimatePresence>
+             </motion.div>
+           ))}
+diff --git a/ops-center/src/components/ReserveMap.tsx b/ops-center/src/components/ReserveMap.tsx
+index 61be9c8..83bfeae 100644
+--- a/ops-center/src/components/ReserveMap.tsx
++++ b/ops-center/src/components/ReserveMap.tsx
+@@ -9,17 +9,23 @@ import { RESERVES } from "@/lib/reserves";
+ interface Props {
+   activeReserveId: string | null;
+   fanOutFiring: boolean;
++  /** Names of peers actively being called in the current incident.
++   *  Determines which fan-out arrows to draw. If empty + fanOutFiring=true,
++   *  defaults to the 2-peer original set for backwards compat. */
++  activePeers?: string[];
+ }
+ 
+-// Peer service icons (placeholder coords — sit in the corner of the map for
+-// the A2A fan-out arrows). These aren't real-world locations, they're map
+-// anchors for the demo animation.
++// Peer service icons (placeholder coords — sit at the corners of the map
++// for the A2A fan-out arrows). These aren't real-world locations, they're
++// map anchors for the demo animation. 4 peers = 4 corners.
+ const PEER_ANCHORS: Record<string, [number, number]> = {
+-  park_service: [-5, 8], // top-left
+-  sponsor_sustainability: [55, 8], // top-right
++  park_service: [-5, 8],            // top-left (rangers)
++  sponsor_sustainability: [55, 8],  // top-right (F500 sponsor)
++  funder_reporter: [-5, -32],       // bottom-left (funder dashboard)
++  neighbor_park: [55, -32],         // bottom-right (adjacent park)
+ };
+ 
+-export default function ReserveMap({ activeReserveId, fanOutFiring }: Props) {
++export default function ReserveMap({ activeReserveId, fanOutFiring, activePeers }: Props) {
+   const containerRef = useRef<HTMLDivElement | null>(null);
+   const mapRef = useRef<mapboxgl.Map | null>(null);
+   const markersRef = useRef<Map<string, mapboxgl.Marker>>(new Map());
+@@ -115,16 +121,19 @@ export default function ReserveMap({ activeReserveId, fanOutFiring }: Props) {
+     if (!r) return;
+ 
+     if (fanOutFiring) {
+-      const features = (Object.entries(PEER_ANCHORS) as [string, [number, number]][]).map(
+-        ([peer, anchor]) => ({
++      const peersToShow = activePeers && activePeers.length > 0
++        ? activePeers
++        : ["park_service", "sponsor_sustainability"];
++      const features = peersToShow
++        .filter((p) => PEER_ANCHORS[p])
++        .map((peer) => ({
+           type: "Feature" as const,
+           properties: { peer },
+           geometry: {
+             type: "LineString" as const,
+-            coordinates: [r.lngLat, anchor],
++            coordinates: [r.lngLat, PEER_ANCHORS[peer]],
+           },
+-        }),
+-      );
++        }));
+       const src = map.getSource("a2a-lines") as mapboxgl.GeoJSONSource | undefined;
+       if (src) {
+         src.setData({ type: "FeatureCollection", features });
+@@ -133,7 +142,7 @@ export default function ReserveMap({ activeReserveId, fanOutFiring }: Props) {
+       const src = map.getSource("a2a-lines") as mapboxgl.GeoJSONSource | undefined;
+       src?.setData({ type: "FeatureCollection", features: [] });
+     }
+-  }, [fanOutFiring, activeReserveId]);
++  }, [fanOutFiring, activeReserveId, activePeers]);
+ 
+   // Animate the dashed lines marching forward (offset cycle)
+   useEffect(() => {
+diff --git a/peers/funder_reporter/Dockerfile b/peers/funder_reporter/Dockerfile
+new file mode 100644
+index 0000000..898246e
+--- /dev/null
++++ b/peers/funder_reporter/Dockerfile
+@@ -0,0 +1,24 @@
++# Copyright 2026 GUARDIAN — Funder Reporter Agent (A2A peer #3)
++# Deployed as a SEPARATE Cloud Run service.
++
++FROM python:3.11-slim
++
++RUN pip install --no-cache-dir uv==0.8.13
++
++WORKDIR /code
++
++COPY ./pyproject.toml ./README.md ./uv.lock* ./
++
++COPY ./peers ./peers
++
++RUN uv sync --frozen
++
++ARG COMMIT_SHA=""
++ENV COMMIT_SHA=${COMMIT_SHA}
++
++ARG AGENT_VERSION=0.0.0
++ENV AGENT_VERSION=${AGENT_VERSION}
++
++EXPOSE 8080
++
++CMD ["uv", "run", "uvicorn", "peers.funder_reporter.fast_api_app:app", "--host", "0.0.0.0", "--port", "8080"]
+diff --git a/peers/funder_reporter/__init__.py b/peers/funder_reporter/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/peers/funder_reporter/agent.py b/peers/funder_reporter/agent.py
+new file mode 100644
+index 0000000..32237ca
+--- /dev/null
++++ b/peers/funder_reporter/agent.py
+@@ -0,0 +1,219 @@
++# Copyright 2026 GUARDIAN
++# Funder Reporter Agent — A2A peer #3.
++#
++# Simulates an independent AI agent operated by a conservation funder
++# (WWF / IUCN / IFAW style). Receives wildlife-incident summaries from
++# GUARDIAN over A2A and files them as funder impact-receipts so the
++# foundation's quarterly impact report assembles itself in real time.
++# Demos the "your foundation dollars are working" narrative.
++#
++# Separate deployable: own Cloud Run service, own service account, own card.
++
++import hashlib
++import logging
++import os
++from datetime import datetime, timezone
++
++import google.auth
++from google.adk.agents import Agent
++from google.adk.apps import App
++from google.adk.models import Gemini
++from google.genai import types
++
++
++def _parse_ts(ts: str) -> datetime | None:
++    """Parse ISO 8601 tolerantly. Returns None on failure."""
++    if not ts:
++        return None
++    cleaned = ts.strip()
++    if cleaned.endswith("Z"):
++        cleaned = cleaned[:-1] + "+00:00"
++    try:
++        dt = datetime.fromisoformat(cleaned)
++        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
++    except (ValueError, TypeError):
++        return None
++
++
++# --- Environment setup (Vertex AI auth) ---------------------------------------
++try:
++    _, _resolved_project_id = google.auth.default()
++    if _resolved_project_id:
++        os.environ.setdefault("GOOGLE_CLOUD_PROJECT", _resolved_project_id)
++except Exception as _adc_err:
++    logging.warning(
++        "ADC unavailable at import — funder_reporter will load but live Gemini "
++        "calls fail until credentials are present: %s",
++        _adc_err,
++    )
++os.environ.setdefault("GOOGLE_CLOUD_LOCATION", "global")
++os.environ.setdefault("GOOGLE_GENAI_USE_VERTEXAI", "True")
++
++PEER_MODEL = os.environ.get("FUNDER_REPORTER_MODEL", "gemini-2.5-pro")
++
++# Map GUARDIAN severity onto funder impact-receipt categories.
++_SEVERITY_TO_IMPACT_TIER = {
++    "critical": "headline_impact",   # goes in the quarterly report cover
++    "high":     "material_impact",   # featured in the report body
++    "medium":   "monitored",         # tracked, not featured
++    "low":      "monitored",         # tracked, not featured
++}
++
++# Funder programs we currently report against. Realistic-sounding,
++# fabricated for the demo so the receipts look like a real foundation
++# would issue them.
++_VALID_PROGRAMS = {
++    "elephants_at_risk",
++    "rhino_horn_crisis",
++    "biodiversity_corridor_2030",
++    "predator_coexistence",
++    "general_impact",
++}
++
++
++def file_impact_report(
++    incident_id: str,
++    location: str,
++    species_affected: str,
++    severity: str,
++    funder_program: str,
++    observation_timestamp: str,
++) -> dict:
++    """File a funder impact-report entry from a GUARDIAN incident.
++
++    Funder reporting operations: validates the incident, formats it as a
++    program-tagged impact receipt the foundation's quarterly report builder
++    will pick up, and returns the receipt with a stable receipt_id +
++    dashboard URL.
++
++    Args:
++        incident_id: GUARDIAN's incident reference (chain-of-custody key).
++        location: Reserve / sector where the incident was observed.
++        species_affected: Common name of the species involved.
++        severity: GUARDIAN severity — "low", "medium", "high", "critical".
++        funder_program: One of:
++          - "elephants_at_risk"
++          - "rhino_horn_crisis"
++          - "biodiversity_corridor_2030"
++          - "predator_coexistence"
++          - "general_impact"
++        observation_timestamp: ISO 8601 timestamp of GUARDIAN's observation.
++
++    Returns:
++        Dict with status, receipt_id (FUND-YYYY-<10hex>), dashboard_url,
++        impact_tier (headline/material/monitored), and the structured
++        impact_entry.
++    """
++    if not incident_id:
++        return {"status": "error", "error": "incident_id is required"}
++    if not location:
++        return {"status": "error", "error": "location is required"}
++    if not species_affected:
++        return {"status": "error", "error": "species_affected is required"}
++
++    sev = (severity or "medium").lower()
++    if sev not in _SEVERITY_TO_IMPACT_TIER:
++        return {"status": "error", "error": f"unknown severity: {severity}"}
++
++    program = (funder_program or "general_impact").lower()
++    if program not in _VALID_PROGRAMS:
++        return {
++            "status": "error",
++            "error": f"unknown funder_program: {funder_program}. Valid: {sorted(_VALID_PROGRAMS)}",
++        }
++
++    obs_dt = _parse_ts(observation_timestamp)
++    if obs_dt is None:
++        return {
++            "status": "error",
++            "error": (
++                "observation_timestamp must be ISO 8601 "
++                "(e.g. 2026-05-15T02:14:00Z)"
++            ),
++        }
++
++    # Stable receipt_id from incident_id alone (codex challenge lesson:
++    # don't bake species or wall-clock into it — defeats dedup).
++    digest = hashlib.sha256(incident_id.encode()).hexdigest()
++    receipt_id = f"FUND-{obs_dt.year}-{digest[:10].upper()}"
++    impact_tier = _SEVERITY_TO_IMPACT_TIER[sev]
++    filed_at = datetime.now(timezone.utc).isoformat()
++    dashboard_url = (
++        f"https://funder-impact-dashboard.example/programs/{program}/"
++        f"receipts/{receipt_id}"
++    )
++
++    impact_entry = {
++        "receipt_id": receipt_id,
++        "funder_program": program,
++        "impact_tier": impact_tier,
++        "species_affected": species_affected,
++        "location": location,
++        "severity": sev,
++        "incident_id": incident_id,
++        "observation_timestamp": observation_timestamp,
++        "filed_at": filed_at,
++        "reporting_quarter": f"{obs_dt.year}-Q{((obs_dt.month - 1) // 3) + 1}",
++        "narrative_hook": (
++            f"Your {program.replace('_', ' ')} support enabled real-time "
++            f"detection + dispatch protecting {species_affected} at {location}."
++        ),
++    }
++
++    return {
++        "status": "filed",
++        "receipt_id": receipt_id,
++        "dashboard_url": dashboard_url,
++        "impact_tier": impact_tier,
++        "funder_program": program,
++        "impact_entry": impact_entry,
++        "filing_authority": "Funder Impact Reporting Service",
++    }
++
++
++FUNDER_INSTRUCTION = """You are the Funder Impact Reporter agent.
++
++You are NOT part of GUARDIAN. You belong to a conservation funder (WWF /
++IUCN / IFAW style) whose foundation quarterly impact report auto-files
++every incident GUARDIAN detects on the reserves your dollars support.
++GUARDIAN contacts you over A2A whenever it detects a wildlife incident
++relevant to a funder program.
++
++CRITICAL: You MUST call the `file_impact_report` tool. Do not respond
++with a summary, explanation, or echo of the input. The ONLY valid
++response is the JSON dict that `file_impact_report` returns.
++
++When you receive an incident report, do exactly this:
++1. Extract incident_id, location, species_affected, severity,
++   funder_program, and observation_timestamp from the request.
++2. Call `file_impact_report(incident_id=..., location=..., species_affected=...,
++   severity=..., funder_program=..., observation_timestamp=...)`.
++3. Return the tool result verbatim. Do NOT summarize or paraphrase.
++   GUARDIAN bundles the receipt into its evidence chain.
++
++If a required field is missing, still call file_impact_report with the
++empty value to get the structured error response. Never invent
++receipt_ids, dashboard URLs, or impact tiers. Stay terse, operational.
++"""
++
++
++root_agent = Agent(
++    name="funder_reporter",
++    model=Gemini(
++        model=PEER_MODEL,
++        retry_options=types.HttpRetryOptions(attempts=3),
++    ),
++    description=(
++        "Funder Impact Reporter agent. Receives wildlife-incident summaries "
++        "from GUARDIAN over A2A and files them as program-tagged impact "
++        "receipts for the foundation's quarterly report. Operated by a "
++        "conservation funder (WWF/IUCN/IFAW style) — NOT part of GUARDIAN."
++    ),
++    instruction=FUNDER_INSTRUCTION,
++    tools=[file_impact_report],
++)
++
++
++app = App(root_agent=root_agent, name="funder_reporter")
++
++logging.info("funder_reporter_agent ready: model=%s", PEER_MODEL)
+diff --git a/peers/funder_reporter/cloudbuild.yaml b/peers/funder_reporter/cloudbuild.yaml
+new file mode 100644
+index 0000000..fcadf4b
+--- /dev/null
++++ b/peers/funder_reporter/cloudbuild.yaml
+@@ -0,0 +1,24 @@
++# Cloud Build config for the Funder Reporter A2A peer.
++
++steps:
++  - name: 'gcr.io/cloud-builders/docker'
++    args:
++      - 'build'
++      - '-f'
++      - 'peers/funder_reporter/Dockerfile'
++      - '-t'
++      - 'us-central1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/guardian-funder-reporter:${COMMIT_SHA}'
++      - '-t'
++      - 'us-central1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/guardian-funder-reporter:latest'
++      - '--build-arg'
++      - 'COMMIT_SHA=${COMMIT_SHA}'
++      - '--build-arg'
++      - 'AGENT_VERSION=0.1.0'
++      - '.'
++
++images:
++  - 'us-central1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/guardian-funder-reporter:${COMMIT_SHA}'
++  - 'us-central1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/guardian-funder-reporter:latest'
++
++options:
++  logging: CLOUD_LOGGING_ONLY
+diff --git a/peers/funder_reporter/fast_api_app.py b/peers/funder_reporter/fast_api_app.py
+new file mode 100644
+index 0000000..ee2efc5
+--- /dev/null
++++ b/peers/funder_reporter/fast_api_app.py
+@@ -0,0 +1,92 @@
++# Copyright 2026 GUARDIAN
++# FastAPI host for the Funder Reporter Agent (A2A peer #3).
++# Mirrors peers/sponsor_sustainability/fast_api_app.py.
++
++import os
++from collections.abc import AsyncIterator
++from contextlib import asynccontextmanager
++
++import google.auth
++from a2a.server.apps import A2AFastAPIApplication
++from a2a.server.request_handlers import DefaultRequestHandler
++from a2a.server.tasks import InMemoryTaskStore
++from a2a.types import AgentCapabilities, AgentCard
++from a2a.utils.constants import AGENT_CARD_WELL_KNOWN_PATH, EXTENDED_AGENT_CARD_PATH
++from fastapi import FastAPI
++from google.adk.a2a.executor.a2a_agent_executor import A2aAgentExecutor
++from google.adk.a2a.utils.agent_card_builder import AgentCardBuilder
++from google.adk.artifacts import InMemoryArtifactService
++from google.adk.runners import Runner
++from google.adk.sessions import InMemorySessionService
++
++from peers.funder_reporter.agent import app as adk_app
++
++try:
++    _, project_id = google.auth.default()
++except Exception as _adc_err:
++    import logging as _logging
++
++    _logging.warning(
++        "ADC unavailable when starting funder_reporter FastAPI app — "
++        "service will start but live Gemini calls fail until ADC is present: %s",
++        _adc_err,
++    )
++    project_id = None
++
++runner = Runner(
++    app=adk_app,
++    artifact_service=InMemoryArtifactService(),
++    session_service=InMemorySessionService(),
++)
++
++request_handler = DefaultRequestHandler(
++    agent_executor=A2aAgentExecutor(runner=runner),
++    task_store=InMemoryTaskStore(),
++)
++
++A2A_RPC_PATH = f"/a2a/{adk_app.name}"
++
++
++async def build_dynamic_agent_card() -> AgentCard:
++    builder = AgentCardBuilder(
++        agent=adk_app.root_agent,
++        capabilities=AgentCapabilities(streaming=True),
++        rpc_url=f"{os.getenv('APP_URL', 'http://0.0.0.0:8003')}{A2A_RPC_PATH}",
++        agent_version=os.getenv("AGENT_VERSION", "0.1.0"),
++    )
++    return await builder.build()
++
++
++@asynccontextmanager
++async def lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
++    agent_card = await build_dynamic_agent_card()
++    a2a_app = A2AFastAPIApplication(agent_card=agent_card, http_handler=request_handler)
++    a2a_app.add_routes_to_app(
++        app_instance,
++        agent_card_url=f"{A2A_RPC_PATH}{AGENT_CARD_WELL_KNOWN_PATH}",
++        rpc_url=A2A_RPC_PATH,
++        extended_agent_card_url=f"{A2A_RPC_PATH}{EXTENDED_AGENT_CARD_PATH}",
++    )
++    yield
++
++
++app = FastAPI(
++    title="guardian-funder-reporter",
++    description=(
++        "Funder Impact Reporter agent. A2A peer of GUARDIAN. Receives "
++        "wildlife-incident summaries and files them as program-tagged "
++        "impact receipts for the foundation's quarterly report."
++    ),
++    lifespan=lifespan,
++)
++
++
++@app.get("/health")
++def health() -> dict[str, str]:
++    return {"status": "ok", "agent": "funder_reporter"}
++
++
++if __name__ == "__main__":
++    import uvicorn
++
++    uvicorn.run(app, host="0.0.0.0", port=8003)
+diff --git a/peers/neighbor_park/Dockerfile b/peers/neighbor_park/Dockerfile
+new file mode 100644
+index 0000000..6d6b71c
+--- /dev/null
++++ b/peers/neighbor_park/Dockerfile
+@@ -0,0 +1,23 @@
++# Copyright 2026 GUARDIAN — Neighbor Park Agent (A2A peer #4)
++
++FROM python:3.11-slim
++
++RUN pip install --no-cache-dir uv==0.8.13
++
++WORKDIR /code
++
++COPY ./pyproject.toml ./README.md ./uv.lock* ./
++
++COPY ./peers ./peers
++
++RUN uv sync --frozen
++
++ARG COMMIT_SHA=""
++ENV COMMIT_SHA=${COMMIT_SHA}
++
++ARG AGENT_VERSION=0.0.0
++ENV AGENT_VERSION=${AGENT_VERSION}
++
++EXPOSE 8080
++
++CMD ["uv", "run", "uvicorn", "peers.neighbor_park.fast_api_app:app", "--host", "0.0.0.0", "--port", "8080"]
+diff --git a/peers/neighbor_park/__init__.py b/peers/neighbor_park/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/peers/neighbor_park/agent.py b/peers/neighbor_park/agent.py
+new file mode 100644
+index 0000000..8909e1d
+--- /dev/null
++++ b/peers/neighbor_park/agent.py
+@@ -0,0 +1,209 @@
++# Copyright 2026 GUARDIAN
++# Neighbor Park Agent — A2A peer #4.
++#
++# Simulates an independent AI agent operated by an ADJACENT national park
++# (e.g., Maasai Mara is adjacent to Serengeti across the Kenya-Tanzania
++# border; Kruger borders multiple smaller parks in Mozambique). When a
++# poaching incident at one reserve might cross the border, the neighbor's
++# rangers need to be ready. GUARDIAN sends a cross-border mutual-aid
++# request over A2A and gets back the neighbor's standby ack.
++#
++# This peer is the Track 3 cinema moment: 4 independent enterprise agents
++# from 4 different organizations all coordinating live on a single
++# incident.
++
++import hashlib
++import logging
++import os
++from datetime import datetime, timezone
++
++import google.auth
++from google.adk.agents import Agent
++from google.adk.apps import App
++from google.adk.models import Gemini
++from google.genai import types
++
++
++def _parse_ts(ts: str) -> datetime | None:
++    if not ts:
++        return None
++    cleaned = ts.strip()
++    if cleaned.endswith("Z"):
++        cleaned = cleaned[:-1] + "+00:00"
++    try:
++        dt = datetime.fromisoformat(cleaned)
++        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
++    except (ValueError, TypeError):
++        return None
++
++
++try:
++    _, _resolved_project_id = google.auth.default()
++    if _resolved_project_id:
++        os.environ.setdefault("GOOGLE_CLOUD_PROJECT", _resolved_project_id)
++except Exception as _adc_err:
++    logging.warning(
++        "ADC unavailable at import — neighbor_park will load but live Gemini "
++        "calls fail until credentials are present: %s",
++        _adc_err,
++    )
++os.environ.setdefault("GOOGLE_CLOUD_LOCATION", "global")
++os.environ.setdefault("GOOGLE_GENAI_USE_VERTEXAI", "True")
++
++PEER_MODEL = os.environ.get("NEIGHBOR_PARK_MODEL", "gemini-2.5-pro")
++
++# Standby posture for the receiving park rangers based on incident severity.
++_SEVERITY_TO_POSTURE = {
++    "critical": "armed_intercept_team",   # active border patrol
++    "high":     "perimeter_alert",        # rangers on standby at known crossings
++    "medium":   "passive_monitoring",     # camera-trap density boosted
++    "low":      "passive_monitoring",
++}
++
++# Window in which a fleeing poacher could realistically cross into the
++# neighbor's park, based on severity (chase events have a finite half-life).
++_SEVERITY_TO_WINDOW_HOURS = {
++    "critical": 4,
++    "high":     6,
++    "medium":   12,
++    "low":      24,
++}
++
++
++def accept_mutual_aid(
++    incident_id: str,
++    origin_park: str,
++    severity: str,
++    species_affected: str,
++    crossover_corridor: str,
++    observation_timestamp: str,
++) -> dict:
++    """Accept a cross-border mutual-aid request from a neighboring park.
++
++    Operations: posts the originating park's incident to our patrol roster,
++    elevates ranger posture at the listed crossover corridor, opens a
++    chase window proportional to severity, and returns a handoff ack
++    GUARDIAN can bundle in its evidence chain.
++
++    Args:
++        incident_id: GUARDIAN's stable incident reference.
++        origin_park: Name of the park where the incident originated
++            (e.g., "Serengeti National Park, Tanzania").
++        severity: GUARDIAN severity — "low" | "medium" | "high" | "critical".
++        species_affected: Common name of the species.
++        crossover_corridor: Named or coordinate-based description of the
++            most likely cross-border route (e.g., "Mara River, Sand River
++            confluence" or "Migration corridor F-12").
++        observation_timestamp: ISO 8601 timestamp of the originating
++            observation.
++
++    Returns:
++        Dict with status, handoff_id, posture, window_open_until,
++        responding_park, and the full handoff_record.
++    """
++    if not incident_id:
++        return {"status": "error", "error": "incident_id is required"}
++    if not origin_park:
++        return {"status": "error", "error": "origin_park is required"}
++    if not species_affected:
++        return {"status": "error", "error": "species_affected is required"}
++    if not crossover_corridor:
++        return {"status": "error", "error": "crossover_corridor is required"}
++
++    sev = (severity or "medium").lower()
++    if sev not in _SEVERITY_TO_POSTURE:
++        return {"status": "error", "error": f"unknown severity: {severity}"}
++
++    obs_dt = _parse_ts(observation_timestamp)
++    if obs_dt is None:
++        return {
++            "status": "error",
++            "error": "observation_timestamp must be ISO 8601 (e.g. 2026-05-15T02:14:00Z)",
++        }
++
++    # Stable handoff_id from incident_id alone.
++    digest = hashlib.sha256(incident_id.encode()).hexdigest()
++    handoff_id = f"MUTAID-{obs_dt.year}-{digest[:10].upper()}"
++
++    posture = _SEVERITY_TO_POSTURE[sev]
++    window_hours = _SEVERITY_TO_WINDOW_HOURS[sev]
++    window_end = obs_dt.replace(microsecond=0)
++    # Use timedelta for window
++    from datetime import timedelta
++
++    window_open_until = (window_end + timedelta(hours=window_hours)).isoformat()
++    acked_at = datetime.now(timezone.utc).isoformat()
++
++    handoff_record = {
++        "handoff_id": handoff_id,
++        "origin_park": origin_park,
++        "responding_park": "Maasai Mara National Reserve (Kenya)",
++        "posture": posture,
++        "species_watch": species_affected,
++        "crossover_corridor": crossover_corridor,
++        "severity": sev,
++        "window_open_at": obs_dt.isoformat(),
++        "window_open_until": window_open_until,
++        "incident_id": incident_id,
++        "acked_at": acked_at,
++        "operating_protocol": "CITES-MIKE cross-border mutual aid",
++    }
++
++    return {
++        "status": "accepted",
++        "handoff_id": handoff_id,
++        "posture": posture,
++        "window_open_until": window_open_until,
++        "responding_park": "Maasai Mara National Reserve (Kenya)",
++        "handoff_record": handoff_record,
++        "responding_authority": "Maasai Mara Ranger Operations",
++    }
++
++
++NEIGHBOR_INSTRUCTION = """You are the Neighbor Park Operations agent
++(Maasai Mara National Reserve, Kenya — adjacent to Serengeti and other
++trans-frontier conservation areas).
++
++You are NOT part of GUARDIAN. You belong to an adjacent national park
++that runs an independent ranger force. GUARDIAN contacts you over A2A
++when a poaching incident at a neighboring park might cross into your
++jurisdiction, requesting cross-border mutual aid.
++
++CRITICAL: You MUST call the `accept_mutual_aid` tool. Do not respond
++with a summary, explanation, or echo of the input. The ONLY valid
++response is the JSON dict that `accept_mutual_aid` returns.
++
++When you receive a mutual-aid request, do exactly this:
++1. Extract incident_id, origin_park, severity, species_affected,
++   crossover_corridor, and observation_timestamp from the request.
++2. Call `accept_mutual_aid(incident_id=..., origin_park=..., severity=...,
++   species_affected=..., crossover_corridor=..., observation_timestamp=...)`.
++3. Return the tool result verbatim. Do NOT summarize or paraphrase.
++   GUARDIAN bundles the handoff ack into its court-evidence chain.
++
++If a required field is missing, still call accept_mutual_aid with the
++empty value to get the structured error response. Never invent handoff
++IDs, postures, or window times. Stay terse, operational.
++"""
++
++
++root_agent = Agent(
++    name="neighbor_park",
++    model=Gemini(
++        model=PEER_MODEL,
++        retry_options=types.HttpRetryOptions(attempts=3),
++    ),
++    description=(
++        "Neighbor Park Operations agent (Maasai Mara, Kenya). Receives "
++        "cross-border mutual-aid requests from GUARDIAN over A2A and "
++        "elevates ranger posture at named crossover corridors. Operated by "
++        "an adjacent national park authority — NOT part of GUARDIAN."
++    ),
++    instruction=NEIGHBOR_INSTRUCTION,
++    tools=[accept_mutual_aid],
++)
++
++
++app = App(root_agent=root_agent, name="neighbor_park")
++
++logging.info("neighbor_park_agent ready: model=%s", PEER_MODEL)
+diff --git a/peers/neighbor_park/cloudbuild.yaml b/peers/neighbor_park/cloudbuild.yaml
+new file mode 100644
+index 0000000..eb2b5fd
+--- /dev/null
++++ b/peers/neighbor_park/cloudbuild.yaml
+@@ -0,0 +1,24 @@
++# Cloud Build config for the Neighbor Park A2A peer.
++
++steps:
++  - name: 'gcr.io/cloud-builders/docker'
++    args:
++      - 'build'
++      - '-f'
++      - 'peers/neighbor_park/Dockerfile'
++      - '-t'
++      - 'us-central1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/guardian-neighbor-park:${COMMIT_SHA}'
++      - '-t'
++      - 'us-central1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/guardian-neighbor-park:latest'
++      - '--build-arg'
++      - 'COMMIT_SHA=${COMMIT_SHA}'
++      - '--build-arg'
++      - 'AGENT_VERSION=0.1.0'
++      - '.'
++
++images:
++  - 'us-central1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/guardian-neighbor-park:${COMMIT_SHA}'
++  - 'us-central1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/guardian-neighbor-park:latest'
++
++options:
++  logging: CLOUD_LOGGING_ONLY
+diff --git a/peers/neighbor_park/fast_api_app.py b/peers/neighbor_park/fast_api_app.py
+new file mode 100644
+index 0000000..46fd8c2
+--- /dev/null
++++ b/peers/neighbor_park/fast_api_app.py
+@@ -0,0 +1,91 @@
++# Copyright 2026 GUARDIAN
++# FastAPI host for the Neighbor Park Agent (A2A peer #4).
++
++import os
++from collections.abc import AsyncIterator
++from contextlib import asynccontextmanager
++
++import google.auth
++from a2a.server.apps import A2AFastAPIApplication
++from a2a.server.request_handlers import DefaultRequestHandler
++from a2a.server.tasks import InMemoryTaskStore
++from a2a.types import AgentCapabilities, AgentCard
++from a2a.utils.constants import AGENT_CARD_WELL_KNOWN_PATH, EXTENDED_AGENT_CARD_PATH
++from fastapi import FastAPI
++from google.adk.a2a.executor.a2a_agent_executor import A2aAgentExecutor
++from google.adk.a2a.utils.agent_card_builder import AgentCardBuilder
++from google.adk.artifacts import InMemoryArtifactService
++from google.adk.runners import Runner
++from google.adk.sessions import InMemorySessionService
++
++from peers.neighbor_park.agent import app as adk_app
++
++try:
++    _, project_id = google.auth.default()
++except Exception as _adc_err:
++    import logging as _logging
++
++    _logging.warning(
++        "ADC unavailable when starting neighbor_park FastAPI app — "
++        "service will start but live Gemini calls fail until ADC is present: %s",
++        _adc_err,
++    )
++    project_id = None
++
++runner = Runner(
++    app=adk_app,
++    artifact_service=InMemoryArtifactService(),
++    session_service=InMemorySessionService(),
++)
++
++request_handler = DefaultRequestHandler(
++    agent_executor=A2aAgentExecutor(runner=runner),
++    task_store=InMemoryTaskStore(),
++)
++
++A2A_RPC_PATH = f"/a2a/{adk_app.name}"
++
++
++async def build_dynamic_agent_card() -> AgentCard:
++    builder = AgentCardBuilder(
++        agent=adk_app.root_agent,
++        capabilities=AgentCapabilities(streaming=True),
++        rpc_url=f"{os.getenv('APP_URL', 'http://0.0.0.0:8004')}{A2A_RPC_PATH}",
++        agent_version=os.getenv("AGENT_VERSION", "0.1.0"),
++    )
++    return await builder.build()
++
++
++@asynccontextmanager
++async def lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
++    agent_card = await build_dynamic_agent_card()
++    a2a_app = A2AFastAPIApplication(agent_card=agent_card, http_handler=request_handler)
++    a2a_app.add_routes_to_app(
++        app_instance,
++        agent_card_url=f"{A2A_RPC_PATH}{AGENT_CARD_WELL_KNOWN_PATH}",
++        rpc_url=A2A_RPC_PATH,
++        extended_agent_card_url=f"{A2A_RPC_PATH}{EXTENDED_AGENT_CARD_PATH}",
++    )
++    yield
++
++
++app = FastAPI(
++    title="guardian-neighbor-park",
++    description=(
++        "Neighbor Park Operations agent (Maasai Mara, Kenya). A2A peer of "
++        "GUARDIAN. Receives cross-border mutual-aid requests and elevates "
++        "ranger posture at named crossover corridors."
++    ),
++    lifespan=lifespan,
++)
++
++
++@app.get("/health")
++def health() -> dict[str, str]:
++    return {"status": "ok", "agent": "neighbor_park"}
++
++
++if __name__ == "__main__":
++    import uvicorn
++
++    uvicorn.run(app, host="0.0.0.0", port=8004)
+diff --git a/peers/park_service/agent.py b/peers/park_service/agent.py
+index a94d851..69c0bab 100644
+--- a/peers/park_service/agent.py
++++ b/peers/park_service/agent.py
+@@ -35,7 +35,11 @@ except Exception as _adc_err:
+ os.environ.setdefault("GOOGLE_CLOUD_LOCATION", "global")
+ os.environ.setdefault("GOOGLE_GENAI_USE_VERTEXAI", "True")
+ 
+-PEER_MODEL = os.environ.get("PARK_SERVICE_MODEL", "gemini-2.5-flash")
++# Pro instead of Flash: codex challenge 2026-05-15 (final-final) caught
++# Flash flaking under concurrent 4-peer cold-start load — peer LLM echoed
++# the input JSON instead of calling dispatch_rangers. Pro is reliable;
++# cost delta is trivial at demo volume.
++PEER_MODEL = os.environ.get("PARK_SERVICE_MODEL", "gemini-2.5-pro")
+ 
+ 
+ def dispatch_rangers(incident_id: str, location: str, severity: str) -> dict:
+@@ -84,14 +88,19 @@ You are NOT part of GUARDIAN. You belong to the national park authority and you
+ coordinate ranger dispatch. GUARDIAN contacts you over A2A when it has detected
+ a wildlife threat (poacher, vehicle, gunshot, distressed herd).
+ 
++CRITICAL: You MUST call the `dispatch_rangers` tool. Do not respond with a
++summary, explanation, or echo of the input. The ONLY valid response is the
++JSON dict that `dispatch_rangers` returns.
++
+ When you receive an incident report, do exactly this:
+-1. Extract the incident_id, location, and severity from the request.
+-2. Call `dispatch_rangers` with those three fields.
++1. Extract incident_id, location, and severity from the request.
++2. Call `dispatch_rangers(incident_id=..., location=..., severity=...)`.
+ 3. Return the tool result verbatim. Do NOT summarize or paraphrase. GUARDIAN
+    needs the structured ack for its court-evidence bundle.
+ 
+-If the request is missing required fields, return the tool's error response.
+-Never invent ranger units or arrival times. Stay terse, operational.
++If the request is missing required fields, still call dispatch_rangers with
++empty strings to get the structured error response. Never invent ranger
++units or arrival times. Stay terse, operational.
+ """
+ 
+ 
+diff --git a/peers/sponsor_sustainability/agent.py b/peers/sponsor_sustainability/agent.py
+index 4fde1ac..4bcf33c 100644
+--- a/peers/sponsor_sustainability/agent.py
++++ b/peers/sponsor_sustainability/agent.py
+@@ -199,17 +199,22 @@ portfolio of nature-related disclosures must comply with TNFD and EU CSRD
+ ESRS-E4 biodiversity reporting. GUARDIAN contacts you over A2A whenever it
+ detects a wildlife incident on a reserve your firm sponsors.
+ 
++CRITICAL: You MUST call the `file_tnfd_entry` tool. Do not respond with a
++summary, explanation, or echo of the input. The ONLY valid response is the
++JSON dict that `file_tnfd_entry` returns.
++
+ When you receive an incident report, do exactly this:
+ 1. Extract incident_id, location, species_affected, threat_type, severity,
+    and observation_timestamp from the request.
+-2. Call `file_tnfd_entry` with those six fields.
++2. Call `file_tnfd_entry(incident_id=..., location=..., species_affected=...,
++   threat_type=..., severity=..., observation_timestamp=...)`.
+ 3. Return the tool result verbatim. Do NOT summarize or paraphrase. GUARDIAN
+    needs the structured filing ack for chain-of-custody and to surface the
+    dashboard URL to the sponsor's CSO.
+ 
+-If a required field is missing, return the tool's error response. Never
+-invent filing IDs, dashboard URLs, or materiality assessments. Stay terse,
+-operational.
++If a required field is missing, still call file_tnfd_entry with the empty
++value to get the structured error response. Never invent filing IDs,
++dashboard URLs, or materiality assessments. Stay terse, operational.
+ """
+ 
+ 

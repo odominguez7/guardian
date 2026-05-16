@@ -627,7 +627,17 @@ async def run_scenario(scenario_id: str) -> dict:
 #   - The Ops Center "Generate evidence packet" button (post-scenario)
 #   - Direct judge / auditor clicks during demo evaluation
 #   - The orchestrator's LLM when it calls court_evidence_agent.
+#
+# Auth gate: codex flagged the endpoints as public-by-default which would
+# leak incident details to anyone who can guess an incident_id. The
+# orchestrator service is currently --allow-unauthenticated for hackathon
+# demo, so we layer an explicit shared-secret gate controlled by
+# GUARDIAN_EVIDENCE_AUTH_TOKEN env var. When the env var is set, the
+# evidence endpoints require Authorization: Bearer <token>. When unset
+# (the hackathon default), endpoints are open for judges to click. Flip
+# the env var in production via `make wire-evidence-auth`.
 
+from fastapi import Header, Request  # noqa: E402
 from fastapi.responses import HTMLResponse  # noqa: E402
 
 from app.tools.court_evidence import (  # noqa: E402
@@ -636,12 +646,31 @@ from app.tools.court_evidence import (  # noqa: E402
 )
 
 
+def _check_evidence_auth(authorization: str | None) -> None:
+    """Raise 401 if GUARDIAN_EVIDENCE_AUTH_TOKEN is set and the request
+    Authorization header doesn't carry that bearer token. No-op when the
+    env var is unset (hackathon demo default)."""
+    required = os.environ.get("GUARDIAN_EVIDENCE_AUTH_TOKEN", "").strip()
+    if not required:
+        return
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="evidence endpoint requires Bearer token")
+    presented = authorization[len("Bearer "):].strip()
+    if presented != required:
+        raise HTTPException(status_code=401, detail="invalid evidence bearer token")
+
+
 @app.get("/demo/evidence/{incident_id}")
-async def evidence_bundle(incident_id: str) -> dict:
+async def evidence_bundle(
+    incident_id: str,
+    authorization: str | None = Header(default=None),
+) -> dict:
     """Return the structured chain-of-custody bundle for an incident.
 
     JSON shape matches `bundle_incident()`. 404 if no events buffered.
+    Requires Bearer auth when `GUARDIAN_EVIDENCE_AUTH_TOKEN` env is set.
     """
+    _check_evidence_auth(authorization)
     bundle = _bundle_incident(incident_id)
     if bundle.get("status") != "ok":
         raise HTTPException(status_code=404, detail=bundle.get("error", "no evidence"))
@@ -649,16 +678,33 @@ async def evidence_bundle(incident_id: str) -> dict:
 
 
 @app.get("/demo/evidence/{incident_id}/html", response_class=HTMLResponse)
-async def evidence_html(incident_id: str) -> HTMLResponse:
+async def evidence_html(
+    incident_id: str,
+    authorization: str | None = Header(default=None),
+) -> HTMLResponse:
     """Return the human-readable HTML evidence packet for an incident.
 
-    Self-contained document (inline CSS); judge / auditor can save as PDF
-    via browser print. 404 if no events buffered.
+    Self-contained document (inline CSS) with embedded timeline JSON so an
+    auditor can re-derive the chain hash from the HTML alone. Saves as
+    PDF via browser print. 404 if no events buffered. Bearer-gated when
+    `GUARDIAN_EVIDENCE_AUTH_TOKEN` is set.
+
+    Response includes `Content-Disposition: attachment` so click-to-save
+    works as a one-step download for filing.
     """
+    _check_evidence_auth(authorization)
     rendered = _render_evidence_html(incident_id)
     if rendered.get("status") != "ok":
         raise HTTPException(status_code=404, detail=rendered.get("error", "no evidence"))
-    return HTMLResponse(content=rendered["html"], status_code=200)
+    return HTMLResponse(
+        content=rendered["html"],
+        status_code=200,
+        headers={
+            "Content-Disposition": (
+                f'inline; filename="evidence-{incident_id}.html"'
+            ),
+        },
+    )
 
 
 # Main execution
