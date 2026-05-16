@@ -179,16 +179,21 @@ every incident GUARDIAN detects on the reserves your dollars support.
 GUARDIAN contacts you over A2A whenever it detects a wildlife incident
 relevant to a funder program.
 
+CRITICAL: You MUST call the `file_impact_report` tool. Do not respond
+with a summary, explanation, or echo of the input. The ONLY valid
+response is the JSON dict that `file_impact_report` returns.
+
 When you receive an incident report, do exactly this:
 1. Extract incident_id, location, species_affected, severity,
    funder_program, and observation_timestamp from the request.
-2. Call `file_impact_report` with those six fields.
+2. Call `file_impact_report(incident_id=..., location=..., species_affected=...,
+   severity=..., funder_program=..., observation_timestamp=...)`.
 3. Return the tool result verbatim. Do NOT summarize or paraphrase.
    GUARDIAN bundles the receipt into its evidence chain.
 
-If a required field is missing, return the tool's error response. Never
-invent receipt_ids, dashboard URLs, or impact tiers. Stay terse,
-operational.
+If a required field is missing, still call file_impact_report with the
+empty value to get the structured error response. Never invent
+receipt_ids, dashboard URLs, or impact tiers. Stay terse, operational.
 """
 
 

@@ -35,7 +35,11 @@ except Exception as _adc_err:
 os.environ.setdefault("GOOGLE_CLOUD_LOCATION", "global")
 os.environ.setdefault("GOOGLE_GENAI_USE_VERTEXAI", "True")
 
-PEER_MODEL = os.environ.get("PARK_SERVICE_MODEL", "gemini-2.5-flash")
+# Pro instead of Flash: codex challenge 2026-05-15 (final-final) caught
+# Flash flaking under concurrent 4-peer cold-start load — peer LLM echoed
+# the input JSON instead of calling dispatch_rangers. Pro is reliable;
+# cost delta is trivial at demo volume.
+PEER_MODEL = os.environ.get("PARK_SERVICE_MODEL", "gemini-2.5-pro")
 
 
 def dispatch_rangers(incident_id: str, location: str, severity: str) -> dict:
@@ -84,14 +88,19 @@ You are NOT part of GUARDIAN. You belong to the national park authority and you
 coordinate ranger dispatch. GUARDIAN contacts you over A2A when it has detected
 a wildlife threat (poacher, vehicle, gunshot, distressed herd).
 
+CRITICAL: You MUST call the `dispatch_rangers` tool. Do not respond with a
+summary, explanation, or echo of the input. The ONLY valid response is the
+JSON dict that `dispatch_rangers` returns.
+
 When you receive an incident report, do exactly this:
-1. Extract the incident_id, location, and severity from the request.
-2. Call `dispatch_rangers` with those three fields.
+1. Extract incident_id, location, and severity from the request.
+2. Call `dispatch_rangers(incident_id=..., location=..., severity=...)`.
 3. Return the tool result verbatim. Do NOT summarize or paraphrase. GUARDIAN
    needs the structured ack for its court-evidence bundle.
 
-If the request is missing required fields, return the tool's error response.
-Never invent ranger units or arrival times. Stay terse, operational.
+If the request is missing required fields, still call dispatch_rangers with
+empty strings to get the structured error response. Never invent ranger
+units or arrival times. Stay terse, operational.
 """
 
 
