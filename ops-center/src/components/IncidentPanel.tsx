@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Siren, FileCheck2, ShieldAlert, Clock3 } from "lucide-react";
+import { Siren, FileCheck2, ShieldAlert, Clock3, HandCoins, Map as MapIcon } from "lucide-react";
 
 export interface ActiveIncident {
   incident_id: string;
@@ -12,6 +12,8 @@ export interface ActiveIncident {
   startedAt: number; // epoch ms
   ranger?: { unit: string; eta_min: number; status: string };
   tnfd?: { filing_id: string; materiality: string; status: string };
+  funder?: { receipt_id: string; program: string; tier: string; status: string };
+  neighbor?: { handoff_id: string; posture: string; window_until: string; status: string };
 }
 
 interface Props {
@@ -107,6 +109,38 @@ export default function IncidentPanel({ incidents }: Props) {
                       <div className="font-mono text-[11px] text-sky-200">{inc.tnfd.filing_id}</div>
                       <div className="text-[10px] text-zinc-400">
                         TNFD entry filed · {inc.tnfd.materiality} materiality
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+                {inc.funder && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="bg-black/30 rounded p-2 text-xs flex items-center gap-2 border border-white/10"
+                  >
+                    <HandCoins className="w-3.5 h-3.5 text-violet-300 flex-shrink-0" />
+                    <div className="flex-1">
+                      <div className="font-mono text-[11px] text-violet-200">{inc.funder.receipt_id}</div>
+                      <div className="text-[10px] text-zinc-400">
+                        Funder receipt · {inc.funder.program.replace(/_/g, " ")} · {inc.funder.tier.replace(/_/g, " ")}
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+                {inc.neighbor && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="bg-black/30 rounded p-2 text-xs flex items-center gap-2 border border-white/10"
+                  >
+                    <MapIcon className="w-3.5 h-3.5 text-orange-300 flex-shrink-0" />
+                    <div className="flex-1">
+                      <div className="font-mono text-[11px] text-orange-200">{inc.neighbor.handoff_id}</div>
+                      <div className="text-[10px] text-zinc-400">
+                        Mutual aid · {inc.neighbor.posture.replace(/_/g, " ")}
                       </div>
                     </div>
                   </motion.div>

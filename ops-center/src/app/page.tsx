@@ -27,6 +27,7 @@ export default function Home() {
   const [runningScenarioId, setRunningScenarioId] = useState<string | null>(null);
   const [activeReserveId, setActiveReserveId] = useState<string | null>(null);
   const [fanOutFiring, setFanOutFiring] = useState(false);
+  const [activePeers, setActivePeers] = useState<string[]>([]);
   const [incidents, setIncidents] = useState<ActiveIncident[]>([]);
   // Codex challenge 2026-05-15: setTimeout was scheduled inside an event
   // handler without cleanup. On unmount (or rapid back-to-back triggers),
@@ -93,6 +94,10 @@ export default function Home() {
         // incidents so long-running demos don't grow the DOM unbounded
         // (codex challenge 2026-05-15 flagged the missing cap).
         if (!latest.tool?.endsWith(":complete")) {
+          // Record which peers will fan out for this scenario, so the map
+          // can draw the right arrows.
+          const fanout = (payload.fanout as string[] | undefined) ?? [];
+          if (fanout.length > 0) setActivePeers(fanout);
           setIncidents((prev) => {
             const without = prev.filter((i) => i.incident_id !== latest.incident_id);
             const next = [
@@ -143,14 +148,39 @@ export default function Home() {
               },
             };
           }
+          if (peer === "funder_reporter" && payload.status === "filed") {
+            return {
+              ...inc,
+              funder: {
+                receipt_id: (payload.receipt_id as string) ?? "?",
+                program: (payload.funder_program as string) ?? "?",
+                tier: (payload.impact_tier as string) ?? "?",
+                status: "filed",
+              },
+            };
+          }
+          if (peer === "neighbor_park" && payload.status === "accepted") {
+            return {
+              ...inc,
+              neighbor: {
+                handoff_id: (payload.handoff_id as string) ?? "?",
+                posture: (payload.posture as string) ?? "?",
+                window_until: (payload.window_open_until as string) ?? "?",
+                status: "accepted",
+              },
+            };
+          }
           return inc;
         }),
       );
 
-      // Once both peers responded, stop the fan-out animation after a beat.
+      // Once peers responded, stop the fan-out animation after a beat.
       // Tracked via ref so we cancel on unmount.
       if (fanOutTimerRef.current) clearTimeout(fanOutTimerRef.current);
-      fanOutTimerRef.current = setTimeout(() => setFanOutFiring(false), 4000);
+      fanOutTimerRef.current = setTimeout(() => {
+        setFanOutFiring(false);
+        setActivePeers([]);
+      }, 4000);
     }
   }, [events]);
 
@@ -225,7 +255,11 @@ export default function Home() {
       <div className="flex-1 grid grid-cols-[320px_1fr_360px] min-h-0">
         <IncidentPanel incidents={incidents} />
         <div className="relative">
-          <ReserveMap activeReserveId={activeReserveId} fanOutFiring={fanOutFiring} />
+          <ReserveMap
+            activeReserveId={activeReserveId}
+            fanOutFiring={fanOutFiring}
+            activePeers={activePeers}
+          />
         </div>
         <EventStream events={visibleEvents} status={status} />
       </div>

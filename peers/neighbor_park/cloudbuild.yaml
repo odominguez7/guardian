@@ -1,0 +1,24 @@
+# Cloud Build config for the Neighbor Park A2A peer.
+
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-f'
+      - 'peers/neighbor_park/Dockerfile'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/guardian-neighbor-park:${COMMIT_SHA}'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/guardian-neighbor-park:latest'
+      - '--build-arg'
+      - 'COMMIT_SHA=${COMMIT_SHA}'
+      - '--build-arg'
+      - 'AGENT_VERSION=0.1.0'
+      - '.'
+
+images:
+  - 'us-central1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/guardian-neighbor-park:${COMMIT_SHA}'
+  - 'us-central1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/guardian-neighbor-park:latest'
+
+options:
+  logging: CLOUD_LOGGING_ONLY

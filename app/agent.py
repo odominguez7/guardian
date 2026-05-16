@@ -20,9 +20,13 @@ from google.genai import types
 from app import events
 from app.agents.stream_watcher import stream_watcher_agent
 from app.tools.a2a_peers import (
+    get_funder_card,
+    get_neighbor_park_card,
     get_park_service_card,
     get_sponsor_sustainability_card,
     mint_incident_id,
+    notify_funder,
+    notify_neighbor_park,
     notify_park_service,
     notify_sponsor_sustainability,
 )
@@ -105,7 +109,12 @@ Your A2A peers (independent agents run by OTHER organizations):
 - sponsor_sustainability (Fortune 500 sponsor's sustainability office): call
   `notify_sponsor_sustainability` to file a TNFD / CSRD-ESRS-E4 biodiversity-
   impact entry. Receives back a filing_id + dashboard_url.
-- (Two additional peers ship next: funder, neighbor_park.)
+- funder_reporter (conservation funder, WWF/IUCN/IFAW style): call
+  `notify_funder` to file a program-tagged impact receipt for the foundation's
+  quarterly impact report. Use funder_program="general_impact" if uncertain.
+- neighbor_park (adjacent national park, e.g. Maasai Mara): call
+  `notify_neighbor_park` to send a cross-border mutual-aid request when an
+  incident might cross the border. Pass origin_park name + crossover_corridor.
 
 Routing rules:
 - Video URI, GCS path, or image URI → delegate to `stream_watcher`.
@@ -153,6 +162,10 @@ root_agent = Agent(
         get_park_service_card,
         notify_sponsor_sustainability,
         get_sponsor_sustainability_card,
+        notify_funder,
+        get_funder_card,
+        notify_neighbor_park,
+        get_neighbor_park_card,
     ],
 )
 

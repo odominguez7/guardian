@@ -113,6 +113,16 @@ _PEERS: dict[str, dict[str, str]] = {
         "default_url": "http://localhost:8002",
         "a2a_path": "/a2a/sponsor_sustainability",
     },
+    "funder_reporter": {
+        "env_var": "FUNDER_REPORTER_URL",
+        "default_url": "http://localhost:8003",
+        "a2a_path": "/a2a/funder_reporter",
+    },
+    "neighbor_park": {
+        "env_var": "NEIGHBOR_PARK_URL",
+        "default_url": "http://localhost:8004",
+        "a2a_path": "/a2a/neighbor_park",
+    },
 }
 
 
@@ -414,6 +424,155 @@ async def get_sponsor_sustainability_card() -> dict:
     Diagnostic / discovery only. For routing, use notify_sponsor_sustainability.
     """
     return await _resolve_peer_card("sponsor_sustainability")
+
+
+# ----- Peer #3: Funder Reporter ----------------------------------------------
+
+
+async def notify_funder(
+    incident_id: str,
+    location: str,
+    species_affected: str,
+    severity: str,
+    funder_program: str,
+    observation_timestamp: str,
+) -> dict:
+    """File a wildlife-incident impact receipt with the Funder Reporter peer.
+
+    A2A call to a SEPARATE agent operated by a conservation funder
+    (WWF / IUCN / IFAW style). The funder's quarterly impact report
+    auto-files every incident GUARDIAN detects on reserves the foundation
+    sponsors. GUARDIAN bundles the returned receipt into its evidence chain.
+
+    Call this for ANY incident on a funder-sponsored reserve. Most reserves
+    have at least one funder program; default to `general_impact` if unsure.
+
+    Args:
+        incident_id: Same incident_id used across all peer calls.
+        location: Reserve / sector observed.
+        species_affected: Common name.
+        severity: GUARDIAN severity — "low", "medium", "high", "critical".
+        funder_program: One of "elephants_at_risk", "rhino_horn_crisis",
+            "biodiversity_corridor_2030", "predator_coexistence",
+            "general_impact".
+        observation_timestamp: ISO 8601 timestamp.
+
+    Returns:
+        Dict from the Funder Reporter peer with status, receipt_id,
+        dashboard_url, impact_tier, funder_program, and impact_entry.
+    """
+    if (
+        not incident_id
+        or not location
+        or not species_affected
+        or not severity
+        or not funder_program
+        or not observation_timestamp
+    ):
+        return {
+            "status": "error",
+            "error": (
+                "incident_id, location, species_affected, severity, "
+                "funder_program, observation_timestamp are required"
+            ),
+            "_peer": "funder_reporter",
+        }
+
+    payload = {
+        "incident_id": incident_id,
+        "location": location,
+        "species_affected": species_affected,
+        "severity": severity,
+        "funder_program": funder_program,
+        "observation_timestamp": observation_timestamp,
+        "source": "GUARDIAN orchestrator",
+    }
+    instruction = (
+        "Incoming wildlife-impact incident from GUARDIAN, eligible for "
+        f"funder impact reporting. Call file_impact_report with these fields "
+        f"and return the result verbatim:\n{json.dumps(payload, indent=2)}"
+    )
+    return await _call_peer("funder_reporter", instruction, incident_id=incident_id)
+
+
+async def get_funder_card() -> dict:
+    """Fetch the Funder Reporter peer's public agent card."""
+    return await _resolve_peer_card("funder_reporter")
+
+
+# ----- Peer #4: Neighbor Park ------------------------------------------------
+
+
+async def notify_neighbor_park(
+    incident_id: str,
+    origin_park: str,
+    severity: str,
+    species_affected: str,
+    crossover_corridor: str,
+    observation_timestamp: str,
+) -> dict:
+    """Send a cross-border mutual-aid request to the Neighbor Park peer.
+
+    A2A call to a SEPARATE agent operated by an ADJACENT park (Maasai Mara,
+    adjacent to Serengeti and other trans-frontier conservation areas).
+    When a poaching incident at one reserve might cross the border, the
+    neighbor's rangers need to be alerted so they can elevate posture at
+    the crossover corridor.
+
+    Call this for critical/high severity incidents near trans-frontier
+    boundaries.
+
+    Args:
+        incident_id: Same incident_id used across all peer calls.
+        origin_park: Where the incident originated (e.g. "Serengeti
+            National Park, Tanzania").
+        severity: GUARDIAN severity.
+        species_affected: Common name.
+        crossover_corridor: Named / coord-described likely crossing
+            (e.g. "Mara River, Sand River confluence").
+        observation_timestamp: ISO 8601 timestamp.
+
+    Returns:
+        Dict with status (accepted), handoff_id, posture, window_open_until,
+        responding_park, handoff_record.
+    """
+    if (
+        not incident_id
+        or not origin_park
+        or not severity
+        or not species_affected
+        or not crossover_corridor
+        or not observation_timestamp
+    ):
+        return {
+            "status": "error",
+            "error": (
+                "incident_id, origin_park, severity, species_affected, "
+                "crossover_corridor, observation_timestamp are required"
+            ),
+            "_peer": "neighbor_park",
+        }
+
+    payload = {
+        "incident_id": incident_id,
+        "origin_park": origin_park,
+        "severity": severity,
+        "species_affected": species_affected,
+        "crossover_corridor": crossover_corridor,
+        "observation_timestamp": observation_timestamp,
+        "source": "GUARDIAN orchestrator",
+    }
+    instruction = (
+        "Incoming cross-border mutual-aid request from GUARDIAN. Call "
+        f"accept_mutual_aid with these fields and return the result "
+        f"verbatim:\n{json.dumps(payload, indent=2)}"
+    )
+    return await _call_peer("neighbor_park", instruction, incident_id=incident_id)
+
+
+async def get_neighbor_park_card() -> dict:
+    """Fetch the Neighbor Park peer's public agent card."""
+    return await _resolve_peer_card("neighbor_park")
 
 
 # ----- Shared response unwrapping ---------------------------------------------

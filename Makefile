@@ -182,6 +182,62 @@ wire-sponsor-sustainability:
 		--project $$PROJECT_ID \
 		--update-env-vars "SPONSOR_SUSTAINABILITY_URL=$(SPONSOR_URL)"
 
+# Deploy the Funder Reporter peer agent (A2A peer #3).
+deploy-funder-reporter:
+	PROJECT_ID=$$(gcloud config get-value project) && \
+	PROJECT_NUMBER=$$(gcloud projects describe $$PROJECT_ID --format="value(projectNumber)") && \
+	APP_URL="https://guardian-funder-reporter-$$PROJECT_NUMBER.us-central1.run.app" && \
+	COMMIT_SHA=$$(git rev-parse --short HEAD) && \
+	gcloud builds submit . \
+		--config peers/funder_reporter/cloudbuild.yaml \
+		--substitutions COMMIT_SHA=$$COMMIT_SHA \
+		--project $$PROJECT_ID && \
+	gcloud beta run deploy guardian-funder-reporter \
+		--image us-central1-docker.pkg.dev/$$PROJECT_ID/cloud-run-source-deploy/guardian-funder-reporter:latest \
+		--memory "2Gi" \
+		--project $$PROJECT_ID \
+		--region "us-central1" \
+		--no-allow-unauthenticated \
+		--no-cpu-throttling \
+		--labels "created-by=adk,peer=funder-reporter" \
+		--update-env-vars "AGENT_VERSION=0.1.0,APP_URL=$$APP_URL"
+
+wire-funder-reporter:
+	@if [ -z "$(FUNDER_URL)" ]; then echo "ERROR: set FUNDER_URL=https://..."; exit 1; fi
+	PROJECT_ID=$$(gcloud config get-value project) && \
+	gcloud beta run services update guardian \
+		--region us-central1 \
+		--project $$PROJECT_ID \
+		--update-env-vars "FUNDER_REPORTER_URL=$(FUNDER_URL)"
+
+# Deploy the Neighbor Park peer agent (A2A peer #4).
+deploy-neighbor-park:
+	PROJECT_ID=$$(gcloud config get-value project) && \
+	PROJECT_NUMBER=$$(gcloud projects describe $$PROJECT_ID --format="value(projectNumber)") && \
+	APP_URL="https://guardian-neighbor-park-$$PROJECT_NUMBER.us-central1.run.app" && \
+	COMMIT_SHA=$$(git rev-parse --short HEAD) && \
+	gcloud builds submit . \
+		--config peers/neighbor_park/cloudbuild.yaml \
+		--substitutions COMMIT_SHA=$$COMMIT_SHA \
+		--project $$PROJECT_ID && \
+	gcloud beta run deploy guardian-neighbor-park \
+		--image us-central1-docker.pkg.dev/$$PROJECT_ID/cloud-run-source-deploy/guardian-neighbor-park:latest \
+		--memory "2Gi" \
+		--project $$PROJECT_ID \
+		--region "us-central1" \
+		--no-allow-unauthenticated \
+		--no-cpu-throttling \
+		--labels "created-by=adk,peer=neighbor-park" \
+		--update-env-vars "AGENT_VERSION=0.1.0,APP_URL=$$APP_URL"
+
+wire-neighbor-park:
+	@if [ -z "$(NEIGHBOR_URL)" ]; then echo "ERROR: set NEIGHBOR_URL=https://..."; exit 1; fi
+	PROJECT_ID=$$(gcloud config get-value project) && \
+	gcloud beta run services update guardian \
+		--region us-central1 \
+		--project $$PROJECT_ID \
+		--update-env-vars "NEIGHBOR_PARK_URL=$(NEIGHBOR_URL)"
+
 # ==============================================================================
 # Ops Center frontend (Next.js 16 + Mapbox + Firebase Auth)
 # ==============================================================================

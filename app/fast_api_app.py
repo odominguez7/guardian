@@ -192,6 +192,8 @@ from fastapi import HTTPException  # noqa: E402
 
 from app.tools.a2a_peers import (  # noqa: E402
     mint_incident_id,
+    notify_funder,
+    notify_neighbor_park,
     notify_park_service,
     notify_sponsor_sustainability,
 )
@@ -203,9 +205,12 @@ _SCENARIOS = {
             "Pickup truck detected approaching an African elephant herd at "
             "02:14 local time on a known poaching corridor in Serengeti "
             "Sector C. Audio confirms engine noise. Pattern agent flags "
-            "historical poaching corridor."
+            "historical poaching corridor. Cross-border risk — Maasai Mara "
+            "rangers placed on alert."
         ),
         "seed": "scenario:poacher_truck|serengeti-sector-c|2026-05-15T02:14:00Z",
+        # All 4 peers fire on this scenario — the Track 3 demo punchline.
+        "fanout": ["park_service", "sponsor_sustainability", "funder_reporter", "neighbor_park"],
         "park_args": {
             "location": "Serengeti Sector C, north fence (Tanzania)",
             "severity": "critical",
@@ -221,6 +226,20 @@ _SCENARIOS = {
             "severity": "critical",
             "observation_timestamp": "2026-05-15T02:14:00Z",
         },
+        "funder_args": {
+            "location": "Serengeti Sector C, north fence (Tanzania)",
+            "species_affected": "African elephant",
+            "severity": "critical",
+            "funder_program": "elephants_at_risk",
+            "observation_timestamp": "2026-05-15T02:14:00Z",
+        },
+        "neighbor_args": {
+            "origin_park": "Serengeti National Park, Tanzania",
+            "severity": "critical",
+            "species_affected": "African elephant",
+            "crossover_corridor": "Mara River corridor (Serengeti-Maasai Mara border)",
+            "observation_timestamp": "2026-05-15T02:14:00Z",
+        },
     },
     "audio_gunshot": {
         "title": "Audio Gunshot — Kruger Northern Sector",
@@ -230,6 +249,8 @@ _SCENARIOS = {
             "tail-lights in the same frame. Critical poaching event in progress."
         ),
         "seed": "scenario:audio_gunshot|kruger-north|2026-05-15T03:42:00Z",
+        # All 4 peers — gunshot + black rhino triggers full coordination.
+        "fanout": ["park_service", "sponsor_sustainability", "funder_reporter", "neighbor_park"],
         "park_args": {
             "location": "Kruger Northern Sector, ranger road 7 (South Africa)",
             "severity": "critical",
@@ -245,15 +266,32 @@ _SCENARIOS = {
             "severity": "critical",
             "observation_timestamp": "2026-05-15T03:42:00Z",
         },
+        "funder_args": {
+            "location": "Kruger Northern Sector, ranger road 7 (South Africa)",
+            "species_affected": "Black rhinoceros",
+            "severity": "critical",
+            "funder_program": "rhino_horn_crisis",
+            "observation_timestamp": "2026-05-15T03:42:00Z",
+        },
+        "neighbor_args": {
+            "origin_park": "Kruger National Park, South Africa",
+            "severity": "critical",
+            "species_affected": "Black rhinoceros",
+            "crossover_corridor": "Limpopo River corridor (Kruger-Gonarezhou border)",
+            "observation_timestamp": "2026-05-15T03:42:00Z",
+        },
     },
     "sponsored_species": {
         "title": "Sponsored Species Encounter — Etosha cheetah crossing",
         "narrative": (
             "Stream Watcher identified two cheetahs (sponsored species, IUCN "
             "Vulnerable) crossing fence break-point F-14 in Etosha at 17:22. "
-            "Medium severity but mandatory sponsor disclosure required."
+            "Medium severity but mandatory sponsor + funder disclosure required."
         ),
         "seed": "scenario:sponsored_species|etosha-f14|2026-05-15T17:22:00Z",
+        # 3 peers — no cross-border in Etosha (interior reserve). Skips
+        # neighbor_park to demonstrate fan-out is per-scenario, not all-or-nothing.
+        "fanout": ["park_service", "sponsor_sustainability", "funder_reporter"],
         "park_args": {
             "location": "Etosha National Park, fence break F-14 (Namibia)",
             "severity": "high",
@@ -267,6 +305,13 @@ _SCENARIOS = {
             "species_affected": "Cheetah",
             "threat_type": "fence_breach",
             "severity": "high",
+            "observation_timestamp": "2026-05-15T17:22:00Z",
+        },
+        "funder_args": {
+            "location": "Etosha National Park, fence break F-14 (Namibia)",
+            "species_affected": "Cheetah",
+            "severity": "high",
+            "funder_program": "predator_coexistence",
             "observation_timestamp": "2026-05-15T17:22:00Z",
         },
     },
@@ -356,21 +401,42 @@ async def run_scenario(scenario_id: str) -> dict:
                 "scenario_id": scenario_id,
                 "title": scenario["title"],
                 "narrative": scenario["narrative"],
+                "fanout": scenario.get("fanout", []),
             },
         )
 
-        park_task = notify_park_service(incident_id=incident_id, **scenario["park_args"])
-        sponsor_task = notify_sponsor_sustainability(
-            incident_id=incident_id, **scenario["sponsor_args"]
-        )
-        park, sponsor = await asyncio.gather(park_task, sponsor_task)
+        # Dispatch only the peers listed in fanout for this scenario.
+        # Default behavior for legacy scenarios (no fanout key) is the
+        # original 2-peer fan-out for backwards compat.
+        fanout = scenario.get("fanout") or ["park_service", "sponsor_sustainability"]
+        tasks: dict[str, asyncio.Task] = {}
+        if "park_service" in fanout:
+            tasks["park_service"] = asyncio.create_task(
+                notify_park_service(incident_id=incident_id, **scenario["park_args"])
+            )
+        if "sponsor_sustainability" in fanout:
+            tasks["sponsor_sustainability"] = asyncio.create_task(
+                notify_sponsor_sustainability(incident_id=incident_id, **scenario["sponsor_args"])
+            )
+        if "funder_reporter" in fanout:
+            tasks["funder_reporter"] = asyncio.create_task(
+                notify_funder(incident_id=incident_id, **scenario["funder_args"])
+            )
+        if "neighbor_park" in fanout:
+            tasks["neighbor_park"] = asyncio.create_task(
+                notify_neighbor_park(incident_id=incident_id, **scenario["neighbor_args"])
+            )
+
+        # Await all in parallel.
+        results: dict[str, dict] = {}
+        for peer_name, task in tasks.items():
+            results[peer_name] = await task
 
         record = {
             "incident_id": incident_id,
             "scenario_id": scenario_id,
             "title": scenario["title"],
-            "park_service": park,
-            "sponsor_sustainability": sponsor,
+            **results,
         }
         _events.emit(
             kind="incident_event",
@@ -378,7 +444,10 @@ async def run_scenario(scenario_id: str) -> dict:
             tool=f"scenario:{scenario_id}:complete",
             incident_id=incident_id,
             severity="info",
-            payload={"park_status": park.get("status"), "sponsor_status": sponsor.get("status")},
+            payload={
+                f"{peer}_status": result.get("status")
+                for peer, result in results.items()
+            },
         )
         return record
 

@@ -9,17 +9,23 @@ import { RESERVES } from "@/lib/reserves";
 interface Props {
   activeReserveId: string | null;
   fanOutFiring: boolean;
+  /** Names of peers actively being called in the current incident.
+   *  Determines which fan-out arrows to draw. If empty + fanOutFiring=true,
+   *  defaults to the 2-peer original set for backwards compat. */
+  activePeers?: string[];
 }
 
-// Peer service icons (placeholder coords — sit in the corner of the map for
-// the A2A fan-out arrows). These aren't real-world locations, they're map
-// anchors for the demo animation.
+// Peer service icons (placeholder coords — sit at the corners of the map
+// for the A2A fan-out arrows). These aren't real-world locations, they're
+// map anchors for the demo animation. 4 peers = 4 corners.
 const PEER_ANCHORS: Record<string, [number, number]> = {
-  park_service: [-5, 8], // top-left
-  sponsor_sustainability: [55, 8], // top-right
+  park_service: [-5, 8],            // top-left (rangers)
+  sponsor_sustainability: [55, 8],  // top-right (F500 sponsor)
+  funder_reporter: [-5, -32],       // bottom-left (funder dashboard)
+  neighbor_park: [55, -32],         // bottom-right (adjacent park)
 };
 
-export default function ReserveMap({ activeReserveId, fanOutFiring }: Props) {
+export default function ReserveMap({ activeReserveId, fanOutFiring, activePeers }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<Map<string, mapboxgl.Marker>>(new Map());
@@ -115,16 +121,19 @@ export default function ReserveMap({ activeReserveId, fanOutFiring }: Props) {
     if (!r) return;
 
     if (fanOutFiring) {
-      const features = (Object.entries(PEER_ANCHORS) as [string, [number, number]][]).map(
-        ([peer, anchor]) => ({
+      const peersToShow = activePeers && activePeers.length > 0
+        ? activePeers
+        : ["park_service", "sponsor_sustainability"];
+      const features = peersToShow
+        .filter((p) => PEER_ANCHORS[p])
+        .map((peer) => ({
           type: "Feature" as const,
           properties: { peer },
           geometry: {
             type: "LineString" as const,
-            coordinates: [r.lngLat, anchor],
+            coordinates: [r.lngLat, PEER_ANCHORS[peer]],
           },
-        }),
-      );
+        }));
       const src = map.getSource("a2a-lines") as mapboxgl.GeoJSONSource | undefined;
       if (src) {
         src.setData({ type: "FeatureCollection", features });
@@ -133,7 +142,7 @@ export default function ReserveMap({ activeReserveId, fanOutFiring }: Props) {
       const src = map.getSource("a2a-lines") as mapboxgl.GeoJSONSource | undefined;
       src?.setData({ type: "FeatureCollection", features: [] });
     }
-  }, [fanOutFiring, activeReserveId]);
+  }, [fanOutFiring, activeReserveId, activePeers]);
 
   // Animate the dashed lines marching forward (offset cycle)
   useEffect(() => {
