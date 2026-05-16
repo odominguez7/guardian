@@ -293,19 +293,105 @@ With two: ~7h 15m (still well within 20-day calendar runway)
 
 ---
 
+---
+
+## §12 — POST-V2-CUT REVIEW (2026-05-16, after browser-recovery)
+
+**Trigger:** Browser closed twice during V2 assembly. Work was staged (53 files) — recovered + committed `afc5b91`. Producer asked for a CEO sanity check on remaining work before continuing.
+
+**Mode selected:** HOLD SCOPE (the V2 plan is locked; this is execution sanity, not scope expansion).
+
+### §12.1 — Codex P0 status (re-validated 2026-05-16 21:57 UTC)
+
+| # | Codex P0 finding | Status | Note |
+|---|---|---|---|
+| 1 | Firebase "ANONYMOUS DEMO – AUTH NOT CONFIGURED" banner in frame | **VALID** | Top-right banner kills enterprise trust. Must hide for recording. |
+| 2 | Red "2 issues" bubble bottom-left in frame | **VALID** | Reads as broken product. Must hide for recording. |
+| 3 | Hook stat "$22T applies to all 733 adopters" | **VALID** | Reframe: "733 TNFD adopters. 179 financial institutions with $22.4T AUM." |
+| 4 | KPMG "three quarters" stale without year | **VALID** | Update to KPMG 2024 (~49% disclose) OR year-stamp the 2020/2022 figure. |
+| 5 | Proof card "FILED UNDER EU CSRD · ESRS E4" overclaim | **VALID** | Remove or change to "Mapped to ESRS E4 (materiality assessed)." |
+| 6 | Reproducibility claim unverified | **RESOLVED FAVORABLY** | Live test 2026-05-16 21:57: two consecutive calls returned identical `incident_id=GU-466F7A6FA1F3`. Endpoint IS deterministic on primary ID. **However:** `ranger_unit` (PSR-XXXX) is **non-deterministic** — A=PSR-4078, B=PSR-0501. Storyboard's PSR-9737 will never reproduce. Punchline ID in script (TNFD-2026-A0192B2A32) does not match endpoint's actual ID family (GU-...) either. |
+| 7 | On-screen IDs in demo don't match script | **VALID AND DEEPER** | Not just typos — entire ID family is stale. Punchline frame must use `GU-466F7A6FA1F3` (the actually-deterministic ID returned by the live endpoint) or whichever endpoint-returned ID becomes the canonical one. Drop PSR-XXXX from any "reproducible" claim — it's randomized per call. |
+
+### §12.2 — Independent specialist findings
+
+**Designer's eye (2026-05-16):** Recommends R2 (re-record demo phase with Mapbox + apply P0s). Specifics:
+- **Production-grade, don't touch:** cards (frame 02 hook, frame 10 evidence ID, frame 13 close), typography, Helvetica-tight kerning.
+- **Broken visual hierarchy in dashboard beat:** Firebase banner + "2 Issues" toast pull the eye away from the map and peer pins.
+- **Moneyshot (50-75s) is currently flat:** single dashed yellow line, tiny clustered green pins, no flyTo motion, no pulsing Selous pin, no fanning arrows. "Agentic dashboard screenshot," not "live multi-agent system." This is the biggest plan-vs-cut gap.
+- **Architecture beat (1:50-2:25) is deck-y:** static PNG floating in 40% black void, no visible Ken-Burns across keyframe samples. Either zoom-tight on root_agent → A2A peers section, **or replace with a 10s screen-record of Cloud Trace span tree** (proves same point with live evidence).
+- **Producer credit close:** dignified, reads correctly. Keep.
+- **Aggregate slop risk:** medium-high but fixable. Bones are good; the 90s product demo middle is where it falls apart.
+
+**Codex outside-voice strategic challenge:** Confirms B but pushes back on framing:
+- **"4-6 CC hours" is the render budget, not the risk budget.** Budget B at 8-10 CC hours; pre-commit a hard cutover to A at hour 6 if map capture isn't clean. No sunk-cost spiral.
+- **Better option missed: pre-render the map sequence.** Record map once clean (or generate frames), export as MP4/PNG sequence, comp it into the demo cut. Removes live-Mapbox-during-capture failure mode. Every polished product demo does this. *Probably the right move.*
+- **Highest-risk B-fails scenario is scope creep cascade,** not deadline. Map looks good → "let's also fix the architecture diagram" → "let's redo the proof card" → V3 → V4 → day-19 polishing finds new P0s. **Hard freeze list after this pass. Lock the cut by day +3.**
+- **The paranoia gap:** judges score Marketplace + Gemini Enterprise + A2A architecture, not cinematography. A 3:00 video that's 8/10 with verifiable reproducibility beats a 10/10 video with #6 still unresolved. "Stop polishing video. Verify the endpoint." (Done — see §12.1 #6.)
+- **Track 3 odds:** 12-18% with B + #6 + #3 fixed. ~5% without. Strong participation, not winner, on current trajectory.
+
+### §12.3 — Cross-model consensus
+
+CEO + Codex + Designer all converge on **Option B (re-record demo phase with map + apply remaining P0s + reassemble)** with two amendments from codex:
+
+1. **Switch to pre-rendered map sequence** (not live Mapbox during demo capture). Lower API-failure risk, higher polish ceiling.
+2. **Hard cutover gate at CC hour 6.** If the map composite isn't clean by then, ship Option A (polish V2 without map, all P0s applied).
+
+Designer adds:
+3. **Replace static architecture diagram with live Cloud Trace span tree** during the architecture beat. Same evidence, less deck-y.
+
+### §12.4 — Updated execution order (replaces §11 T0a / T5a / T7 sequence)
+
+| # | Task | Owner | Effort | Hard-cutover trigger |
+|---|---|---|---|---|
+| V1 | Paste Mapbox token + Firebase config (INTERVENTION_NEEDED.md) | Omar | 5 min | — |
+| V2 | Hide Firebase banner + suppress "2 issues" toast for demo build (env flag or CSS) | CC | 30 min | If >1h, ship A instead |
+| V3 | Update segments.json + DEMO_SCRIPT.md: new IDs (`GU-466F7A6FA1F3`), TNFD wording (P0 #3), KPMG year-stamp (P0 #4), CSRD softening (P0 #5), drop PSR-9737 claim | CC | 45 min | — |
+| V4 | Re-render hook + KPMG + proof + business cards with corrected wording | CC | 30 min | — |
+| V5 | Pre-render Mapbox sequence: flyTo + pulsing Selous pin + 4 animated arrows, export as MP4 | CC | 90-120 min | **CUTOVER at hour 6 if not clean** |
+| V6 | Re-record demo beat (35s-1:35) against localhost:3000 with Firebase hidden + comp the pre-rendered map sequence | CC | 60 min | — |
+| V7 | Architecture beat: capture 10s Cloud Trace span tree screen-record OR zoom-tight on root_agent → A2A peers section of existing diagram | CC | 30-45 min | Skip if behind schedule, keep current static |
+| V8 | Reassemble v2.1 cut | CC | 30 min | — |
+| V9 | Single codex slop-detection sweep on v2.1 keyframes | CC | 20 min | If new P0s appear, log only — don't address unless absolute blocker (per freeze rule) |
+| V10 | Stranger lean-in test (3 people, first 25s) | Omar | variable | 3/3 pass required |
+| V11 | Submit to Devpost | Omar | 15 min | — |
+
+**Total CC effort:** ~6-9 hours, hard-capped at 10. Day +3 from token paste = freeze date.
+
+### §12.5 — Hard freeze rule
+
+After V9 (single codex sweep on v2.1), **no further changes accepted** except:
+- Factual error (verifiable wrong number)
+- Catastrophic visual bug (broken playback, audio desync, illegible text)
+
+Slop-detection findings, taste calls, polish ideas: log only, do not act. The submission is one video, not the platonic ideal of a video.
+
+### §12.6 — Risk register (updated)
+
+| Risk | Likelihood | Mitigation |
+|---|---|---|
+| Mapbox capture fails / looks ugly on record | Medium | Pre-render to MP4 sequence (codex amendment). Cutover to Option A at CC hour 6 if not clean. |
+| Scope creep cascade | High | §12.5 hard freeze rule. One codex sweep, then submit. |
+| Firebase init can't be cleanly disabled for demo build | Medium | Fallback: post-process crop top 32px in ffmpeg. |
+| Updated demo IDs introduce script-VO desync | Medium | Re-generate affected ElevenLabs segments (05, 07, 09) with new IDs in same pass as V3. |
+| Architecture beat replacement breaks budget | Low | Optional task — skip V7 if behind schedule, current static is "deck-y but not broken." |
+| 20-day runway compresses if other commitments hit | Low | This plan is 6-9 CC hours; calendar buffer is ~19 days. |
+
+---
+
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |
 |--------|---------|-----|------|--------|----------|
-| CEO Review | `/plan-ceo-review` | Scope & strategy | 1 | CLEAR (SCOPE EXPANSION 2026-05-16, then SELECTIVE EXPANSION after codex correction) | Story-arc rebuild proposed; codex pushed back on pacing + claims; producer adopted Approach D synthesis. |
-| Codex Review | `/codex review` (planreview prompt) | Independent 2nd opinion | 1 | CLEAR (4/10 on v2A, all 6 HARD FIX findings absorbed into Approach D) | 6 hard fixes: CSRD citation, KPMG IP, court-admissible claim, auto-files claim, fake-ID provability, A2A peer credibility. 4 medium: re-take budget, Cloud Build risk, last-60s overload, review buffer. All resolved. |
-| Eng Review | `/plan-eng-review` | Architecture & tests | n/a | n/a | Video assembly is build-script work; ops-center map animation is ~80 LOC in an already-reviewed component. |
-| Design Review | `/plan-design-review` | UI/UX gaps | n/a | n/a | Ops Center design previously reviewed; video storyboard reviewed in CEO + codex passes. |
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 2 | CLEAR (2026-05-16 #1 SCOPE EXPANSION → Approach D; #2 HOLD SCOPE post-cut, decision B confirmed) | #1: Story-arc rebuild proposed; codex pushed back; Approach D adopted. #2: Three specialists converged on Option B (re-record with map + apply P0s) with two codex amendments (pre-render map sequence; hard cutover at CC hr 6). |
+| Codex Review | `/codex review` (planreview) + `/codex consult` (strategic) | Independent 2nd opinion | 2 | CLEAR (1: 4/10 → all 6 HARD FIX absorbed. 2: confirms B with caveats; flags #6 as real P0 — now resolved) | #1: 6 hard fixes absorbed into Approach D. #2: pre-render map > live capture; hard cutover gate; scope-creep cascade is highest risk; reproducibility (#6) is the real P0 (now verified deterministic on incident_id, non-deterministic on ranger_unit). Track 3 odds 12-18% with B + #6 + #3 fixed. |
+| Eng Review | `/plan-eng-review` | Architecture & tests | n/a | n/a | Video assembly is build-script work; demo IDs verified via live endpoint test. |
+| Design Review | designer's-eye subagent | UI/UX of cut keyframes | 1 | CLEAR with R2 recommendation | Cards/typography/close = production-grade, don't touch. Dashboard beat broken by Firebase banner + 2-issues toast. Moneyshot flat without Mapbox motion (biggest plan-vs-cut gap). Architecture beat deck-y — replace with Cloud Trace span tree or skip. Aggregate slop: medium-high, fixable. |
 
-**CODEX:** Codex outside-voice flagged 6 hard credibility landmines + 4 medium findings. All absorbed. Plan rewritten as Approach D: tighter pacing (product visible by 0:15 not 0:50), softened claims (audit-grade not court-admissible, "files TNFD" not "auto-files"), text-only KPMG citation (no cover screenshot), local-build Mapbox (no Cloud Build risk), 45-min re-take buffer, SOC 2 dropped.
+**CODEX:** Two codex passes. Pass #1 (V2 plan): 6 hard fixes absorbed into Approach D. Pass #2 (V2 cut, 2026-05-16): 7 P0 credibility landmines + 5 P1 strong-suggests. P0 #6 (reproducibility) re-verified by live endpoint test 21:57 UTC — deterministic on `incident_id=GU-466F7A6FA1F3`, non-deterministic on `ranger_unit`. Storyboard ID family must update.
 
-**CROSS-MODEL:** CEO and codex disagreed on narrative weight (CEO: cinema-forward / codex: agents-forward). Producer-resolved toward codex's pacing with a light arc retained. Both reviewers now aligned on Approach D.
+**CROSS-MODEL CONSENSUS:** CEO + Codex + Designer all recommend **Option B** (re-record demo phase with map + apply P0s + reassemble) over Option A (polish current cut, no map) and Option C (ship as-is — Codex says DO NOT SHIP). Two amendments adopted: (1) pre-render map sequence rather than live capture, (2) hard cutover to A at CC hour 6 if map composite isn't clean. Designer adds: replace static architecture diagram with live Cloud Trace span tree if budget allows.
 
-**UNRESOLVED:** Mapbox token from producer is the only outstanding dependency.
+**UNRESOLVED:** Mapbox public token + Firebase config from producer (INTERVENTION_NEEDED.md) — blocker on V1 of §12.4 execution order. All other dependencies in plan.
 
-**VERDICT:** CEO + CODEX CLEARED — ready to execute Phase 0 (tokens + assets) on producer signal.
+**VERDICT:** CEO + CODEX + DESIGN CLEARED — ready to execute §12.4 step V1 (producer paste tokens) → §12.4 steps V2-V11 on CC, day +3 freeze, submit by day +5. Track 3 winner odds 12-18% if executed clean.
