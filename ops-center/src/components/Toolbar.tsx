@@ -64,7 +64,7 @@ export default function Toolbar({ scenarios, onRunScenario, runningId }: Props) 
       </div>
 
       <div className="ml-auto flex items-center gap-3">
-        {!authConfigured && (
+        {!authConfigured && process.env.NEXT_PUBLIC_DEMO_MODE !== "1" && (
           <span className="text-[10px] uppercase tracking-wider text-zinc-500">
             Anonymous demo · Firebase Auth not configured
           </span>

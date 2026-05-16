@@ -1,0 +1,116 @@
+{
+  "$comment": "Approach D — agents-first, light arc. V2 cut. Total runtime 3:00 exact. Fact-checked claims (see video-assets/citations.md). Two TTS backends supported: Chirp 3 (default, $0, ships v2) and ElevenLabs (upgrade — needs paid creator key). Pacing: speaking_rate 0.92 default; 0.88 on punchline; 0.95 on architecture. SSML pauses in cold open / hook / proof beats.",
+  "engine": "chirp3",
+  "voice": "en-US-Chirp3-HD-Charon",
+  "languageCode": "en-US",
+  "speakingRate": 0.92,
+  "pitch": 0.0,
+  "model_id": "eleven_multilingual_v2",
+  "voice_id": "ENV:ELEVENLABS_VOICE_ID",
+  "default_voice_settings": {
+    "stability": 0.5,
+    "similarity_boost": 0.75,
+    "style": 0.15,
+    "use_speaker_boost": true,
+    "speaking_rate": 0.92
+  },
+  "total_target_duration_s": 175,
+  "segments": [
+    {
+      "id": "00-coldopen-ambient",
+      "duration_target_s": 6,
+      "visual": "Pexels wildlife-coldopen.mp4 — 4K aerial elephant in dry bushland, cropped 1920x1080, -10% saturation. No text overlay.",
+      "audio": "Music drone -16 dBFS. Natural ambient from clip retained.",
+      "text": "",
+      "skip_tts": true
+    },
+    {
+      "id": "01-pretext",
+      "duration_target_s": 4,
+      "visual": "Single line of text superimposed on continuing wildlife footage: \"Conservation is a data problem.\" Hold 2s, cut to black 0.5s.",
+      "audio": "Music drone holds.",
+      "text": "",
+      "skip_tts": true
+    },
+    {
+      "id": "02-hook-stat",
+      "duration_target_s": 8,
+      "visual": "Black. \"733 TNFD adopters. 179 financial institutions, $22.4T AUM.\" Footnote tnfd.global/engage/tnfd-adopters · Nov 2025",
+      "audio": "Music lifts slightly to -22 dBFS.",
+      "text": "<speak>Seven hundred T-N-F-D adopters. <break time=\"150ms\"/> Trillions in assets under management.</speak>",
+      "voice_settings_override": { "speaking_rate": 1.0 }
+    },
+    {
+      "id": "03-kpmg-quote",
+      "duration_target_s": 7,
+      "visual": "Black. \"Half of the world's largest companies still don't disclose biodiversity risk.\" — KPMG 2024. Footnote: 49% disclose, doubled since 2020.",
+      "audio": "Music drone -28 dBFS.",
+      "text": "<speak>K-P-M-G's twenty twenty-four survey: <break time=\"250ms\"/> disclosure has doubled, <break time=\"150ms\"/> but half still don't report biodiversity risk.</speak>"
+    },
+    {
+      "id": "04-reveal",
+      "duration_target_s": 5,
+      "visual": "GUARDIAN wordmark hold 1s, then fade into Ops Center idle wide shot, map of Africa visible.",
+      "audio": "Music lift to -24 dBFS.",
+      "text": "<speak>GUARDIAN. <break time=\"200ms\"/> Multi-agent biodiversity defense on Google Cloud.</speak>"
+    },
+    {
+      "id": "05-demo-open",
+      "duration_target_s": 12,
+      "visual": "Cursor clicks Full Multimodal Chain. Mapbox flyTo from continent to Selous (1500ms). Pulsing amber pin at Tag-22. Stream Watcher card appears. Audio Agent card slides up.",
+      "audio": "Music -28 dBFS under VO.",
+      "text": "Camera-trap Tag twenty-two fires. Stream Watcher confirms a vehicle. Audio Agent flags a gunshot, point nine three confidence."
+    },
+    {
+      "id": "06-demo-species",
+      "duration_target_s": 13,
+      "visual": "Species ID card. Pop-out highlights the corpus lookup row: Endangered · CITES Appendix I · TNFD material.",
+      "audio": "Music holds.",
+      "text": "Species I-D grounds the herd against the I-U-C-N corpus: endangered, CITES Appendix One, material under T-N-F-D."
+    },
+    {
+      "id": "07-demo-fanout",
+      "duration_target_s": 25,
+      "visual": "Map pulse on Tag-22. 4 amber arrows animate from Selous to peer markers (Dar es Salaam, London-anchored Sponsor card, Geneva-anchored Funder card, Maasai Mara). Each peer ack card lands under incident panel with real IDs: PSR-9737, TNFD-2026-A0192B2A32, FUND-A0192B2A32, MUTAID-A019282A32. Lower-third overlay: \"Each peer = separate Cloud Run service · github.com/odominguez7/guardian\"",
+      "audio": "Music holds.",
+      "text": "The orchestrator fans out to four independent A2A peers, each a separate service: <break time=\"150ms\"/> Park Service. <break time=\"100ms\"/> Sponsor Sustainability. <break time=\"100ms\"/> Funder Reporter. <break time=\"100ms\"/> Neighbor Park."
+    },
+    {
+      "id": "08-demo-evidence",
+      "duration_target_s": 10,
+      "visual": "Cursor clicks evidence link. Court-evidence packet opens, scroll once. SHA-256 chain hash visible.",
+      "audio": "Music holds.",
+      "text": "S-H-A two-five-six anchored. Audit-grade chain of custody."
+    },
+    {
+      "id": "09-proof",
+      "duration_target_s": 20,
+      "visual": "Punchline frame — large mono TNFD-2026-A0192B2A32 centered. Top: Mapped to ESRS E4. Sub: deterministic · POST /demo/run/multimodal_pipeline · github.com/odominguez7/guardian",
+      "audio": "Music drops to -32 dBFS for emphasis. Drop in speaking_rate 0.88.",
+      "text": "<speak>This filing I-D comes from a deterministic public endpoint. <break time=\"300ms\"/> Re-run the call <break time=\"150ms\"/> and the same I-D comes back. <break time=\"250ms\"/> Source on GitHub.</speak>",
+      "voice_settings_override": { "speaking_rate": 0.88 }
+    },
+    {
+      "id": "10-architecture",
+      "duration_target_s": 35,
+      "visual": "Architecture diagram slow Ken-Burns. Callouts highlight as named.",
+      "audio": "Music returns -28 dBFS.",
+      "text": "Five Cloud Run services. One A-D-K orchestrator on Gemini two point five Pro. Three specialists. Four independent A2A peers. Vertex AI Search grounds every call against I-U-C-N, CITES, and T-N-F-D. BigQuery audits the trail. One Marketplace install.",
+      "voice_settings_override": { "speaking_rate": 1.0 }
+    },
+    {
+      "id": "11-business",
+      "duration_target_s": 25,
+      "visual": "$58T GDP nature · ESRS E4 where material · 4 A2A peers · Marketplace thumbnail",
+      "audio": "Music holds -28 dBFS.",
+      "text": "Fifty-eight trillion dollars of global G-D-P depends on nature. <break time=\"200ms\"/> Under E-S-R-S E-four, biodiversity disclosure is required where material. <break time=\"200ms\"/> GUARDIAN ships on Google Cloud Marketplace, through the channels procurement already trusts."
+    },
+    {
+      "id": "12-close",
+      "duration_target_s": 10,
+      "visual": "Filing-ID frame returns dimmed under producer credit overlay.",
+      "audio": "Music begins fade-out across full 10s.",
+      "text": "<speak>Built by Omar Dominguez Mondragon. <break time=\"200ms\"/> C-E-O and Founder, GuardIAn Wildlife. <break time=\"100ms\"/> M-I-T Sloan.</speak>"
+    }
+  ]
+}

@@ -72,8 +72,8 @@ export default function EventStream({ events, status }: Props) {
             Waiting for events… try the demo button.
           </div>
         )}
-        {events.map((e) => (
-          <div key={e.id} className="px-2 py-1.5 rounded hover:bg-zinc-800/40 border border-transparent hover:border-zinc-700/50">
+        {events.map((e, i) => (
+          <div key={e.id || `${e.kind}-${e.ts}-${i}`} className="px-2 py-1.5 rounded hover:bg-zinc-800/40 border border-transparent hover:border-zinc-700/50">
             <div className="flex items-center gap-2">
               {kindIcon(e.kind)}
               <span className="text-zinc-500 tabular-nums">{formatTime(e.ts)}</span>

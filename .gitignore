@@ -37,6 +37,18 @@ parse_result_*.json
 demo-renders/
 *.mp4
 *.mov
+
+# Heavy video pipeline intermediates — regenerable from scripts/video/*.
+# Keep mp3 voice tracks tracked (small + locked to script).
+video-assets/footage/*.webm
+video-assets/broll/*.mp4
+video-assets/output/_tmp/
+video-assets/output/_tmp_v2/
+video-assets/output/*.jpg
+video-assets/output/v2*.jpg
+video-assets/verification/
+.codex-prompt-*.md
+.codex-diff-*.patch
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

@@ -1,0 +1,50 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>GUARDIAN architecture</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  html,body{margin:0;padding:0;background:#0a0a0a;color:#fff;font-family:"Inter","Helvetica Neue",sans-serif;width:1920px;height:1080px;box-sizing:border-box}
+  body{display:flex;flex-direction:column;padding:60px 80px}
+  h1{font-size:36px;font-weight:600;margin:0 0 8px 0;letter-spacing:-0.01em}
+  .sub{font-size:18px;color:#9c9c9c;margin-bottom:32px;font-weight:300}
+  .mermaid{background:transparent}
+  .mermaid svg{width:100% !important;max-height:880px}
+</style></head>
+<body>
+  <h1>GUARDIAN architecture</h1>
+  <div class="sub">5 Cloud Run services &middot; ADK orchestrator on Gemini 2.5 Pro &middot; 4 A2A peers &middot; Vertex AI Search &middot; BigQuery</div>
+  <div class="mermaid">
+flowchart LR
+  EDGE["Camera-trap edge<br/>(sample data)"] --> ORCH
+  subgraph G["GUARDIAN orchestrator (Cloud Run, ADK, Gemini 2.5 Pro)"]
+    ORCH["root_agent"]
+    SW["Stream Watcher"]
+    AA["Audio Agent"]
+    SID["Species ID"]
+    CE["Court-Evidence"]
+    ORCH --- SW
+    ORCH --- AA
+    ORCH --- SID
+    ORCH --- CE
+  end
+  SID -.->|RAG| VS["Vertex AI Search<br/>IUCN · CITES · TNFD corpus"]
+  ORCH -->|A2A| P1["Park Service"]
+  ORCH -->|A2A| P2["Sponsor Sustainability<br/>(TNFD / ESRS-E4)"]
+  ORCH -->|A2A| P3["Funder Reporter"]
+  ORCH -->|A2A| P4["Neighbor Park<br/>(cross-border)"]
+  CE --> EV["Chain-of-custody<br/>SHA-256 anchored"]
+  ORCH --> BQ["BigQuery<br/>agent analytics"]
+  ORCH --> TR["Cloud Trace"]
+
+  classDef gcp fill:#1a73e8,color:#fff,stroke:#1a73e8,stroke-width:1px;
+  classDef peer fill:#34a853,color:#fff,stroke:#34a853,stroke-width:1px;
+  classDef data fill:#fbbc04,color:#000,stroke:#fbbc04,stroke-width:1px;
+  classDef edge fill:#1f1f1f,color:#fff,stroke:#3a3a3a,stroke-width:1px;
+  class ORCH,SW,AA,SID,CE gcp;
+  class P1,P2,P3,P4 peer;
+  class VS,BQ,TR,EV data;
+  class EDGE edge;
+  </div>
+<script>
+  mermaid.initialize({startOnLoad:true, theme:'dark', themeVariables:{background:'#0a0a0a', primaryColor:'#1a73e8', lineColor:'#888', textColor:'#fff'}, flowchart:{useMaxWidth:false, htmlLabels:true}});
+</script>
+</body></html>

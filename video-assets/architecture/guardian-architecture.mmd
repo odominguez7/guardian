@@ -1,0 +1,56 @@
+%% GUARDIAN architecture — render this Mermaid to PNG for video §4 (1:45–2:15).
+%% Camera moves left-to-right; callouts highlight Gemini, ADK, A2A, Vertex AI Search, BigQuery, Cloud Run.
+flowchart LR
+  subgraph EDGE["Camera-trap edge (sample data)"]
+    VID[("Video clip<br/>gs://guardian-gfs-2026-samples")]
+    AUD[("Audio clip")]
+    IMG[("Still frame")]
+  end
+
+  subgraph GUARDIAN["GUARDIAN orchestrator (Cloud Run, Gemini 2.5 Pro, ADK)"]
+    ORCH["root_agent<br/>(ADK orchestrator)"]
+    SW["Stream Watcher<br/>(sub-agent)"]
+    AA["Audio Agent<br/>(sub-agent)"]
+    SID["Species ID<br/>(sub-agent)"]
+    CE["Court-Evidence<br/>(sub-agent)"]
+  end
+
+  subgraph CORPUS["Grounding"]
+    VS[("Vertex AI Search<br/>IUCN · CITES · TNFD corpus")]
+  end
+
+  subgraph PEERS["A2A peers (independent Cloud Run services, A2A v0.3.0)"]
+    P1["Park Service<br/>peer agent"]
+    P2["Sponsor Sustainability<br/>peer agent (TNFD / ESRS-E4)"]
+    P3["Funder Reporter<br/>peer agent"]
+    P4["Neighbor Park<br/>peer agent (cross-border)"]
+  end
+
+  subgraph AUDIT["Audit + Observability"]
+    BQ[("BigQuery<br/>agent analytics")]
+    TR[("Cloud Trace")]
+    EV[("Chain-of-custody<br/>SHA-256 anchored")]
+  end
+
+  VID --> SW
+  AUD --> AA
+  IMG --> SID
+  SW --> ORCH
+  AA --> ORCH
+  SID --> ORCH
+  SID -.->|RAG| VS
+  ORCH -->|A2A| P1
+  ORCH -->|A2A| P2
+  ORCH -->|A2A| P3
+  ORCH -->|A2A| P4
+  ORCH --> CE
+  CE --> EV
+  ORCH --> BQ
+  ORCH --> TR
+
+  classDef gcp fill:#1a73e8,color:#fff,stroke:#1a73e8;
+  classDef peer fill:#34a853,color:#fff,stroke:#34a853;
+  classDef data fill:#fbbc04,color:#000,stroke:#fbbc04;
+  class ORCH,SW,AA,SID,CE gcp;
+  class P1,P2,P3,P4 peer;
+  class VS,BQ,TR,EV,VID,AUD,IMG data;

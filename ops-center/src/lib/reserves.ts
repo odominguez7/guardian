@@ -57,8 +57,25 @@ export const RESERVES: Reserve[] = [
     country: "Tanzania",
     lngLat: [37.3, -9.0],
     flagshipSpecies: ["African elephant", "Lion"],
+    matchesScenarios: ["multimodal_pipeline"],
   },
 ];
+
+// Real-world peer anchors for the 4 A2A organisations.
+// Used by ReserveMap to draw fan-out arrows from the active reserve to each
+// peer's operating geography (instead of abstract map corners).
+//
+// Selected per V2 plan §2.1:
+//   Park Service       → Dar es Salaam (TZ park authority HQ)
+//   Sponsor            → London (target = EU-domiciled Fortune 500)
+//   Funder             → Geneva (conservation-funder geography)
+//   Neighbor Park      → Maasai Mara, Kenya (real adjacent park, cross-border)
+export const PEER_ANCHORS: Record<string, [number, number]> = {
+  park_service: [39.28, -6.79],            // Dar es Salaam, TZ
+  sponsor_sustainability: [-0.13, 51.51],  // London, UK
+  funder_reporter: [6.14, 46.20],          // Geneva, CH
+  neighbor_park: [35.05, -1.5],            // Maasai Mara, KE
+};
 
 export function reserveForScenario(scenarioId: string): Reserve | undefined {
   return RESERVES.find((r) => r.matchesScenarios?.includes(scenarioId));

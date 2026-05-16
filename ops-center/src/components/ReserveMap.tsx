@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 // Mapbox CSS is loaded globally in app/globals.css (per Next.js App Router
 // rules; client-component CSS imports can break builds in some toolchains).
-import { RESERVES } from "@/lib/reserves";
+import { RESERVES, PEER_ANCHORS } from "@/lib/reserves";
 
 interface Props {
   activeReserveId: string | null;
@@ -15,20 +15,19 @@ interface Props {
   activePeers?: string[];
 }
 
-// Peer service icons (placeholder coords — sit at the corners of the map
-// for the A2A fan-out arrows). These aren't real-world locations, they're
-// map anchors for the demo animation. 4 peers = 4 corners.
-const PEER_ANCHORS: Record<string, [number, number]> = {
-  park_service: [-5, 8],            // top-left (rangers)
-  sponsor_sustainability: [55, 8],  // top-right (F500 sponsor)
-  funder_reporter: [-5, -32],       // bottom-left (funder dashboard)
-  neighbor_park: [55, -32],         // bottom-right (adjacent park)
+// Peer labels for the on-map markers (real-world anchors live in lib/reserves.ts)
+const PEER_LABELS: Record<string, { name: string; org: string }> = {
+  park_service: { name: "Park Service", org: "Dar es Salaam · TZ" },
+  sponsor_sustainability: { name: "Sponsor Sustainability", org: "London · F500" },
+  funder_reporter: { name: "Funder Reporter", org: "Geneva · CH" },
+  neighbor_park: { name: "Neighbor Park", org: "Maasai Mara · KE" },
 };
 
 export default function ReserveMap({ activeReserveId, fanOutFiring, activePeers }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<Map<string, mapboxgl.Marker>>(new Map());
+  const peerMarkersRef = useRef<Map<string, mapboxgl.Marker>>(new Map());
   const animationFrameRef = useRef<number | null>(null);
 
   const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
@@ -81,6 +80,28 @@ export default function ReserveMap({ activeReserveId, fanOutFiring, activePeers 
           "line-dasharray": [0.5, 1.5],
         },
       });
+
+      // Peer markers — hidden by default, fade in when their ack lands.
+      // Sit at real-world coords (Dar es Salaam, London, Geneva, Maasai Mara).
+      for (const [peerId, coords] of Object.entries(PEER_ANCHORS)) {
+        const wrap = document.createElement("div");
+        const label = PEER_LABELS[peerId];
+        wrap.className = "peer-marker-wrap";
+        wrap.style.opacity = "0";
+        wrap.style.transition = "opacity 600ms ease-out";
+        wrap.innerHTML = `
+          <div style="display:flex;align-items:center;gap:6px;background:rgba(20,20,20,0.85);border:1px solid #f59e0b;border-radius:6px;padding:4px 8px;backdrop-filter:blur(4px);">
+            <div style="width:8px;height:8px;border-radius:50%;background:#f59e0b;box-shadow:0 0 8px #f59e0b;"></div>
+            <div style="font-size:11px;line-height:1.2;color:#fff;">
+              <div style="font-weight:600;">${label?.name ?? peerId}</div>
+              <div style="color:#a3a3a3;font-size:9px;">${label?.org ?? ""}</div>
+            </div>
+          </div>`;
+        const marker = new mapboxgl.Marker({ element: wrap, anchor: "bottom" })
+          .setLngLat(coords)
+          .addTo(map);
+        peerMarkersRef.current.set(peerId, marker);
+      }
     });
 
     return () => {
@@ -106,10 +127,21 @@ export default function ReserveMap({ activeReserveId, fanOutFiring, activePeers 
     if (activeReserveId) {
       const r = RESERVES.find((r) => r.id === activeReserveId);
       if (r) {
-        map.flyTo({ center: r.lngLat, zoom: 5, speed: 1.2, curve: 1.4 });
+        // Frame Selous + all 4 peer markers (Africa + Europe) in one shot.
+        // Center halfway between Tanzania and Western Europe; zoom out
+        // enough to see London + Geneva at the top of the frame.
+        const cinemaCenter: [number, number] = [
+          (r.lngLat[0] + 5) / 2,         // ~20°E, midway between Selous (37°E) and Geneva (6°E)
+          (r.lngLat[1] + 30) / 2,        // ~10°N, between Selous (-9°S) and Geneva (46°N)
+        ];
+        map.flyTo({ center: cinemaCenter, zoom: 2.6, speed: 1.0, curve: 1.4, duration: 1500 });
       }
     } else {
+      // Reset to wide Africa view; also hide peer markers
       map.flyTo({ center: [25, -10], zoom: 3.1, speed: 1.0 });
+      for (const m of peerMarkersRef.current.values()) {
+        m.getElement().style.opacity = "0";
+      }
     }
   }, [activeReserveId]);
 
@@ -138,9 +170,21 @@ export default function ReserveMap({ activeReserveId, fanOutFiring, activePeers 
       if (src) {
         src.setData({ type: "FeatureCollection", features });
       }
+      // Fade in peer markers in sequence (250ms staggered) for cinema feel
+      peersToShow.forEach((peer, idx) => {
+        const marker = peerMarkersRef.current.get(peer);
+        if (marker) {
+          setTimeout(() => {
+            marker.getElement().style.opacity = "1";
+          }, idx * 250);
+        }
+      });
     } else {
       const src = map.getSource("a2a-lines") as mapboxgl.GeoJSONSource | undefined;
       src?.setData({ type: "FeatureCollection", features: [] });
+      for (const m of peerMarkersRef.current.values()) {
+        m.getElement().style.opacity = "0";
+      }
     }
   }, [fanOutFiring, activeReserveId, activePeers]);
 
