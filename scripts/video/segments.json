@@ -37,15 +37,15 @@
       "duration_target_s": 8,
       "visual": "Black. \"733 TNFD adopters. 179 financial institutions, $22.4T AUM.\" Footnote tnfd.global/engage/tnfd-adopters · Nov 2025",
       "audio": "Music lifts slightly to -22 dBFS.",
-      "text": "<speak>Seven hundred T-N-F-D adopters. <break time=\"150ms\"/> Trillions in assets under management.</speak>",
+      "text": "<speak>Seven hundred thirty-three adopters of the Taskforce on Nature-related Financial Disclosures. <break time=\"250ms\"/> Twenty-two trillion dollars in assets under management.</speak>",
       "voice_settings_override": { "speaking_rate": 1.0 }
     },
     {
       "id": "03-kpmg-quote",
       "duration_target_s": 7,
-      "visual": "Black. \"Half of the world's largest companies still don't disclose biodiversity risk.\" — KPMG 2024. Footnote: 49% disclose, doubled since 2020.",
+      "visual": "Black. \"Half of the world's largest companies still don't disclose biodiversity risk.\" — KPMG, Survey of Sustainability Reporting. Footnote: ~49% disclose, doubled since 2020.",
       "audio": "Music drone -28 dBFS.",
-      "text": "<speak>K-P-M-G's twenty twenty-four survey: <break time=\"250ms\"/> disclosure has doubled, <break time=\"150ms\"/> but half still don't report biodiversity risk.</speak>"
+      "text": "<speak>K-P-M-G's Survey of Sustainability Reporting: <break time=\"250ms\"/> biodiversity disclosure has doubled, <break time=\"150ms\"/> but half still don't report it.</speak>"
     },
     {
       "id": "04-reveal",
@@ -66,7 +66,7 @@
       "duration_target_s": 13,
       "visual": "Species ID card. Pop-out highlights the corpus lookup row: Endangered · CITES Appendix I · TNFD material.",
       "audio": "Music holds.",
-      "text": "Species I-D grounds the herd against the I-U-C-N corpus: endangered, CITES Appendix One, material under T-N-F-D."
+      "text": "Species I-D grounds the herd against the International Union for Conservation of Nature, the Convention on International Trade in Endangered Species, and the Taskforce on Nature-related Financial Disclosures. Endangered. Appendix One. Material."
     },
     {
       "id": "07-demo-fanout",
@@ -78,9 +78,9 @@
     {
       "id": "08-demo-evidence",
       "duration_target_s": 10,
-      "visual": "Cursor clicks evidence link. Court-evidence packet opens, scroll once. SHA-256 chain hash visible.",
+      "visual": "Cursor clicks evidence link. Court-evidence packet opens, scroll once. SHA-256 chain hash visible. Lower-third: \"BigQuery sink for full custody.\"",
       "audio": "Music holds.",
-      "text": "S-H-A two-five-six anchored. Audit-grade chain of custody."
+      "text": "Anchored with a Secure Hash Algorithm two-five-six signature. Tamper-evident audit trail."
     },
     {
       "id": "09-proof",
@@ -95,7 +95,7 @@
       "duration_target_s": 35,
       "visual": "Architecture diagram slow Ken-Burns. Callouts highlight as named.",
       "audio": "Music returns -28 dBFS.",
-      "text": "Five Cloud Run services. One A-D-K orchestrator on Gemini two point five Pro. Three specialists. Four independent A2A peers. Vertex AI Search grounds every call against I-U-C-N, CITES, and T-N-F-D. BigQuery audits the trail. One Marketplace install.",
+      "text": "Six Cloud Run services. One A-D-K orchestrator on Gemini two point five Pro, plus the Ops Center frontend. Four specialists. Four independent A2A peers. Species I-D grounds against the International Union for Conservation of Nature, the Convention on International Trade in Endangered Species, and the Taskforce on Nature-related Financial Disclosures, via Vertex AI Search. BigQuery audits the trail. Packaged for Marketplace.",
       "voice_settings_override": { "speaking_rate": 1.0 }
     },
     {
@@ -103,7 +103,7 @@
       "duration_target_s": 25,
       "visual": "$58T GDP nature · ESRS E4 where material · 4 A2A peers · Marketplace thumbnail",
       "audio": "Music holds -28 dBFS.",
-      "text": "Fifty-eight trillion dollars of global G-D-P depends on nature. <break time=\"200ms\"/> Under E-S-R-S E-four, biodiversity disclosure is required where material. <break time=\"200ms\"/> GUARDIAN ships on Google Cloud Marketplace, through the channels procurement already trusts."
+      "text": "Fifty-eight trillion of Gross Domestic Product depends on nature. <break time=\"200ms\"/> The European Union's Corporate Sustainability Reporting Directive requires biodiversity disclosure under European Sustainability Reporting Standards E-four. <break time=\"200ms\"/> GUARDIAN packaged for Google Cloud Marketplace, the channels procurement already trusts."
     },
     {
       "id": "12-close",

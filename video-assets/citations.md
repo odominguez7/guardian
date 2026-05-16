@@ -78,7 +78,7 @@ Source-of-truth for every on-screen number and quote. Fact-checked 2026-05-16.
 | Beat | Final wording | Citation footnote |
 |---|---|---|
 | 0:10–0:18 Hook stat | *"733 companies. $22 trillion in assets. Committed to TNFD biodiversity disclosure."* | `tnfd.global/engage/tnfd-adopters` |
-| 0:18–0:25 KPMG quote | *"Three quarters of the world's largest at-risk companies still don't report biodiversity loss."* — KPMG | `KPMG Survey of Sustainability Reporting · 2022` |
+| 0:05.6–0:11.6 KPMG quote | *"KPMG's 2024 survey: disclosure has doubled — but half still don't report biodiversity risk."* | `KPMG Survey of Sustainability Reporting · 2024 update` |
 | 2:25–2:50 Business case | *"$58 trillion of global GDP depends on nature."* + *"EU's CSRD mandates biodiversity disclosure under ESRS E4."* + *"GUARDIAN ships on Google Cloud Marketplace."* | `PwC 2023 · EU CSRD · ESRS E4` |
 
 All other on-screen IDs (TNFD-2026-A0192B2A32, PSR-9737, etc.) are reproducible from `POST /demo/run/multimodal_pipeline` against the live Cloud Run service.
