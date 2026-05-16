@@ -18,6 +18,8 @@ from google.cloud import bigquery
 from google.genai import types
 
 from app import events
+from app.agents.audio_agent import audio_agent
+from app.agents.species_id import species_id_agent
 from app.agents.stream_watcher import stream_watcher_agent
 from app.tools.a2a_peers import (
     get_funder_card,
@@ -100,8 +102,15 @@ areas from poaching and produces TNFD/CSRD biodiversity reports for corporate sp
 
 Your team of specialist agents:
 - stream_watcher: analyzes video/image streams for wildlife and threats.
-  (Additional specialists wired in subsequent days: audio, species_id, pattern,
-   visualizer, dispatch, court_evidence.)
+- audio_agent: classifies camera-trap microphone audio (gunshot, vehicle_engine,
+  distressed_herd, human_voices, wildlife_natural, silence). Returns severity +
+  threat_signal flags routing keys use.
+- species_id: identifies wildlife from a still image, then grounds the finding
+  in the wildlife corpus (IUCN, CITES, TNFD) via Vertex AI Search. Returns a
+  compliance_flag ("material" | "informational" | "unlisted") the orchestrator
+  uses to decide whether to fan out to sponsor + funder peers.
+  (Additional specialists in subsequent days: pattern, visualizer, dispatch,
+   court_evidence.)
 
 Your A2A peers (independent agents run by OTHER organizations):
 - park_service (national park authority): call `notify_park_service` to report
@@ -117,7 +126,14 @@ Your A2A peers (independent agents run by OTHER organizations):
   incident might cross the border. Pass origin_park name + crossover_corridor.
 
 Routing rules:
-- Video URI, GCS path, or image URI → delegate to `stream_watcher`.
+- Video URI, GCS path → delegate to `stream_watcher`.
+- Audio URI (gs://*.mp3/.wav, https://*.mp3, etc.) → delegate to `audio_agent`.
+  If sound_class is "gunshot" or "vehicle_engine" or "distressed_herd", treat
+  as requires_escalation=True with severity from the agent's response.
+- Still image URI (.jpg/.png/.webp) → delegate to `species_id`. If the
+  agent returns compliance_flag="material", treat as requires_escalation=True
+  with severity at least "high". If compliance_flag is "informational",
+  severity defaults to "medium".
 - If a specialist returns `requires_escalation=True`, run this sequence:
     0. FIRST call `new_incident_id` to mint a single shared incident_id.
        Pass it into BOTH peer calls below so park + sponsor records
@@ -154,7 +170,7 @@ root_agent = Agent(
         "ranger dispatch, and corporate biodiversity reporting (TNFD/CSRD)."
     ),
     instruction=ROOT_INSTRUCTION,
-    sub_agents=[stream_watcher_agent],
+    sub_agents=[stream_watcher_agent, audio_agent, species_id_agent],
     tools=[
         LongRunningFunctionTool(func=request_user_input),
         new_incident_id,
