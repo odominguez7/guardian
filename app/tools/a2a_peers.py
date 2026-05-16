@@ -144,6 +144,71 @@ def _peer_rpc_url(peer_name: str) -> str:
     return f"{_peer_base_url(peer_name)}{cfg['a2a_path']}"
 
 
+def _looks_echoed(result: dict, instruction: str) -> bool:
+    """Detect when the peer LLM echoed the instruction payload instead of
+    calling its tool. Failure mode under concurrent Gemini Pro load: the
+    response is the input JSON, not the tool result.
+
+    Heuristic: if the result has no `status` field AND it contains the
+    `_peer` we injected but no operational fields (filing_id, ranger_unit,
+    handoff_id, receipt_id, dashboard_url, posture, materiality), it's
+    almost certainly an echo. The `source: "GUARDIAN orchestrator"` marker
+    we put in every instruction payload is a strong tell.
+    """
+    if not isinstance(result, dict):
+        return False
+    if result.get("status") in ("dispatched", "filed", "accepted", "ok"):
+        return False
+    op_signals = {
+        "filing_id", "ranger_unit", "handoff_id", "receipt_id",
+        "dashboard_url", "posture", "materiality", "estimated_arrival_minutes",
+        "impact_tier", "tnfd_entry", "handoff_record", "impact_entry",
+    }
+    if any(k in result for k in op_signals):
+        return False
+    # If the response carries our orchestrator-source marker, the LLM
+    # literally regurgitated our instruction JSON.
+    if result.get("source") == "GUARDIAN orchestrator":
+        return True
+    return False
+
+
+async def _send_once(rpc_url: str, instruction: str, headers: dict, peer_name: str) -> dict:
+    """Single A2A round trip. Used by _call_peer + its retry path."""
+    try:
+        async with httpx.AsyncClient(timeout=_A2A_TIMEOUT, headers=headers) as http:
+            client = A2AClient(httpx_client=http, url=rpc_url)
+            request = SendMessageRequest(
+                id=str(uuid.uuid4()),
+                jsonrpc="2.0",
+                method="message/send",
+                params=MessageSendParams(
+                    message=Message(
+                        message_id=str(uuid.uuid4()),
+                        kind="message",
+                        role=Role.user,
+                        parts=[TextPart(kind="text", text=instruction)],
+                    )
+                ),
+            )
+            response = await client.send_message(request=request)
+            return _unwrap_response(response, peer_name=peer_name)
+    except A2AClientError as e:
+        logger.warning("A2A call to %s failed: %s", peer_name, e)
+        return {
+            "status": "error",
+            "error": f"a2a_transport: {type(e).__name__}: {e}",
+            "_peer": peer_name,
+        }
+    except httpx.HTTPError as e:
+        logger.warning("HTTP error calling %s peer: %s", peer_name, e)
+        return {
+            "status": "error",
+            "error": f"http_transport: {type(e).__name__}: {e}",
+            "_peer": peer_name,
+        }
+
+
 async def _call_peer(peer_name: str, instruction: str, *, incident_id: str | None = None) -> dict:
     """Send a SendMessageRequest to a registered peer and unwrap the response.
 
@@ -153,6 +218,12 @@ async def _call_peer(peer_name: str, instruction: str, *, incident_id: str | Non
     For Cloud Run peers deployed with --no-allow-unauthenticated, fetches a
     service-account ID token for the peer's audience and includes it as a
     Bearer credential. Localhost dev peers skip auth.
+
+    Auto-retry-once on echo detection: under concurrent 4-peer fan-out
+    Gemini Pro intermittently echoes the input JSON instead of calling
+    its tool. We detect that pattern via `_looks_echoed` and retry the
+    same RPC once. The second attempt nearly always succeeds because
+    the cold-start has already happened.
 
     Emits A2A request/response events to the firehose so the Ops Center UI
     can visualize the fan-out in real time.
@@ -195,38 +266,24 @@ async def _call_peer(peer_name: str, instruction: str, *, incident_id: str | Non
             return result
         headers["Authorization"] = f"Bearer {token}"
 
-    try:
-        async with httpx.AsyncClient(timeout=_A2A_TIMEOUT, headers=headers) as http:
-            client = A2AClient(httpx_client=http, url=rpc_url)
-            request = SendMessageRequest(
-                id=str(uuid.uuid4()),
-                jsonrpc="2.0",
-                method="message/send",
-                params=MessageSendParams(
-                    message=Message(
-                        message_id=str(uuid.uuid4()),
-                        kind="message",
-                        role=Role.user,
-                        parts=[TextPart(kind="text", text=instruction)],
-                    )
-                ),
-            )
-            response = await client.send_message(request=request)
-            result = _unwrap_response(response, peer_name=peer_name)
-    except A2AClientError as e:
-        logger.warning("A2A call to %s failed: %s", peer_name, e)
-        result = {
-            "status": "error",
-            "error": f"a2a_transport: {type(e).__name__}: {e}",
-            "_peer": peer_name,
-        }
-    except httpx.HTTPError as e:
-        logger.warning("HTTP error calling %s peer: %s", peer_name, e)
-        result = {
-            "status": "error",
-            "error": f"http_transport: {type(e).__name__}: {e}",
-            "_peer": peer_name,
-        }
+    result = await _send_once(rpc_url, instruction, headers, peer_name)
+
+    # If the peer echoed the instruction instead of calling its tool, retry
+    # once. This works around Gemini Pro flaking under concurrent fan-out.
+    if _looks_echoed(result, instruction):
+        logger.warning(
+            "Peer %s echoed instruction instead of calling tool; retrying once",
+            peer_name,
+        )
+        events.emit(
+            kind="a2a_request",
+            agent="root_agent",
+            tool=f"notify_{peer_name}",
+            incident_id=incident_id,
+            severity="high",
+            payload={"peer": peer_name, "rpc_url": rpc_url, "retry": True},
+        )
+        result = await _send_once(rpc_url, instruction, headers, peer_name)
 
     severity = "error" if result.get("status") == "error" else "high"
     events.emit(
