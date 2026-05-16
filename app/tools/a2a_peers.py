@@ -6,6 +6,7 @@
 # JSON-RPC over HTTPS, with the peer's agent card auto-discovered at
 # `<peer_url>/a2a/<peer_name>/.well-known/agent-card.json`.
 
+import asyncio
 import hashlib
 import json
 import logging
@@ -270,21 +271,42 @@ async def _call_peer(peer_name: str, instruction: str, *, incident_id: str | Non
     result = await _send_once(rpc_url, instruction, headers, peer_name)
 
     # If the peer echoed the instruction instead of calling its tool, retry
-    # once. This works around Gemini Pro flaking under concurrent fan-out.
-    if _looks_echoed(result, instruction):
+    # up to 2 more times (3 total attempts). Gemini Pro under concurrent
+    # 4-peer fan-out has been observed to echo the same payload twice in a
+    # row when the prompt is identical — almost certainly a deterministic
+    # decode given identical input. We mutate the instruction on each retry
+    # (added retry directive + nonce) to break that determinism and force
+    # a fresh tool-call decision. 400ms backoff lets Pro spin down before
+    # the next attempt so the retry isn't another concurrent cold-start.
+    _MAX_ECHO_RETRIES = 2
+    for attempt in range(1, _MAX_ECHO_RETRIES + 1):
+        if not _looks_echoed(result, instruction):
+            break
         logger.warning(
-            "Peer %s echoed instruction instead of calling tool; retrying once",
+            "Peer %s echoed instruction instead of calling tool; retry %d/%d",
             peer_name,
+            attempt,
+            _MAX_ECHO_RETRIES,
         )
+        await asyncio.sleep(0.4)
         events.emit(
             kind="a2a_request",
             agent="root_agent",
             tool=f"notify_{peer_name}",
             incident_id=incident_id,
             severity="high",
-            payload={"peer": peer_name, "rpc_url": rpc_url, "retry": True},
+            payload={
+                "peer": peer_name,
+                "rpc_url": rpc_url,
+                "retry": attempt,
+            },
         )
-        result = await _send_once(rpc_url, instruction, headers, peer_name)
+        retry_instruction = (
+            f"[RETRY {attempt}] Previous attempt echoed the input JSON "
+            f"instead of calling the tool. You MUST call the tool now "
+            f"with the fields below. Do not echo.\n\n{instruction}"
+        )
+        result = await _send_once(rpc_url, retry_instruction, headers, peer_name)
 
     severity = "error" if result.get("status") == "error" else "high"
     events.emit(
