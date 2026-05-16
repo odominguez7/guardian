@@ -109,6 +109,7 @@ export default function Home() {
                 severity: latest.severity,
                 narrative: (payload.narrative as string) ?? "",
                 startedAt: Date.now(),
+                expectedPeers: fanout,
               },
             ];
             // Keep most recent N; drop oldest if we exceed the cap.
@@ -174,30 +175,86 @@ export default function Home() {
         }),
       );
 
-      // Once peers responded, stop the fan-out animation after a beat.
-      // Tracked via ref so we cancel on unmount.
+      // Fan-out animation lives until all expected peers respond OR a
+      // :complete event arrives (handled in the :complete effect below).
+      // Belt-and-suspenders 12s ceiling kills the animation if the
+      // firehose dies mid-fanout so we don't burn a stuck UI in the demo.
       if (fanOutTimerRef.current) clearTimeout(fanOutTimerRef.current);
       fanOutTimerRef.current = setTimeout(() => {
         setFanOutFiring(false);
         setActivePeers([]);
-      }, 4000);
+      }, 12000);
     }
   }, [events]);
 
-  // 3. Active reserve fades back to null when an incident is fully resolved
+  // Peer-name → ActiveIncident slot key (the slot whose presence proves
+  // that peer responded). Kept in sync with notify_* wiring in page.tsx.
+  const peerSlot = (peer: string): keyof ActiveIncident | null => {
+    if (peer === "park_service") return "ranger";
+    if (peer === "sponsor_sustainability") return "tnfd";
+    if (peer === "funder_reporter") return "funder";
+    if (peer === "neighbor_park") return "neighbor";
+    return null;
+  };
+
+  // 3. Active reserve fades back to null when EVERY expected peer for
+  // every visible incident has filled its slot. Codex flagged that the
+  // old check (!ranger || !tnfd) reset the reserve while the funder
+  // and neighbor cards were still pending — premature cinema cut.
+  const allIncidentsResolved = useMemo(() => {
+    if (incidents.length === 0) return false;
+    return incidents.every((inc) => {
+      const expected = inc.expectedPeers ?? ["park_service", "sponsor_sustainability"];
+      return expected.every((peer) => {
+        const slot = peerSlot(peer);
+        return slot ? inc[slot] !== undefined : true;
+      });
+    });
+  }, [incidents]);
+
   useEffect(() => {
-    const incidentInProgress = incidents.some((i) => !i.ranger || !i.tnfd);
-    if (!incidentInProgress) {
+    if (allIncidentsResolved) {
       const t = setTimeout(() => setActiveReserveId(null), 6000);
       return () => clearTimeout(t);
     }
+  }, [allIncidentsResolved]);
+
+  // 3b. Kill the fan-out animation as soon as every expected peer on the
+  // latest incident has responded — cleaner cinema than waiting for the
+  // 12s belt-and-suspenders timer above.
+  useEffect(() => {
+    if (incidents.length === 0) return;
+    const latest = incidents[incidents.length - 1];
+    const expected = latest.expectedPeers ?? [];
+    if (expected.length === 0) return;
+    const allIn = expected.every((peer) => {
+      const slot = peerSlot(peer);
+      return slot ? latest[slot] !== undefined : true;
+    });
+    if (allIn) {
+      if (fanOutTimerRef.current) clearTimeout(fanOutTimerRef.current);
+      fanOutTimerRef.current = setTimeout(() => {
+        setFanOutFiring(false);
+        setActivePeers([]);
+      }, 1500);
+    }
   }, [incidents]);
 
-  // 4. Reset running scenario flag when a :complete event arrives
+  // 4. Reset running scenario flag + clean up fan-out state on :complete.
   useEffect(() => {
     if (events.length === 0) return;
     const latest = events[events.length - 1];
-    if (latest.tool?.endsWith(":complete")) setRunningScenarioId(null);
+    if (latest.tool?.endsWith(":complete")) {
+      setRunningScenarioId(null);
+      // Defensive: :complete arrives after results — make sure animation
+      // and active-peer arrows clear even if the per-incident gate didn't
+      // catch it (e.g., one peer slot mapping is missing for a new peer).
+      if (fanOutTimerRef.current) clearTimeout(fanOutTimerRef.current);
+      fanOutTimerRef.current = setTimeout(() => {
+        setFanOutFiring(false);
+        setActivePeers([]);
+      }, 2000);
+    }
   }, [events]);
 
   const runScenario = useCallback(

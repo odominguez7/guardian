@@ -31,9 +31,10 @@ from app import events
 logger = logging.getLogger(__name__)
 
 # Cap how long we wait for a peer to respond. The peer can do real work
-# (call its model + tool) so 30s is generous but not infinite. Use a split
-# timeout so connect failures fail fast instead of hanging.
-_A2A_TIMEOUT = httpx.Timeout(connect=5.0, read=30.0, write=10.0, pool=10.0)
+# (call its model + tool). 60s read for 4-peer parallel cold-start: each
+# peer spawns a Gemini Pro call that itself spins up; bumped from 30s
+# after codex flagged simultaneous-cold-start timeouts as a demo risk.
+_A2A_TIMEOUT = httpx.Timeout(connect=5.0, read=60.0, write=10.0, pool=10.0)
 
 # Cache short-lived ID tokens per audience so we don't refetch on every call.
 # Cloud Run ID tokens are valid for 1 hour; we expire after 45 min to be safe.
@@ -483,6 +484,16 @@ async def get_sponsor_sustainability_card() -> dict:
     return await _resolve_peer_card("sponsor_sustainability")
 
 
+# Mirror of peers/funder_reporter/agent.py _VALID_PROGRAMS. Keep in sync.
+_VALID_FUNDER_PROGRAMS = {
+    "elephants_at_risk",
+    "rhino_horn_crisis",
+    "biodiversity_corridor_2030",
+    "predator_coexistence",
+    "general_impact",
+}
+
+
 # ----- Peer #3: Funder Reporter ----------------------------------------------
 
 
@@ -534,6 +545,14 @@ async def notify_funder(
             ),
             "_peer": "funder_reporter",
         }
+
+    # Coerce off-list funder_program to general_impact. The peer rejects
+    # unknowns with a structured error, which produces no funder card in
+    # the Ops Center — looks like the peer didn't respond. Codex flagged
+    # this as a demo failure mode if the orchestrating LLM hallucinates
+    # a program name (e.g. "tigers_program" instead of "elephants_at_risk").
+    if funder_program.lower() not in _VALID_FUNDER_PROGRAMS:
+        funder_program = "general_impact"
 
     payload = {
         "incident_id": incident_id,

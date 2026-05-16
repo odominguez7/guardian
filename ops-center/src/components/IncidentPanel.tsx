@@ -10,6 +10,11 @@ export interface ActiveIncident {
   severity: string;
   narrative: string;
   startedAt: number; // epoch ms
+  // List of peer names the orchestrator will fan out to for this scenario.
+  // Used as the completion-gate signal (incident is "in progress" until
+  // every expected peer's slot is filled). Empty if the incident_event
+  // didn't include a fanout list (legacy / backwards compat).
+  expectedPeers?: string[];
   ranger?: { unit: string; eta_min: number; status: string };
   tnfd?: { filing_id: string; materiality: string; status: string };
   funder?: { receipt_id: string; program: string; tier: string; status: string };

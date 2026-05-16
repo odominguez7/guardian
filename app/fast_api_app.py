@@ -14,6 +14,7 @@
 
 import asyncio
 import os
+import traceback
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -427,10 +428,36 @@ async def run_scenario(scenario_id: str) -> dict:
                 notify_neighbor_park(incident_id=incident_id, **scenario["neighbor_args"])
             )
 
-        # Await all in parallel.
+        # Await all in parallel. return_exceptions=True so ONE peer raising
+        # doesn't 500 the request and silently kill the other 3 peers' UI
+        # cards. Codex flagged this as the single highest-blast-radius
+        # demo risk: any unexpected exception in one fanout task would
+        # prevent :complete from firing, leaving the Ops Center wedged.
+        peer_names = list(tasks.keys())
+        completed = await asyncio.gather(*tasks.values(), return_exceptions=True)
         results: dict[str, dict] = {}
-        for peer_name, task in tasks.items():
-            results[peer_name] = await task
+        for peer_name, outcome in zip(peer_names, completed):
+            if isinstance(outcome, Exception):
+                logger.log_struct(
+                    {
+                        "event": "fanout_peer_exception",
+                        "peer": peer_name,
+                        "incident_id": incident_id,
+                        "error": f"{type(outcome).__name__}: {outcome}",
+                        "traceback": traceback.format_exception(
+                            type(outcome), outcome, outcome.__traceback__
+                        ),
+                    },
+                    severity="ERROR",
+                )
+                results[peer_name] = {
+                    "status": "error",
+                    "error": f"{type(outcome).__name__}: {outcome}",
+                    "peer": peer_name,
+                    "source": "GUARDIAN orchestrator (fanout exception guard)",
+                }
+            else:
+                results[peer_name] = outcome
 
         record = {
             "incident_id": incident_id,

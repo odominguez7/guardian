@@ -34,6 +34,8 @@ export interface IncidentRecord {
   incident_id: string;
   scenario_id: string;
   title: string;
-  park_service: Record<string, unknown>;
-  sponsor_sustainability: Record<string, unknown>;
+  park_service?: Record<string, unknown>;
+  sponsor_sustainability?: Record<string, unknown>;
+  funder_reporter?: Record<string, unknown>;
+  neighbor_park?: Record<string, unknown>;
 }
