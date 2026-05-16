@@ -67,11 +67,13 @@ What we will NOT have:
 
 ### 2026-05-15 - D1 first attempt (early submission test)
 
-Omar opened https://console.cloud.google.com/producer-portal/overview?project=guardian-gfs-2026 against the `guardian-gfs-2026` GCP project.
+Opened https://console.cloud.google.com/producer-portal/overview?project=guardian-gfs-2026 against the `guardian-gfs-2026` GCP project, twice in succession to capture the gate behavior.
 
-**Result:** "Failed to load. There was an error while loading /producer-portal/overview?project=guardian-gfs-2026. Please try again. It may be a browser or network issue."
+**Result (both attempts):** "Failed to load. There was an error while loading /producer-portal/overview?project=guardian-gfs-2026. Please try again. It may be a browser or network issue."
 
-**Google Request ID:** `3745174922461967479` (timestamp 2026-05-15)
+**Google Request IDs:** `3745174922461967479` (first attempt) and `11105120497565364682` (second attempt with screenshot). Each Portal load generates a fresh Request ID; both prove the gate was hit.
+
+**Screenshot:** `marketplace/screenshots/submission-block-20260515.png` shows the Producer Portal frame, the Product Management + Account Management sidebar (confirming the Portal URL is correct and the producer-account features ARE listed), and the red "Failed to load" banner with Request ID 11105120497565364682. Auth + project context visible (top right account selector + `console.cloud.google.com/producer-portal/overview?project=guardian-gfs-2026` URL bar).
 
 **Root cause diagnosed via `gcloud` from the project:**
 1. Project has `roles/owner` for `omar.dominguez7@gmail.com` (account-level access is fine).
