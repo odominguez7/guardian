@@ -19,6 +19,7 @@ from google.genai import types
 
 from app import events
 from app.agents.audio_agent import audio_agent
+from app.agents.court_evidence import court_evidence_agent
 from app.agents.species_id import species_id_agent
 from app.agents.stream_watcher import stream_watcher_agent
 from app.tools.a2a_peers import (
@@ -109,8 +110,11 @@ Your team of specialist agents:
   in the wildlife corpus (IUCN, CITES, TNFD) via Vertex AI Search. Returns a
   compliance_flag ("material" | "informational" | "unlisted") the orchestrator
   uses to decide whether to fan out to sponsor + funder peers.
-  (Additional specialists in subsequent days: pattern, visualizer, dispatch,
-   court_evidence.)
+- court_evidence: bundles every firehose event for an incident into a SHA-256
+  anchored chain-of-custody packet (JSON + clickable HTML). Use this AFTER
+  peer fan-out completes when the user asks "show me the evidence" or
+  "generate the audit trail."
+  (Additional specialists in subsequent days: pattern, visualizer, dispatch.)
 
 Your A2A peers (independent agents run by OTHER organizations):
 - park_service (national park authority): call `notify_park_service` to report
@@ -170,7 +174,12 @@ root_agent = Agent(
         "ranger dispatch, and corporate biodiversity reporting (TNFD/CSRD)."
     ),
     instruction=ROOT_INSTRUCTION,
-    sub_agents=[stream_watcher_agent, audio_agent, species_id_agent],
+    sub_agents=[
+        stream_watcher_agent,
+        audio_agent,
+        species_id_agent,
+        court_evidence_agent,
+    ],
     tools=[
         LongRunningFunctionTool(func=request_user_input),
         new_incident_id,

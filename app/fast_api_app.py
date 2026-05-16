@@ -621,6 +621,46 @@ async def run_scenario(scenario_id: str) -> dict:
         return record
 
 
+# ----- Court-Evidence endpoints ---------------------------------------------
+# Surface the chain-of-custody bundle (JSON + HTML) for any incident that
+# still has events in the firehose ring buffer. Used by:
+#   - The Ops Center "Generate evidence packet" button (post-scenario)
+#   - Direct judge / auditor clicks during demo evaluation
+#   - The orchestrator's LLM when it calls court_evidence_agent.
+
+from fastapi.responses import HTMLResponse  # noqa: E402
+
+from app.tools.court_evidence import (  # noqa: E402
+    bundle_incident as _bundle_incident,
+    render_evidence_html as _render_evidence_html,
+)
+
+
+@app.get("/demo/evidence/{incident_id}")
+async def evidence_bundle(incident_id: str) -> dict:
+    """Return the structured chain-of-custody bundle for an incident.
+
+    JSON shape matches `bundle_incident()`. 404 if no events buffered.
+    """
+    bundle = _bundle_incident(incident_id)
+    if bundle.get("status") != "ok":
+        raise HTTPException(status_code=404, detail=bundle.get("error", "no evidence"))
+    return bundle
+
+
+@app.get("/demo/evidence/{incident_id}/html", response_class=HTMLResponse)
+async def evidence_html(incident_id: str) -> HTMLResponse:
+    """Return the human-readable HTML evidence packet for an incident.
+
+    Self-contained document (inline CSS); judge / auditor can save as PDF
+    via browser print. 404 if no events buffered.
+    """
+    rendered = _render_evidence_html(incident_id)
+    if rendered.get("status") != "ok":
+        raise HTTPException(status_code=404, detail=rendered.get("error", "no evidence"))
+    return HTMLResponse(content=rendered["html"], status_code=200)
+
+
 # Main execution
 if __name__ == "__main__":
     import uvicorn

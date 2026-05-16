@@ -191,6 +191,27 @@ async def snapshot() -> list[dict]:
         return list(_buffer)
 
 
+def snapshot_for_incident(incident_id: str) -> list[dict]:
+    """Return every buffered event tagged with this incident_id.
+
+    Used by the Court-Evidence Agent to assemble a chain-of-custody bundle.
+    Returned in chronological order (deque is ordered by emit time). Safe to
+    call from sync code (no async needed).
+
+    Ring buffer is bounded so very old incidents may have been evicted; the
+    bundle then reflects what is still retrievable, with a `_buffer_truncated`
+    flag set if the count looks suspiciously low.
+    """
+    if not incident_id:
+        return []
+    with _thread_lock:
+        return [
+            dict(evt)  # shallow copy so callers can mutate without racing
+            for evt in _buffer
+            if evt.get("incident_id") == incident_id
+        ]
+
+
 def subscriber_count() -> int:
     """Lightweight gauge for /health diagnostics."""
     with _thread_lock:
