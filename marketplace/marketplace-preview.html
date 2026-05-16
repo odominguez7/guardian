@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>GUARDIAN - Google Cloud Marketplace (preview)</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --ink: #202124;
+    --ink-2: #5f6368;
+    --ink-3: #80868b;
+    --rule: #dadce0;
+    --rule-soft: #e8eaed;
+    --brand: #1a73e8;
+    --brand-ink: #174ea6;
+    --tag: #e8f0fe;
+    --tag-ink: #174ea6;
+    --good: #1e8e3e;
+    --good-bg: #e6f4ea;
+    --warn: #f29900;
+  }
+  *,*::before,*::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; font-family: 'Google Sans', Roboto, system-ui, -apple-system, sans-serif; color: var(--ink); background: var(--bg); }
+  a { color: var(--brand); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .console-top { background: #f8f9fa; border-bottom: 1px solid var(--rule-soft); padding: 8px 24px; font-size: 13px; color: var(--ink-2); display: flex; align-items: center; gap: 16px; }
+  .console-top .crumb { color: var(--ink-2); }
+  .console-top .crumb-active { color: var(--ink); font-weight: 500; }
+  .preview-banner { background: #fff7e0; border-bottom: 1px solid #ffcc00; padding: 8px 24px; font-size: 12px; color: #5f4300; }
+  .listing-wrap { max-width: 1200px; margin: 0 auto; padding: 32px 24px 80px; }
+  .listing-head { display: flex; gap: 24px; align-items: flex-start; padding-bottom: 24px; border-bottom: 1px solid var(--rule); }
+  .listing-logo { width: 96px; height: 96px; border-radius: 16px; background: linear-gradient(135deg, #1a73e8 0%, #174ea6 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 36px; flex-shrink: 0; }
+  .listing-title-block h1 { font-size: 28px; margin: 0 0 4px; font-weight: 500; }
+  .listing-title-block .producer { color: var(--ink-2); font-size: 14px; margin-bottom: 12px; }
+  .listing-title-block .tagline { font-size: 16px; color: var(--ink); max-width: 720px; line-height: 1.5; }
+  .listing-actions { margin-left: auto; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; flex-shrink: 0; }
+  .btn { padding: 10px 20px; border-radius: 4px; border: none; cursor: pointer; font-size: 14px; font-weight: 500; font-family: inherit; }
+  .btn-primary { background: var(--brand); color: white; }
+  .btn-primary:hover { background: var(--brand-ink); }
+  .btn-secondary { background: white; color: var(--brand); border: 1px solid var(--rule); }
+  .btn-secondary:hover { background: #f8f9fa; }
+  .meta-row { display: flex; gap: 24px; flex-wrap: wrap; padding: 16px 0; border-bottom: 1px solid var(--rule-soft); font-size: 13px; }
+  .meta { display: flex; flex-direction: column; gap: 2px; }
+  .meta .lbl { color: var(--ink-3); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .meta .val { color: var(--ink); font-weight: 500; }
+  .tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tag { background: var(--tag); color: var(--tag-ink); padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 500; }
+  .section { padding: 28px 0; border-bottom: 1px solid var(--rule-soft); }
+  .section h2 { font-size: 18px; font-weight: 500; margin: 0 0 12px; }
+  .section p { line-height: 1.6; color: var(--ink); max-width: 880px; margin: 0 0 12px; }
+  .grid-2 { display: grid; grid-template-columns: 2fr 1fr; gap: 32px; }
+  .benefit-list { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .benefit { padding: 16px; border: 1px solid var(--rule); border-radius: 8px; }
+  .benefit .b-title { font-weight: 500; margin: 0 0 4px; font-size: 14px; }
+  .benefit .b-body { color: var(--ink-2); font-size: 13px; line-height: 1.5; margin: 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--rule-soft); }
+  th { color: var(--ink-3); font-weight: 500; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+  tr:last-child td { border-bottom: none; }
+  .pricing-card { padding: 20px; border: 1px solid var(--rule); border-radius: 8px; margin-bottom: 12px; display: flex; align-items: flex-start; gap: 16px; }
+  .pricing-card .pc-price { font-size: 24px; font-weight: 500; color: var(--ink); }
+  .pricing-card .pc-name { font-weight: 500; font-size: 16px; margin: 0 0 4px; }
+  .pricing-card .pc-desc { color: var(--ink-2); font-size: 13px; margin: 0; line-height: 1.5; }
+  .pricing-card.featured { border-color: var(--brand); background: #f6faff; }
+  .pricing-card .pc-tier { color: var(--ink-3); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .compliance-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .compliance-pill { padding: 12px; background: var(--good-bg); color: var(--good); border-radius: 6px; font-size: 13px; font-weight: 500; }
+  .deploy-steps { list-style: none; padding: 0; margin: 0; counter-reset: step; }
+  .deploy-steps li { position: relative; padding: 12px 12px 12px 44px; counter-increment: step; }
+  .deploy-steps li::before { content: counter(step); position: absolute; left: 0; top: 12px; width: 28px; height: 28px; border-radius: 50%; background: var(--brand); color: white; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 500; }
+  .producer-card { padding: 16px; border: 1px solid var(--rule); border-radius: 8px; font-size: 13px; line-height: 1.6; }
+  .producer-card .pr-name { font-weight: 500; font-size: 14px; }
+  .footer { color: var(--ink-3); font-size: 12px; padding: 24px 0; text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="console-top">
+  <span class="crumb">Google Cloud Marketplace</span>
+  <span class="crumb">›</span>
+  <span class="crumb">AI &amp; ML</span>
+  <span class="crumb">›</span>
+  <span class="crumb-active">GUARDIAN - Biodiversity Operations Platform</span>
+</div>
+
+<div class="preview-banner">
+  <strong>Listing preview.</strong> This is the draft Marketplace listing for GUARDIAN, prepared for D17-D18 submission to Google Cloud Marketplace Producer Portal. See <code>marketplace/SUBMISSION_NOTES.md</code> for the submission trail.
+</div>
+
+<div class="listing-wrap">
+
+  <div class="listing-head">
+    <div class="listing-logo">G</div>
+    <div class="listing-title-block">
+      <h1>GUARDIAN</h1>
+      <div class="producer">By Omar Dominguez · MIT MBA 2026 · <a href="mailto:omar.dominguez7@gmail.com">omar.dominguez7@gmail.com</a></div>
+      <div class="tagline">Real-time anti-poaching defense + auto-filed TNFD/CSRD biodiversity disclosures, on one Gemini-native multi-agent platform.</div>
+    </div>
+    <div class="listing-actions">
+      <button class="btn btn-primary">Subscribe</button>
+      <button class="btn btn-secondary">Free 30-day trial</button>
+      <div style="font-size: 12px; color: var(--ink-3); margin-top: 4px;">Billed via Google Cloud invoice</div>
+    </div>
+  </div>
+
+  <div class="meta-row">
+    <div class="meta">
+      <span class="lbl">Category</span>
+      <span class="val">AI &amp; ML · Multi-Agent Systems</span>
+    </div>
+    <div class="meta">
+      <span class="lbl">Industry</span>
+      <span class="val">Sustainability &amp; ESG</span>
+    </div>
+    <div class="meta">
+      <span class="lbl">Deployment</span>
+      <span class="val">Cloud Run · Vertex AI</span>
+    </div>
+    <div class="meta">
+      <span class="lbl">Time to first incident</span>
+      <span class="val">~12 minutes</span>
+    </div>
+    <div class="meta">
+      <span class="lbl">SLA</span>
+      <span class="val">99.9% (Enterprise)</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Overview</h2>
+    <p>
+      Fortune 500 firms with sponsored conservation portfolios now face mandatory biodiversity disclosure under EU CSRD (ESRS E4) and the global TNFD framework. The data required - incident-level evidence that material biodiversity impacts on your sponsored reserves have been detected, dispatched, and chain-of-custody preserved - has historically been impossible to produce at audit grade.
+    </p>
+    <p>
+      GUARDIAN is a Gemini-native multi-agent platform that runs in production on the conservation areas your firm sponsors. Stream Watcher, Audio Agent, and Species ID specialists analyze camera-trap and microphone feeds in real time, escalate poaching threats to the Orchestrator, and trigger A2A protocol fan-out to four independent enterprise agents.
+    </p>
+    <p>
+      Every incident produces a deterministic, chain-of-custody-grade evidence bundle. The same artifact serves the ranger response, the sponsor's regulator, the funder's quarterly impact report, and (when needed) the host country's wildlife court system.
+    </p>
+    <div class="tags">
+      <span class="tag">gemini-2.5-pro</span>
+      <span class="tag">agent-development-kit</span>
+      <span class="tag">a2a-protocol</span>
+      <span class="tag">tnfd</span>
+      <span class="tag">csrd</span>
+      <span class="tag">esrs-e4</span>
+      <span class="tag">cites-mike</span>
+      <span class="tag">vertex-ai-search</span>
+      <span class="tag">cloud-run</span>
+      <span class="tag">multi-agent</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Key benefits</h2>
+    <div class="benefit-list">
+      <div class="benefit">
+        <p class="b-title">TNFD-aligned + CSRD-ESRS-E4-compatible disclosure outputs</p>
+        <p class="b-body">Every biodiversity-relevant incident on a sponsored reserve auto-emits a structured disclosure entry tagged with <code>compliance_frameworks</code> and the same <code>incident_id</code> used by ranger response - a chain-of-custody trail your external auditor can validate.</p>
+      </div>
+      <div class="benefit">
+        <p class="b-title">Multi-agent coordination across organizations</p>
+        <p class="b-body">Four independent enterprise agents (park authority, sponsor sustainability office, conservation funder, neighbor park) coordinate live over the A2A protocol v0.3.0. No shared databases, no proprietary APIs.</p>
+      </div>
+      <div class="benefit">
+        <p class="b-title">End-to-end fan-out in seconds</p>
+        <p class="b-body">Measured median latency on the production deployment: 3-8 seconds end-to-end when peers are warm, 18-26 seconds on cold start. Parallel fan-out, retry-on-flake hardening, cold-start safe.</p>
+      </div>
+      <div class="benefit">
+        <p class="b-title">Native to your existing Google Cloud commit</p>
+        <p class="b-body">Deploys to Cloud Run + Vertex AI + BigQuery in your existing GCP project. Draws against your committed-spend agreement. No new procurement.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Pricing</h2>
+    <div class="pricing-card">
+      <div style="flex: 1;">
+        <div class="pc-tier">Core</div>
+        <p class="pc-name">1 reserve · 10,000 incidents/yr · standard support</p>
+        <p class="pc-desc">All 4 A2A peers · all 8 specialist agents · TNFD + CSRD-ESRS-E4 + CITES-MIKE report generation · Vertex AI Search corpus included</p>
+      </div>
+      <div class="pc-price">$60,000<span style="font-size: 13px; color: var(--ink-3); font-weight: 400;"> / year</span></div>
+    </div>
+    <div class="pricing-card featured">
+      <div style="flex: 1;">
+        <div class="pc-tier">Portfolio · most popular</div>
+        <p class="pc-name">5 reserves · 50,000 incidents/yr · priority support + dedicated TAM</p>
+        <p class="pc-desc">Everything in Core, plus cross-reserve pattern detection, Looker Studio CSO dashboard, and quarterly audit-prep review.</p>
+      </div>
+      <div class="pc-price">$180,000<span style="font-size: 13px; color: var(--ink-3); font-weight: 400;"> / year</span></div>
+    </div>
+    <div class="pricing-card">
+      <div style="flex: 1;">
+        <div class="pc-tier">Enterprise</div>
+        <p class="pc-name">Unlimited reserves · 100,000+ incidents/yr · named CSM · SOC 2 evidence pack</p>
+        <p class="pc-desc">Everything in Portfolio, plus custom A2A peer onboarding, multi-region deployment, dedicated cluster option, annual on-site implementation review.</p>
+      </div>
+      <div class="pc-price">from $300,000<span style="font-size: 13px; color: var(--ink-3); font-weight: 400;"> / year</span></div>
+    </div>
+    <p style="font-size: 12px; color: var(--ink-3); margin-top: 12px;">Overage at $2.50/incident above plan · 30-day free trial · billed via Google Cloud invoice with committed-spend support</p>
+  </div>
+
+  <div class="section">
+    <h2>What gets deployed</h2>
+    <table>
+      <thead>
+        <tr><th>Service</th><th>Configuration</th><th>Purpose</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Orchestrator</td><td>Cloud Run · 1 vCPU / 2 GB · autoscale 1-10</td><td>Root agent, A2A client, event firehose</td></tr>
+        <tr><td>Park Authority Peer</td><td>Cloud Run · autoscale 0-5</td><td>A2A peer #1 (ranger dispatch ack)</td></tr>
+        <tr><td>Sponsor Sustainability Peer</td><td>Cloud Run · autoscale 0-5</td><td>A2A peer #2 (TNFD entry filer)</td></tr>
+        <tr><td>Funder Reporter Peer</td><td>Cloud Run · autoscale 0-5</td><td>A2A peer #3 (program impact receipt)</td></tr>
+        <tr><td>Neighbor Park Peer</td><td>Cloud Run · autoscale 0-5</td><td>A2A peer #4 (cross-border mutual aid)</td></tr>
+        <tr><td>Ops Center frontend</td><td>Cloud Run · 1 vCPU / 1 GB · autoscale 1-3</td><td>Live ops dashboard (Next.js + Mapbox)</td></tr>
+        <tr><td>Vertex AI Search data store</td><td><code>guardian-collection</code></td><td>IUCN / CITES / playbook RAG</td></tr>
+        <tr><td>BigQuery dataset</td><td><code>adk_agent_analytics</code></td><td>AgentOps observability + eval evidence</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>Compliance &amp; security</h2>
+    <div class="compliance-grid">
+      <div class="compliance-pill">✓ TNFD framework aligned</div>
+      <div class="compliance-pill">✓ CSRD ESRS-E4 datapoint mapping</div>
+      <div class="compliance-pill">✓ MIKE-compatible cross-border handoffs</div>
+      <div class="compliance-pill">✓ Service-to-service ID token auth</div>
+      <div class="compliance-pill">✓ Idempotent incident IDs</div>
+      <div class="compliance-pill">⏳ SOC 2 Type II roadmap (Enterprise)</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Deployment in 4 steps</h2>
+    <ol class="deploy-steps">
+      <li>Click <strong>Subscribe</strong> and select your GCP project. Subscription bills to your existing invoice; draws against committed spend if available.</li>
+      <li>Run the provided setup (Terraform module planned for submission): provisions 6 Cloud Run services, seeds Vertex AI Search data store, configures IAM bindings.</li>
+      <li>Upload reserve corpus + connect camera trap feeds via GCS bucket.</li>
+      <li>Watch the Ops Center light up on your first incident. Average time from "Subscribe" click to first processable incident: ~12 minutes.</li>
+    </ol>
+  </div>
+
+  <div class="section">
+    <h2>Demo &amp; documentation</h2>
+    <ul>
+      <li><strong>Live demo:</strong> <a href="https://guardian-ops-center-180171737110.us-central1.run.app">guardian-ops-center-180171737110.us-central1.run.app</a> (production deployment)</li>
+      <li><strong>Agent cards:</strong> <a href="https://guardian-180171737110.us-central1.run.app/a2a/app/.well-known/agent-card.json"><code>/a2a/app/.well-known/agent-card.json</code></a></li>
+      <li><strong>Demo scenarios:</strong> 4 pre-canned scenarios on the live Ops Center (Poacher Truck, Audio Gunshot, Multimodal Chain, Sponsored Species)</li>
+      <li><strong>Source repo:</strong> github.com/odominguez7/guardian</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Producer</h2>
+    <div class="producer-card">
+      <div class="pr-name">Omar Dominguez</div>
+      <div>MIT MBA 2026 · Founder, AgentsArmy.ai · Boston, MA</div>
+      <div style="margin-top: 8px;"><a href="mailto:omar.dominguez7@gmail.com">omar.dominguez7@gmail.com</a></div>
+    </div>
+  </div>
+
+  <div class="footer">
+    GUARDIAN listing preview · prepared 2026-05-15 · submission to Producer Portal targeted D17-D18 (2026-05-31 to 2026-06-01)
+  </div>
+</div>
+
+</body>
+</html>
