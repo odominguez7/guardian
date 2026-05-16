@@ -1,8 +1,8 @@
 # GUARDIAN
 
-Real-time multi-agent system for biodiversity protection and corporate ESG (TNFD/CSRD) reporting. Built for the **Google for Startups AI Agents Challenge** (Track 3 — Refactor for Marketplace + Gemini Enterprise).
+Real-time multi-agent system for biodiversity protection and corporate ESG (TNFD/CSRD) reporting. Built for the **Google for Startups AI Agents Challenge** — Track 3 (Refactor for Marketplace + Gemini Enterprise).
 
-**Submission deadline:** 2026-06-05.
+**Submission deadline:** 2026-06-05 · **Status as of 2026-05-16:** core platform LIVE, demo video remains.
 
 ---
 
@@ -10,55 +10,100 @@ Real-time multi-agent system for biodiversity protection and corporate ESG (TNFD
 
 A team of specialized AI agents watches conservation areas in real time, detects poaching threats before they happen, coordinates ranger response across agencies, and auto-files the TNFD/CSRD biodiversity reports Fortune 500 sustainability buyers are now legally required to deliver.
 
-Six in-system agents (Stream Watcher, Audio, Species ID, Pattern, Visualizer, Dispatch, Court-Evidence) + an Orchestrator + **4 distinct A2A peer agents** representing the park authority, a corporate sustainability buyer, a funder reporting agent, and a neighboring park's mutual-aid agent.
+**6 in-system agents** (Orchestrator, Stream Watcher, Audio, Species ID, Court-Evidence, + Pattern WIP) · **4 distinct A2A peers** (Park Authority, Sponsor Sustainability, Funder Reporter, Neighbor Park) · **Cinema-grade Ops Center** judges can click + screen-record.
+
+## Live endpoints
+
+| Service | URL | Revision |
+|---|---|---|
+| GUARDIAN orchestrator | https://guardian-180171737110.us-central1.run.app | `guardian-00015-kxm` |
+| Ops Center (frontend) | https://guardian-ops-center-180171737110.us-central1.run.app | `guardian-ops-center-00006-zws` |
+| A2A peer — Park Authority | https://guardian-park-service-180171737110.us-central1.run.app | live |
+| A2A peer — Sponsor Sustainability (TNFD) | https://guardian-sponsor-sustainability-180171737110.us-central1.run.app | live |
+| A2A peer — Funder Reporter | live on Cloud Run | live |
+| A2A peer — Neighbor Park (Maasai Mara) | live on Cloud Run | live |
+
+**A2A agent card:** `/a2a/app/.well-known/agent-card.json` · **API docs:** `/docs` · **Court-evidence packet:** `/demo/evidence/{id}` · **Evidence HTML:** `/demo/evidence/{id}/html`
+
+## Build status — 22-day plan
+
+12 of 22 plan-days shipped in 1.3 calendar days (2026-05-15 → 2026-05-16). 4 codex adversarial sweeps cleared inline.
+
+| Day | Milestone | Status | Evidence |
+|---|---|---|---|
+| **D1** | Repo + GCP + Cloud Run scaffold | ✅ SHIPPED | `guardian-gfs-2026`, github.com/odominguez7/guardian |
+| **D2** | Vertex AI Search corpus seeded | ✅ SHIPPED | `guardian-collection`, 7-doc wildlife corpus |
+| **D3** | Stream Watcher agent | ✅ SHIPPED | 2 ADK eval trajectories, live in playground |
+| **D4** | Audio Agent (gunshot/vehicle classifier) | ✅ SHIPPED | `classify_audio`, Gemini multimodal, 6 sound classes |
+| **D5** | Species ID Agent (two-tool agentic RAG) | ✅ SHIPPED | `identify_species` + `lookup_species_factsheet` over corpus |
+| D6 | Pattern Agent + Memory Bank | ⏳ TODO | downscoped to BigQuery-only (no Spanner) |
+| D7 | Visualizer (suspect sketch + heatmap) | ✂️ CUT | pre-render placeholder in demo video |
+| D8 | Dispatch Agent (SMS) | 🟨 STUB | AgentPhone MCP hook documented, mock ack returned |
+| **D9** | Court-Evidence Agent | ✅ SHIPPED | SHA-256 anchored chain-of-custody bundle + `/html` endpoint |
+| D10 | Spanner GraphRAG | ✂️ CUT | CEO-review downscope, saved $86 + 1 day |
+| **D11** | A2A Peer #1 — Park Authority | ✅ SHIPPED | independent Cloud Run, live ranger dispatch ack |
+| **D12** | A2A Peer #2 — Sponsor Sustainability | ✅ SHIPPED | TNFD/CSRD-ESRS-E4 filer (Pro for tool-call reliability) |
+| **D13** | A2A Peer #3 — Funder Reporter | ✅ SHIPPED | impact receipt issuer |
+| **D14** | A2A Peer #4 — Neighbor Park | ✅ SHIPPED | cross-border CITES-MIKE handoff (Maasai Mara) |
+| **D15** | Frontend Ops Center | ✅ SHIPPED (-14d) | Next.js 16 + Mapbox + WS firehose + animated 4-peer fan-out |
+| D16 | ParallelAgent refactor | ⏳ TODO | cut chain latency ~90s → ~30-40s |
+| D17 | Looker dashboard + security pass | ⏳ TODO | mTLS, RLS |
+| **D18** | Marketplace listing package | ✅ SHIPPED | 8 files, codex-cleared, Producer Portal evidence |
+| D19-D21 | Demo video + arch diagram + reviews | ⏳ TODO | **highest-leverage remaining work** |
+| D22 | Devpost submit | ⏳ TODO | 2026-06-05 5pm PT |
+
+**Codex adversarial sweeps cleared in session:** 4 — Tier 1 hardening, service-to-service auth, Marketplace listing fact-check, D9 court-evidence. Each found 1+ P0 and several P1; all auto-applied or manually fixed.
 
 ## Stack
 
-- **Intelligence:** Gemini 3 Pro (orchestrator) · Gemini 2.5 Flash (sub-agents) · Gemini Live (real-time video + audio)
-- **Orchestration:** Agent Development Kit (ADK) · Model Context Protocol (MCP) · Agent-to-Agent (A2A) protocol
-- **Knowledge:** Vertex AI Search · Vertex AI Vector Search · Vertex AI Memory Bank · Spanner GraphRAG · BigQuery
-- **Vision/Media:** Imagen 4 · Nano Banana Pro · Document AI · Speech-to-Text
-- **Runtime:** Cloud Run · Firebase Auth · Pub/Sub · Memorystore · Cloud Storage
-- **AgentOps:** Agent Starter Pack · Terraform · Cloud Build CI/CD · Cloud Trace · Vertex AI eval · Looker Studio dashboards · Cloud Logging → BigQuery
+- **Intelligence:** Gemini 3 Pro (orchestrator, legal output) · Gemini 2.5 Flash (sub-agents) · Gemini Live (real-time video + audio)
+- **Orchestration:** Agent Development Kit (ADK) · Model Context Protocol (MCP) · Agent-to-Agent (A2A) protocol v0.3.0
+- **Knowledge:** Vertex AI Search · BigQuery (Spanner downscoped) · planned Memory Bank (D6)
+- **Vision/Media:** Imagen 4 (cut from runtime) · Document AI · Speech-to-Text
+- **Runtime:** 6 Cloud Run services · Firebase Auth · Pub/Sub · Cloud Storage
+- **AgentOps:** Agent Starter Pack v0.41.3 (`adk_a2a` template) · Cloud Build CI/CD · Cloud Trace · Looker Studio (D17) · Cloud Logging → BigQuery
 
 ## Track 3 mandate checklist
 
-| Mandate | Implementation |
-|---|---|
-| B2B core function | Fortune 500 TNFD/CSRD compliance buyers · conservation orgs · insurance underwriters |
-| Cloud-native runtime | 5+ Cloud Run services, Terraform IaC |
-| Google Cloud powered intelligence | Gemini 3 Pro orchestrator + 2.5 Flash sub-agents |
-| **A2A interoperability** | 4 distinct enterprise agents in separate Cloud Run services, each with `agent.json` + mTLS |
-| Marketplace-ready | Marketplace listing draft + pricing page + SOC 2 readiness checklist included |
+| Mandate | Implementation | Status |
+|---|---|---|
+| B2B core function | F500 TNFD/CSRD compliance buyers · conservation orgs · insurance underwriters | ✅ |
+| Cloud-native runtime | 6 Cloud Run services | ✅ |
+| Google Cloud powered intelligence | Gemini 3 Pro orchestrator + 2.5 Flash sub-agents + Vertex AI Search | ✅ |
+| **A2A interoperability** | 4 distinct enterprise peers in separate Cloud Run services, each with `agent.json` + service-to-service ID token auth | ✅ |
+| Marketplace-ready | Listing package + pricing + producer-portal submission evidence | ✅ |
 
-## Repo layout (in progress)
+## Repo layout
 
 ```
 guardian/
-  agents/             # ADK agent code, one folder per service
-    orchestrator/
-    stream_watcher/
-    audio/
-    species_id/
-    pattern/
-    visualizer/
-    dispatch/
-    court_evidence/
-  peers/              # A2A peer agents (independent services)
-    park_authority/
-    corporate_sustainability/
-    funder_reporter/
-    neighbor_mutual_aid/
-  infra/              # Terraform modules
-  eval/               # Golden trajectories, eval set
-  marketplace/        # Listing draft, pricing, SOC 2 readiness
-  docs/               # Architecture, BRIEF, PLAN
-  web/                # Frontend (Firebase Auth + AG-UI)
+  app/                # Orchestrator + in-system agents (ADK)
+  peers/              # 4 A2A peer agents (independent Cloud Run services)
+  ops-center/         # Next.js 16 + Mapbox + WS firehose frontend
+  marketplace/        # Listing package, pricing, SOC 2 readiness, submission evidence
+  deployment/         # Terraform + Cloud Build
+  reviews/            # CEO + eng + design + codex review artifacts
+  tests/              # ADK eval trajectories + integration
+  PLAN.md             # 22-day locked execution schedule
+  TODOS.md            # 30+ deferred P2/P3 items
 ```
 
-## Build status
+## Local dev
 
-See [`PLAN.md`](./PLAN.md) for the locked 22-day execution schedule.
+```bash
+# install deps
+uv sync
+
+# run orchestrator locally
+make dev
+
+# re-deploy services
+make deploy                          # orchestrator
+make deploy-park-service             # Park Authority peer
+make deploy-sponsor-sustainability   # Sponsor Sustainability peer
+```
+
+See `Makefile` for full target list.
 
 ## License
 
