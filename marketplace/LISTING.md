@@ -85,7 +85,7 @@ When the Falsifier adversarial agent dissents on a high or critical incident, GU
 
 ## Pricing model
 
-See `PRICING.md` for the full three-tier model. Listed on Marketplace as **Subscription** with usage-based incident credits. SKU lines:
+Full procurement-ready rate card (with discounts, free trial, escrow, vendor risk) lives in [`PROCUREMENT.md`](./PROCUREMENT.md#1-pricing--skus) §1. Listed on Marketplace as **Subscription** with usage-based incident credits. SKU lines:
 
 | SKU | Price | Includes |
 |---|---|---|
@@ -100,11 +100,13 @@ Free trial: 30-day pilot on a single reserve, capped at 500 incidents. Billed vi
 
 ## Support tiers
 
-- **Standard** (included with Core): business-hours email + community Slack, 1 business day response SLO
-- **Priority** (included with Portfolio): 24/7 email + Slack Connect, 4-hour response SLO
-- **Premier** (Enterprise): named CSM, 1-hour response SLO, root-cause within 24h, optional dedicated cluster
+- **Standard** (Core): business-hours email + community channel, 1 business-day response for P2/P3 issues
+- **Priority** (Portfolio): 24/7 email + Slack Connect, 4-hour response for P1, 1-business-day for P2
+- **Premier** (Enterprise): named CSM, 15-minute P0 ack 24/7, root-cause within 24h, customer-paged via their own PagerDuty tenant
 
-Support contact: `support@guardian.example` _(replace with real domain pre-submission)_.
+Full SLA matrix (uptime %, response time by severity, escalation path) lives in [`PROCUREMENT.md`](./PROCUREMENT.md#4-sla--support-tiers) §4.
+
+Support contact: `support@guardianwildlife.io`. Procurement-and-security review: `procurement@guardianwildlife.io`.
 
 ---
 
@@ -139,17 +141,22 @@ Time-to-first-incident in a clean GCP project: ~12 minutes.
 - Incident IDs are Secure Hash Algorithm 256-bit (SHA-256) derived and idempotent - same observation produces the same incident_id, preventing duplicate ranger dispatches or duplicate TNFD filings
 - Echo-detection retry guard with prompt-mutation hardens against LLM tool-call flakes
 - Cross-thread-safe event firehose for live operations dashboard
-- SOC 2 Type II evidence-pack roadmap available on Enterprise tier (full SOC 2 attestation in progress; Enterprise customers receive interim controls-mapping workbook + customer-managed-key option)
-- Designed for GDPR, Kenya DPA, and Tanzania DPA alignment via per-customer GCP region pinning (ranger PII never leaves the host country's region); customer-specific legal review required pre-deployment
+- SOC 2 Type I targeted 2027-Q1, Type II targeted 2027-Q4. Interim compensating controls + customer-specific evidence binder available on signed contracts — see [`PROCUREMENT.md`](./PROCUREMENT.md#2-security--soc-2-readiness) §2
+- Customer-Managed Encryption Keys (CMEK) on Enterprise tier (2026-Q4); default Google-Managed Keys (GMEK) on Core/Portfolio
+- Designed for GDPR, Kenya DPA, and Tanzania DPA alignment via per-customer GCP region pinning (ranger PII never leaves the host country's region); SCC + UK Addendum attached as DPA annexes; customer-specific legal review required pre-deployment
 
 ---
 
 ## Demo + documentation
 
-- **Live demo:** https://guardian-ops-center-180171737110.us-central1.run.app
-- **Source repository:** https://github.com/odominguez7/guardian _(replace with real path)_
+- **Live demo (Ops Center):** https://guardian-ops-center-180171737110.us-central1.run.app
+- **Orchestrator A2A endpoint:** https://guardian-180171737110.us-central1.run.app
+- **Source repository (public):** https://github.com/odominguez7/guardian
 - **Agent cards:** https://guardian-180171737110.us-central1.run.app/a2a/app/.well-known/agent-card.json
-- **3-minute video walkthrough:** _(D19-D21 production)_
+- **Vertex AI Agent Engine resource:** `projects/180171737110/locations/us-central1/reasoningEngines/7109983694676295680`
+- **Procurement & legal pack:** [`PROCUREMENT.md`](./PROCUREMENT.md)
+- **Architecture deep-dive:** [`docs/AGENT_ENGINE.md`](../docs/AGENT_ENGINE.md), `ARCHITECTURE.md`
+- **2-minute demo video:** rendered via `tools/o22-render` pipeline · Days 7-10 of v8 plan · final cut linked here pre-submission
 
 ---
 
