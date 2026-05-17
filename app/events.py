@@ -223,6 +223,81 @@ def buffer_depth() -> int:
         return len(_buffer)
 
 
+def lookup_incident_by_a2a_field(
+    agent: str, field_name: str, field_value: str
+) -> str:
+    """Find an incident_id by scanning a2a_response events for a field match.
+
+    Public helper for tools that need to map peer-emitted identifiers back to
+    GUARDIAN's canonical incident_id (e.g., board_slide endpoint mapping
+    Sponsor filing_id → incident_id). Replaces private-attribute access that
+    earlier downstream tools used. Codex Move 3 P2 fix 2026-05-17.
+
+    Args:
+        agent: peer agent name (e.g., "sponsor_sustainability").
+        field_name: payload field to match (e.g., "filing_id").
+        field_value: target value (e.g., "TNFD-2026-A0192B2A32").
+
+    Returns:
+        The incident_id of the matching a2a_response event, or "" if none.
+        O(n) over the ring buffer.
+    """
+    if not (agent and field_name and field_value):
+        return ""
+    with _thread_lock:
+        buffered = list(_buffer)
+    for e in buffered:
+        if e.get("kind") != "a2a_response":
+            continue
+        if e.get("agent") != agent:
+            continue
+        payload = e.get("payload") or {}
+        if payload.get(field_name) == field_value:
+            return e.get("incident_id") or ""
+    return ""
+
+
+# --- Long-lived render cache (codex Move 3 P1 fix 2026-05-17) ---
+# The event ring buffer evicts incidents at GUARDIAN_EVENT_BUFFER depth (200
+# by default). Tools that produce a rendered artifact (e.g., the board slide
+# HTML in app/tools/board_slide.py) need access to the same content weeks
+# after the incident's events are gone. Light LRU cache keyed by a tool-
+# specific id holds the rendered output. Capped to avoid unbounded growth.
+# Survives orchestrator process lifetime; does NOT survive Cloud Run cold
+# start. For hackathon scope; production would back this with GCS or
+# Firestore.
+
+_RENDER_CACHE_MAX = int(os.environ.get("GUARDIAN_RENDER_CACHE_MAX", "200"))
+_render_cache: dict[str, str] = {}
+_render_cache_order: deque[str] = deque(maxlen=_RENDER_CACHE_MAX)
+
+
+def cache_render(cache_key: str, html: str) -> None:
+    """Cache a rendered artifact (e.g., board slide HTML) for later retrieval."""
+    if not cache_key:
+        return
+    with _thread_lock:
+        if cache_key not in _render_cache:
+            _render_cache_order.append(cache_key)
+            # Trim oldest if we exceeded the cap (deque has maxlen but we
+            # need to evict the dict entry too).
+            while len(_render_cache) >= _RENDER_CACHE_MAX:
+                oldest = _render_cache_order.popleft() if _render_cache_order else None
+                if oldest and oldest in _render_cache and oldest != cache_key:
+                    _render_cache.pop(oldest, None)
+                else:
+                    break
+        _render_cache[cache_key] = html
+
+
+def get_cached_render(cache_key: str) -> str | None:
+    """Return previously-cached rendered artifact, or None if not in cache."""
+    if not cache_key:
+        return None
+    with _thread_lock:
+        return _render_cache.get(cache_key)
+
+
 # ---- Instrumentation helpers used by the orchestrator + peer agents ---------
 
 

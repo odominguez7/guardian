@@ -119,3 +119,74 @@ def test_render_board_slide_empty_filing_id_returns_error():
     out = render_board_slide("")
     assert out["status"] == "error"
     assert "filing_id is required" in out["error"]
+
+
+def test_render_board_slide_serves_from_cache_post_eviction():
+    """After the buffer evicts the incident, a second call still works
+    because the rendered HTML is cached in events.cache_render.
+    Codex Move 3 P1 fix 2026-05-17."""
+    iid = "GU-BS-CACHE"
+    fid = "TNFD-2026-CACHE"
+    _seed_filing(iid, fid)
+
+    # First call populates the cache + renders fresh.
+    first = render_board_slide(fid)
+    assert first["status"] == "ok"
+    assert first.get("from_cache") is False
+
+    # Simulate buffer eviction by emitting unrelated events that push the
+    # earlier ones out (the buffer has maxlen 200; emit 250 dummies).
+    for i in range(250):
+        _events.emit(
+            kind="tool_end",
+            agent="filler",
+            tool="x",
+            incident_id=f"GU-FILL-{i}",
+            severity="info",
+            payload={},
+        )
+
+    # Second call should hit the cache, not re-derive from the buffer.
+    second = render_board_slide(fid)
+    assert second["status"] == "ok"
+    assert second["from_cache"] is True
+    assert second["html"] == first["html"]
+
+
+def test_reporting_period_anchored_on_sponsor_filing():
+    """Reporting quarter should anchor on the sponsor a2a_response timestamp,
+    not the earliest event. Codex Move 3 P2 fix 2026-05-17."""
+    from app.tools.board_slide import _reporting_period_from_events
+
+    # Mixed-quarter events: detection in Q1 (March), sponsor filing in Q2 (May).
+    evts = [
+        {"kind": "tool_end", "agent": "stream_watcher", "ts": "2026-03-30T23:00:00+00:00"},
+        {"kind": "a2a_response", "agent": "sponsor_sustainability", "ts": "2026-05-15T10:00:00+00:00"},
+    ]
+    # Without anchor: takes earliest → Q1.
+    assert _reporting_period_from_events(evts) == "2026-Q1"
+    # With sponsor anchor: takes sponsor filing → Q2.
+    assert _reporting_period_from_events(evts, anchor_agent="sponsor_sustainability") == "2026-Q2"
+
+
+def test_lookup_incident_by_a2a_field_public_helper():
+    """The board slide tool now uses the public events.lookup_incident_by_a2a_field
+    helper instead of dropping into private buffer attributes. Codex P2 fix."""
+    iid = "GU-BS-LOOKUP"
+    fid = "TNFD-2026-LOOKUP"
+    _events.emit(
+        kind="a2a_response",
+        agent="sponsor_sustainability",
+        tool="file_tnfd_entry",
+        incident_id=iid,
+        severity="info",
+        payload={"status": "filed", "filing_id": fid},
+    )
+
+    # Direct call to the public helper.
+    assert _events.lookup_incident_by_a2a_field("sponsor_sustainability", "filing_id", fid) == iid
+    # Missing match returns empty string.
+    assert _events.lookup_incident_by_a2a_field("sponsor_sustainability", "filing_id", "MISS") == ""
+    # Missing required args return empty.
+    assert _events.lookup_incident_by_a2a_field("", "filing_id", fid) == ""
+    assert _events.lookup_incident_by_a2a_field("sponsor_sustainability", "", fid) == ""

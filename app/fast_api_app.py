@@ -700,6 +700,15 @@ async def run_scenario(scenario_id: str) -> dict:
 
 from fastapi import Header, Request  # noqa: E402
 from fastapi.responses import HTMLResponse  # noqa: E402
+from fastapi.staticfiles import StaticFiles  # noqa: E402
+from pathlib import Path as _Path  # noqa: E402
+
+# Serve vendored static assets (e.g., html2canvas.min.js for board slides).
+# Codex Move 3 P1 fix 2026-05-17 — removes third-party CDN dependency from
+# the board-slide artifact (regulated-disclosure surface).
+_static_dir = _Path(__file__).parent / "static"
+if _static_dir.is_dir():
+    app.mount("/static", StaticFiles(directory=str(_static_dir)), name="static")
 
 from app.tools.court_evidence import (  # noqa: E402
     bundle_incident as _bundle_incident,

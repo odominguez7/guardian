@@ -88,10 +88,15 @@ def render_board_slide(filing_id: str) -> dict:
     derives KPI tiles, and returns a self-contained HTML page (16:9
     aspect ratio) with a client-side "Download as PNG" button.
 
+    Codex Move 3 P1 fix 2026-05-17: the rendered HTML is cached via
+    events.cache_render so a CSO clicking the link weeks later still
+    gets her slide even after the event ring buffer has evicted the
+    underlying incident.
+
     Args:
         filing_id: The Sponsor Sustainability TNFD filing_id
             (e.g., "TNFD-2026-A0192B2A32"). Maps to incident_id via the
-            event buffer.
+            event buffer (or the long-lived render cache).
 
     Returns:
         Dict with status, filing_id, incident_id, board_slide_url (relative
@@ -101,12 +106,26 @@ def render_board_slide(filing_id: str) -> dict:
     if not filing_id:
         return {"status": "error", "error": "filing_id is required"}
 
+    # Cache hit fast-path: serve the previously-rendered HTML if it exists,
+    # so post-buffer-eviction requests still work.
+    cached = _events.get_cached_render(f"board-slide:{filing_id}")
+    if cached:
+        return {
+            "status": "ok",
+            "filing_id": filing_id,
+            "incident_id": "",  # may not be re-derivable post-eviction; cached HTML carries the data
+            "board_slide_url": f"/board-slide/{filing_id}",
+            "html": cached,
+            "kpis": {},  # cached path skips KPI re-derivation
+            "from_cache": True,
+        }
+
     # Look up the incident_id whose sponsor filing matches this filing_id.
-    snapshot = _events.snapshot_for_incident("")  # no-op anchor
-    # Easier: scan the full buffer for a sponsor a2a_response with this filing_id.
-    # snapshot_for_incident requires an id; we use a broader scan via the
-    # internal buffer accessor pattern that bundle_incident also uses.
-    incident_id = _lookup_incident_by_filing(filing_id)
+    # Codex Move 3 P2 fix: use the public lookup helper instead of dropping
+    # into private buffer attributes.
+    incident_id = _events.lookup_incident_by_a2a_field(
+        "sponsor_sustainability", "filing_id", filing_id
+    )
     if not incident_id:
         return {
             "status": "error",
@@ -132,7 +151,11 @@ def render_board_slide(filing_id: str) -> dict:
     # Derive KPIs.
     a2a_confirmed = len(peer_ids)
     audit_hash = hashlib.sha256(incident_id.encode()).hexdigest()[:16].upper()
-    reporting_period = _reporting_period_from_events(evts)
+    # Anchor the reporting quarter on the sponsor_filing event timestamp
+    # specifically — incidents detected near a quarter boundary would
+    # otherwise be misfiled if we anchored on the earliest event (codex
+    # Move 3 P2 fix 2026-05-17).
+    reporting_period = _reporting_period_from_events(evts, anchor_agent="sponsor_sustainability")
     next_meeting = (
         datetime.now(timezone.utc) + timedelta(days=NEXT_BOARD_MEETING_OFFSET_DAYS)
     ).strftime("%Y-%m-%d")
@@ -150,6 +173,8 @@ def render_board_slide(filing_id: str) -> dict:
         "next_meeting": next_meeting,
     }
     html_doc = _format_html(payload)
+    # Cache for post-buffer-eviction retrieval (codex Move 3 P1 fix).
+    _events.cache_render(f"board-slide:{filing_id}", html_doc)
     return {
         "status": "ok",
         "filing_id": filing_id,
@@ -164,44 +189,41 @@ def render_board_slide(filing_id: str) -> dict:
             "audit_hash": audit_hash,
         },
         "next_meeting": next_meeting,
+        "from_cache": False,
     }
 
 
-def _lookup_incident_by_filing(filing_id: str) -> str:
-    """Scan the buffer for a sponsor_sustainability a2a_response with this filing_id.
+def _reporting_period_from_events(
+    evts: list[dict], anchor_agent: str = ""
+) -> str:
+    """Best-effort 2026-QN reporting period.
 
-    Returns the incident_id of the matching event, or "" if none found.
-    Walks the whole buffer (not just one incident), so this is O(n).
+    If anchor_agent is provided, anchor the period on that agent's most
+    recent a2a_response (codex Move 3 P2: incidents that span quarter
+    boundaries should be filed in the quarter the SPONSOR_FILING event
+    fires, not the quarter the camera-trap event was captured). Falls
+    back to the earliest event if no anchor match.
     """
-    import threading
+    anchor_ts: str | None = None
+    if anchor_agent:
+        anchor_candidates = [
+            e.get("ts") for e in evts
+            if e.get("kind") == "a2a_response"
+            and e.get("agent") == anchor_agent
+            and e.get("ts")
+        ]
+        if anchor_candidates:
+            anchor_ts = max(anchor_candidates)
 
-    # Use the same thread-locked snapshot pattern court_evidence relies on,
-    # but on the full buffer. snapshot_for_incident("") returns []; the
-    # buffer accessor we need is in _events.snapshot() (async). Drop down
-    # to the protected buffer for a sync scan — events.py guards it with
-    # _thread_lock.
-    with _events._thread_lock:  # type: ignore[attr-defined]
-        buffered = list(_events._buffer)  # type: ignore[attr-defined]
+    if anchor_ts is None:
+        timestamps = [e.get("ts") for e in evts if e.get("ts")]
+        if not timestamps:
+            now = datetime.now(timezone.utc)
+            return f"{now.year}-Q{((now.month - 1) // 3) + 1}"
+        anchor_ts = min(timestamps)
 
-    for e in buffered:
-        if e.get("kind") != "a2a_response":
-            continue
-        if e.get("agent") != "sponsor_sustainability":
-            continue
-        payload = e.get("payload") or {}
-        if payload.get("filing_id") == filing_id:
-            return e.get("incident_id") or ""
-    return ""
-
-
-def _reporting_period_from_events(evts: list[dict]) -> str:
-    """Best-effort 2026-QN reporting period from the earliest event."""
-    timestamps = [e.get("ts") for e in evts if e.get("ts")]
-    if not timestamps:
-        now = datetime.now(timezone.utc)
-        return f"{now.year}-Q{((now.month - 1) // 3) + 1}"
     try:
-        dt = datetime.fromisoformat(min(timestamps).replace("Z", "+00:00"))
+        dt = datetime.fromisoformat(anchor_ts.replace("Z", "+00:00"))
         return f"{dt.year}-Q{((dt.month - 1) // 3) + 1}"
     except (ValueError, TypeError):
         return ""
@@ -307,7 +329,11 @@ def _format_html(p: dict) -> str:
       <span class="source">Generated by GUARDIAN · github.com/odominguez7/guardian</span>
     </div>
   </div>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <!-- html2canvas vendored locally to avoid third-party CDN dependency on
+       a regulated-disclosure artifact (codex Move 3 P1 fix 2026-05-17).
+       Served by the orchestrator at /static/html2canvas.min.js. SHA-256:
+       e87e550794322e574a1fda0c1549a3c70dae5a93d9113417a429016838eab8cb -->
+  <script src="/static/html2canvas.min.js"></script>
   <script>
     function downloadAsPng() {{
       const el = document.getElementById('board-slide');
