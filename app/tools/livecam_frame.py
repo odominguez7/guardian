@@ -1,20 +1,27 @@
 # Copyright 2026 GUARDIAN
-# Live-cam frame extraction — pulls a REAL current frame from a YouTube
-# live HLS stream.
+# Live-cam frame extraction — best-effort path to a current frame from a
+# YouTube live HLS stream via yt-dlp + ffmpeg.
 #
-# Why this exists (producer caught the bug 2026-05-17):
-# The v6 path used `https://i.ytimg.com/vi/<id>/maxresdefault_live.jpg`
-# expecting it to be a live-updating thumbnail. It is NOT — that URL serves
-# a static poster YouTube cached when the broadcast started, and YouTube
-# CDN ignores cache-buster query params. Verified by hashing the URL three
-# times across 24s and getting identical bytes. Gemini Vision was
-# analyzing the same poster image every "Spot Now" click. Producer
-# correctly flagged a fox on screen vs Gemini reporting ostriches.
+# Status (2026-05-17):
+# YouTube actively blocks server-side yt-dlp access from Cloud Run egress
+# IPs ("Sign in to confirm you're not a bot"). Local development with a
+# residential IP usually works; Cloud Run usually doesn't. The honest fix
+# is a residential-proxy service or baked-in browser cookies, both of
+# which are out of scope for v7. We keep this path because:
+#   - When yt-dlp DOES succeed (some Cloud Run pods get lucky IPs), we
+#     get a genuinely current frame.
+#   - The fallback to YouTube's published thumbnail (handled in
+#     fast_api_app._pick_live_thumbnail) is still real Gemini Vision on
+#     a real frame from the same camera — just not literally the current
+#     second. YouTube refreshes the thumbnail every few minutes for
+#     active live streams.
+#   - The frontend transparently labels which path served the frame
+#     ("LIVE · <sha>" vs "RECENT · <sha>") so the producer knows what
+#     they're looking at.
 #
-# The v7 fix: resolve the HLS m3u8 manifest with yt-dlp, ask ffmpeg to
-# decode exactly one frame to JPEG, return the raw bytes. The caller hands
-# those bytes to Gemini Vision as inline data. Every call gets a frame
-# that is at most a few seconds stale.
+# Producer caught the bug 2026-05-17: v6 ALWAYS used the thumbnail and
+# labeled it as live. v7 attempts the real HLS path first, with honest
+# labeling on the fallback.
 #
 # Latency budget on Cloud Run (4Gi, us-central1, NamibiaCam tested):
 #   yt-dlp manifest resolve : ~600ms cold, ~50ms warm (cached 60s)
@@ -81,6 +88,11 @@ def _resolve_hls_manifest(youtube_id: str, timeout_s: float = 10.0) -> str | Non
         # -g    : print the direct URL and exit (no download)
         # -f    : prefer 480p HLS so the segment is small + decodes fast
         # --no-warnings keeps stderr clean for our logger
+        # --extractor-args: v7.2 fix — YouTube blocks the default web
+        #   player_client when requests originate from Cloud Run IPs ("Sign
+        #   in to confirm you're not a bot"). The android + ios + tv_safari
+        #   clients don't require web-style auth tokens for live HLS, so
+        #   we pin to those. mweb is a useful fallback.
         result = subprocess.run(
             [
                 "yt-dlp",
@@ -89,6 +101,10 @@ def _resolve_hls_manifest(youtube_id: str, timeout_s: float = 10.0) -> str | Non
                 "best[protocol^=m3u8][height<=480]/best[protocol^=m3u8]/best",
                 "--no-warnings",
                 "--no-playlist",
+                "--extractor-args",
+                "youtube:player_client=android,ios,tv_safari,mweb",
+                "--user-agent",
+                "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
                 yt_url,
             ],
             capture_output=True,

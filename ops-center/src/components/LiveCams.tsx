@@ -360,15 +360,15 @@ function CamTile({ cam }: { cam: CamProps }) {
                   className={`px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider ring-1 font-mono ${
                     spotResult.frame_fresh
                       ? "bg-emerald-500/10 text-emerald-200/80 ring-emerald-500/30"
-                      : "bg-amber-500/15 text-amber-200/80 ring-amber-500/30"
+                      : "bg-zinc-700/40 text-zinc-300/80 ring-zinc-500/40"
                   }`}
                   title={
                     spotResult.frame_fresh
-                      ? "Fresh HLS frame (yt-dlp + ffmpeg) — v7"
-                      : "Fallback poster image — HLS extraction failed"
+                      ? "Live HLS frame (yt-dlp + ffmpeg path)"
+                      : "Latest published thumbnail (YouTube refreshes every few minutes; HLS path blocked by YouTube anti-bot on Cloud Run)"
                   }
                 >
-                  {spotResult.frame_fresh ? "FRESH" : "POSTER"} · {spotResult.frame_sha.slice(0, 8)}
+                  {spotResult.frame_fresh ? "LIVE" : "RECENT"} · {spotResult.frame_sha.slice(0, 8)}
                 </span>
               )}
             </div>
@@ -527,7 +527,7 @@ function CamTile({ cam }: { cam: CamProps }) {
                     ? "bg-amber-500/20 text-amber-200 ring-amber-500/50 animate-pulse cursor-wait"
                     : "bg-emerald-500/20 text-emerald-200 ring-emerald-500/50 hover:bg-emerald-500/30"
                 }`}
-                title="Pull a fresh frame from the live HLS, run Gemini Vision + Falsifier. Escalates only on threat or hot species."
+                title="Pull the live cam's latest frame, run Gemini Vision + Falsifier. Escalates only on threats or IUCN/CITES hot-list species."
               >
                 <Sparkles className="w-3 h-3" />
                 {spotState === "running" ? "Spotting…" : "Spot Now"}
