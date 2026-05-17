@@ -1,14 +1,13 @@
 "use client";
 
-// PLAN_V3_2 sub-move 7.1 — Vision Pro segmented control for top-level
-// navigation between Operations / Live Cams / Agent Theater. Frosted
-// backdrop-blur, sliding amber indicator, no emoji icons (thin Lucide
-// glyphs at 14px). Replaces the "tabs look old" scenario-button strip
-// per producer feedback.
+// v5 — Vision Pro segmented control for top-level navigation.
+// Tabs: Operations · Live Cams · Mission Bridge (renamed from "Agent Theater"
+// per producer's 2026-05-17 feedback — 6/10 → 9/10 reframe). Frosted
+// backdrop-blur, sliding amber indicator, thin Lucide glyphs.
 
-import { Monitor, Video, Users } from "lucide-react";
+import { Monitor, Video, Network } from "lucide-react";
 
-export type TabId = "operations" | "live-cams" | "agent-theater";
+export type TabId = "operations" | "live-cams" | "mission-bridge";
 
 interface Props {
   active: TabId;
@@ -18,7 +17,7 @@ interface Props {
 const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: "operations", label: "Operations", icon: <Monitor className="w-3.5 h-3.5" strokeWidth={1.6} /> },
   { id: "live-cams", label: "Live Cams", icon: <Video className="w-3.5 h-3.5" strokeWidth={1.6} /> },
-  { id: "agent-theater", label: "Agent Theater", icon: <Users className="w-3.5 h-3.5" strokeWidth={1.6} /> },
+  { id: "mission-bridge", label: "Mission Bridge", icon: <Network className="w-3.5 h-3.5" strokeWidth={1.6} /> },
 ];
 
 export default function TabStrip({ active, onChange }: Props) {

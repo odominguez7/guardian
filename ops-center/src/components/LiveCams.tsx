@@ -64,13 +64,13 @@ function CamTile({ cam }: { cam: CamProps }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   return (
     <div
-      className="relative rounded-lg overflow-hidden border bg-black"
+      className="relative rounded-lg overflow-hidden border bg-black min-h-0"
       style={{ borderColor: `${cam.accent}40` }}
     >
       {cam.embedUrl ? (
         <iframe
           src={cam.embedUrl}
-          className="w-full h-full"
+          className="absolute inset-0 w-full h-full"
           style={{ border: 0 }}
           // Minimal capabilities for a muted wildlife video — no encrypted-media
           // (DRM, not needed), no forms, no top navigation, no popups.
@@ -88,7 +88,7 @@ function CamTile({ cam }: { cam: CamProps }) {
           loop
           muted
           playsInline
-          className="w-full h-full object-cover"
+          className="absolute inset-0 w-full h-full object-cover"
         />
       )}
       {/* IR overlay vignette (skipped on real YouTube embeds — let the

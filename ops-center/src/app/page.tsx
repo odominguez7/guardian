@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 
-import AgentTheater from "@/components/AgentTheater";
+import MissionBridge from "@/components/MissionBridge";
 import ChasePath from "@/components/ChasePath";
 import EventStream from "@/components/EventStream";
-import HeavyLifting from "@/components/HeavyLifting";
+import BuiltOnGoogleCloud from "@/components/BuiltOnGoogleCloud";
 import IncidentPanel, { type ActiveIncident } from "@/components/IncidentPanel";
 import LiveCams from "@/components/LiveCams";
 import TabStrip, { type TabId } from "@/components/TabStrip";
@@ -351,12 +351,11 @@ export default function Home() {
     async (id: string) => {
       lastActivityRef.current = Date.now();
       setRunningScenarioId(id);
-      // Codex challenge 2026-05-15 (final) flagged: if the firehose dies or
-      // :complete event is never received, the toolbar stays disabled
-      // forever. Belt-and-suspenders timeout resets the running flag after
-      // 90s regardless. The cooldown on the server is 15s so this is
-      // generous but not infinite.
-      const fallbackResetMs = 90_000;
+      // v5 producer feedback: 90s fallback reads as "menu frozen" when the
+      // firehose stutters. Drop to 18s — just past the 15s server cooldown
+      // so a legit second click is still gated, but the UI doesn't feel
+      // locked for a minute and a half when a scenario silently fails.
+      const fallbackResetMs = 18_000;
       const fallback = setTimeout(() => setRunningScenarioId((cur) => (cur === id ? null : cur)), fallbackResetMs);
       try {
         const res = await fetch(`${ORCH_URL}/demo/run/${id}`, {
@@ -458,7 +457,7 @@ export default function Home() {
       {activeTab === "operations" && (
         <div className="flex-1 grid grid-cols-[320px_1fr_360px] min-h-0">
           <IncidentPanel incidents={incidents} />
-          <div className="relative">
+          <div className="relative h-full min-h-0">
             <ReserveMap
               activeReserveId={activeReserveId}
               fanOutFiring={fanOutFiring}
@@ -474,14 +473,23 @@ export default function Home() {
           <LiveCams />
         </div>
       )}
-      {activeTab === "agent-theater" && (
+      {activeTab === "mission-bridge" && (
         <div className="flex-1 min-h-0">
-          <AgentTheater />
+          <MissionBridge
+            falsifierVerdict={
+              incidents.length > 0
+                ? incidents[incidents.length - 1].falsifier?.verdict ?? null
+                : null
+            }
+          />
         </div>
       )}
-      {/* Heavy-lifting strip persists across all tabs to keep the "Google
-          products at work" telemetry visible regardless of view. */}
-      <HeavyLifting events={visibleEvents} />
+      {/* v5: "Built on Google Cloud" strip persists across all tabs. Shows
+          every product in the stack (Gemini Pro/Flash, Imagen, Veo, Lyria,
+          Vertex AI Search, ADK, A2A, Cloud Run, BigQuery + ElevenLabs as
+          3rd-party) with cost-per-call, role, and model ID. Live call
+          counts tick when scenarios fire. */}
+      <BuiltOnGoogleCloud events={visibleEvents} />
     </div>
   );
 }
