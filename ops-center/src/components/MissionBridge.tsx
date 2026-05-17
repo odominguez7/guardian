@@ -23,6 +23,24 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
+// v8 Day 2 — photo-real Imagen 4 portraits as the new default.
+// Producer flagged Mission Bridge v1's silhouette set as 6/10 ("don't like
+// the cards and the icons") 2026-05-17. v2 ships realistic documentary
+// headshots while keeping v1 reachable via ?bridge=v1 query param per
+// codex NIT (don't lose Day 2 if realistic faces feel uncanny).
+function resolvePortraitVariant(): "v1" | "v2" {
+  if (typeof window === "undefined") return "v2";
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get("bridge");
+  return requested === "v1" ? "v1" : "v2";
+}
+
+function portraitPath(agentId: string, variant: "v1" | "v2"): string {
+  return variant === "v2"
+    ? `/portraits-v2/${agentId}.png`
+    : `/portraits/${agentId}.png`;
+}
+
 type Position = "orchestrator" | "specialist" | "adversary" | "peer";
 
 interface AgentSpec {
@@ -164,10 +182,12 @@ function AgentBadge({
   agent,
   active,
   onClick,
+  variant,
 }: {
   agent: AgentSpec;
   active: boolean;
   onClick: () => void;
+  variant: "v1" | "v2";
 }) {
   const style = POSITION_STYLE[agent.position];
   return (
@@ -188,7 +208,7 @@ function AgentBadge({
         style={{ width: agent.size, height: agent.size }}
       >
         <img
-          src={agent.portrait}
+          src={portraitPath(agent.id, variant)}
           alt={agent.name}
           className="w-full h-full object-cover"
         />
@@ -223,6 +243,8 @@ export default function MissionBridge({ falsifierVerdict }: MissionBridgeProps =
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const active = AGENTS.find((a) => a.id === activeId) ?? AGENTS[0];
   const orchestrator = useMemo(() => AGENTS.find((a) => a.position === "orchestrator")!, []);
+  // v8: ?bridge=v1 falls back to silhouette set; default is v2 photo-real.
+  const [portraitVariant] = useState<"v1" | "v2">(() => resolvePortraitVariant());
 
   useEffect(() => {
     if (!audioRef.current) return;
@@ -377,6 +399,7 @@ export default function MissionBridge({ falsifierVerdict }: MissionBridgeProps =
               agent={a}
               active={activeId === a.id}
               onClick={() => setActiveId(a.id)}
+              variant={portraitVariant}
             />
           ))}
         </div>
