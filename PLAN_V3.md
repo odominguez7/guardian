@@ -167,6 +167,29 @@ If any of these come up during execution: log to `TODOS.md` and move on.
 
 ---
 
+## §4.5 — Codex handshake gate (locked 2026-05-17 by Omar)
+
+**Every Move ends with a codex handshake review.** Next Move does not start until the current Move's codex handshake is CLEAR (or CLEAR-WITH-AMENDMENTS with amendments absorbed). This is non-negotiable.
+
+Per-Move handshake protocol:
+
+1. Execute the Move; commit each sub-step.
+2. Run codex via:
+   ```bash
+   codex exec --sandbox read-only -m gpt-5-codex \
+     --prompt "You are codex in adversarial review mode. The producer just completed Move N of PLAN_V3.md. Read the changed files. Verify the §3 Move N success criteria. List P0 (block next Move), P1 (strong-suggest), P2 (log only)."
+   ```
+3. Pipe codex's verdict to `reviews/CODEX_MOVE_N.md` for the audit trail.
+4. If P0: fix inline, re-run codex, loop until clear.
+5. Acceptance gate from §5 must also pass.
+6. Only then: start next Move.
+
+**The producer-visible phrase in chat:** "Move N is committed. Running codex handshake. Holding on Move N+1 until P0-clear."
+
+**Why:** [[feedback_codex_handshake_per_move]] in memory. Codex's adversarial mode is the highest-coverage net for catching P0/P1 regressions, scope creep, and premature ship claims. Per [[feedback_codex_velocity]], codex sweeps add velocity, not just safety — ~10-20 min CC time per Move vs. hours of debug at submission.
+
+---
+
 ## §5 — Acceptance tests (the gates)
 
 Before each Move's commit, the corresponding gate must pass:
