@@ -1,0 +1,97 @@
+# Brief — GUARDIAN hero (Google for Startups AI Agents Challenge, Track 3)
+# Submitted to o22-render @ rev13 to produce the 2-minute hackathon demo
+# video (4 hook variants + 3 body shots + cover frame + Lyria music bed).
+#
+# Strategic intent: convince a hackathon judge in ≤2 minutes that GUARDIAN
+# is the most credible Track 3 submission they'll see. Three beats:
+#   1. The pain (F500 CSO can't produce audit-grade biodiversity evidence)
+#   2. The moment (live cam → real agents react in real time)
+#   3. The proof (the chain of custody + the marketplace listing)
+
+brand_name: GUARDIAN
+
+description: >
+  Multi-agent biodiversity defense platform for Fortune 500 sponsors of
+  protected conservation reserves. Real cameras detect threats; ADK 2.0
+  orchestrates Gemini 2.5 Pro/Flash specialists + an adversarial Falsifier
+  reviewer + four A2A peers (park service, sponsor sustainability, funder
+  reporter, neighbor park) that fan out in seconds. Every action lands in
+  a SHA-256 chain-of-custody bundle suitable for the host country's
+  wildlife court and the sponsor's external auditor — the artifact every
+  F500 Chief Sustainability Officer is three weeks late on, generated
+  automatically per incident. Built entirely on Google Cloud (Cloud Run +
+  Vertex AI Agent Engine), Track 3-mandate-compliant, Marketplace-listing
+  ready.
+
+audience: >
+  Hackathon judges (primary): Google Cloud experts evaluating Track 3 for
+  Best of Theme. Secondary audience: Fortune 500 Chief Sustainability
+  Officers, Chief Information Security Officers, and ESG procurement
+  leads at firms with sponsored conservation portfolios (Tiffany, LVMH,
+  KPMG, AB InBev pattern) who are facing CSRD-ESRS-E4 disclosure deadlines
+  and have no idea how to produce incident-level biodiversity-impact
+  evidence at audit grade.
+
+one_liner: >
+  GUARDIAN — multi-agent biodiversity defense + auto-filed TNFD/CSRD
+  disclosure for Fortune 500 reserve sponsors, on Google Cloud.
+
+aspect_ratio: "16:9"
+
+tone: confident
+
+cta: >
+  Click Spot Now on the live cam at guardian-ops-center-180171737110.us-central1.run.app
+  and watch four enterprise agents fan out in seconds.
+
+what_it_looks_like: >
+  A real NPS Yellowstone wildlife-corridor camera feed at golden hour
+  (the producer can stream it live during the demo). The frame pulses
+  amber as the Spot Now button fires; a 10-agent circular topology
+  lights up around the orchestrator; four enterprise A2A peer cards
+  flip from pending to dispatched (Park Service ranger PSR-2205,
+  Sponsor TNFD filing TNFD-2026-..., Funder receipt, Neighbor Park
+  ACK). A SHA-256 chain-of-custody scroll prints across the bottom.
+
+realization_moment: >
+  Fortune 500 Chief Sustainability Officer is in front of the EFRAG board,
+  fielding a question from the external auditor: "show me incident-grade
+  evidence for the three poaching events in your sponsored Serengeti
+  reserve this quarter." She can't. The disclosure isn't going to pass.
+  GUARDIAN exists so this scene never happens.
+
+unique_advantage: >
+  Four enterprise agents (park service, sponsor sustainability office,
+  conservation funder, neighbor park) coordinate live via A2A v0.3.0
+  protocol on every poaching incident. None of the incumbents (IBAT,
+  SMART, EarthRanger, SERCA, Sweep) natively model this sponsor↔park↔
+  funder↔neighbor four-way relationship — the architectural insight
+  worth pricing. Every action lands in a chain-of-custody bundle the
+  external auditor's testing procedures can validate.
+
+where_audience_lives: >
+  Devpost (the challenge platform itself), the Google Cloud blog,
+  ADK Reddit + Discord communities, the TNFD framework working groups,
+  CSO/CISO/ESG procurement Slack channels at Fortune 500 corporates.
+
+emotional_moment: >
+  The moment the producer clicks Spot Now and watches a real wildlife
+  frame from a real NPS camera trigger four enterprise A2A peers in
+  parallel — and the chain-of-custody artifact lands automatically with
+  a clickable board slide for the next quarterly audit committee. The
+  shift from "interesting agent demo" to "this person solved a real
+  Fortune 500 compliance problem."
+
+visual_style: documentary
+
+visual_style_vibe: >
+  National Geographic field-cinematography intercut with NASA mission-
+  control control-room aesthetics. The Mission Bridge tab itself is the
+  documentary set piece — 10 photo-real Imagen 4 agent portraits arranged
+  in a circular topology. Wildlife shots cut to control-room shots cut
+  to enterprise-dashboard shots. Never animated, never illustrated —
+  always real-looking footage or real GUARDIAN UI capture.
+
+color_mood: warm
+
+energy: mid
