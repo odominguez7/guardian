@@ -4,9 +4,17 @@
 // wildlife clips with IR-style overlays. When Veo files aren't yet
 // present (still rendering in background), tiles show a placeholder.
 //
-// Producer's "fake-staged live cams showing videos of animals" ask.
+// v6 — "Spot Now" button on the youtube-live tile triggers a REAL
+// Gemini 2.5 Pro vision call against a freshly-pulled frame, then fans
+// out to all 4 A2A peers if anything material is detected. Producer
+// ask 2026-05-17: "is there a way to launch some agent in real life
+// when we spot something in the screen?" YES.
 
-import { useRef } from "react";
+import { useState, useRef } from "react";
+import { Sparkles } from "lucide-react";
+
+const ORCH_URL =
+  process.env.NEXT_PUBLIC_ORCHESTRATOR_URL ?? "http://localhost:8000";
 
 interface CamProps {
   id: string;
@@ -20,6 +28,9 @@ interface CamProps {
   /** When true, render a small "REAL · 24/7" pill — for the YouTube live
    *  stream that's not a Veo render. v4 sub-move A1. */
   realLive?: boolean;
+  /** Source YouTube video id — required when realLive=true so the
+   *  "Spot Now" button can POST it to /livecam/spot. */
+  youtubeId?: string;
 }
 
 const CAMS: CamProps[] = [
@@ -36,6 +47,7 @@ const CAMS: CamProps[] = [
     subtitle: "Live Namib waterhole · YouTube 24/7",
     accent: "#10b981",
     realLive: true,
+    youtubeId: "ydYDqZQpim8",
   },
   {
     id: "cheetah-crossing",
@@ -62,6 +74,42 @@ const CAMS: CamProps[] = [
 
 function CamTile({ cam }: { cam: CamProps }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  // v6: "Spot Now" — POST the live thumbnail to /livecam/spot, which runs
+  // Gemini 2.5 Pro vision on a fresh frame and fans the result out to all 4
+  // A2A peers if anything material is detected.
+  const [spotState, setSpotState] = useState<"idle" | "running" | "done" | "error">("idle");
+  const [spotMessage, setSpotMessage] = useState<string>("");
+  const handleSpot = async () => {
+    if (!cam.youtubeId || spotState === "running") return;
+    setSpotState("running");
+    setSpotMessage("Pulling fresh frame…");
+    try {
+      const res = await fetch(`${ORCH_URL}/livecam/spot`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ youtube_id: cam.youtubeId, cam_label: cam.label }),
+      });
+      if (res.status === 429) {
+        const body = await res.json().catch(() => ({}));
+        setSpotMessage(body.detail ?? "Cooldown — retry in a few seconds.");
+        setSpotState("error");
+        return;
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const body = await res.json();
+      const species = body?.vision?.primary_species?.common_name ?? "no clear subject";
+      const escalated = body?.requires_escalation;
+      setSpotMessage(
+        escalated
+          ? `Spotted: ${species} → fanned out to all 4 A2A peers`
+          : `Spotted: ${species} (no escalation needed)`,
+      );
+      setSpotState("done");
+    } catch (err) {
+      setSpotMessage(err instanceof Error ? err.message : "Spot failed");
+      setSpotState("error");
+    }
+  };
   return (
     <div
       className="relative rounded-lg overflow-hidden border bg-black min-h-0"
@@ -127,13 +175,48 @@ function CamTile({ cam }: { cam: CamProps }) {
           </div>
         )}
       </div>
-      {/* Bottom subtitle */}
-      <div className="absolute bottom-0 left-0 right-0 px-3 py-2 bg-gradient-to-t from-black via-black/70 to-transparent pointer-events-none z-10">
-        <div
-          className="text-[10px] uppercase tracking-wider font-semibold"
-          style={{ color: cam.accent }}
-        >
-          {cam.subtitle}
+      {/* Bottom subtitle + v6 Spot Now button on the real live cam */}
+      <div className="absolute bottom-0 left-0 right-0 px-3 py-2 bg-gradient-to-t from-black via-black/85 to-transparent z-10">
+        <div className="flex items-end justify-between gap-2">
+          <div className="min-w-0">
+            <div
+              className="text-[10px] uppercase tracking-wider font-semibold truncate"
+              style={{ color: cam.accent }}
+            >
+              {cam.subtitle}
+            </div>
+            {cam.realLive && spotState !== "idle" && (
+              <div
+                className={`mt-1 text-[10px] truncate ${
+                  spotState === "done"
+                    ? "text-emerald-300"
+                    : spotState === "error"
+                      ? "text-rose-300"
+                      : "text-amber-300 animate-pulse"
+                }`}
+                title={spotMessage}
+              >
+                {spotState === "running" ? "● " : ""}
+                {spotMessage}
+              </div>
+            )}
+          </div>
+          {cam.realLive && cam.youtubeId && (
+            <button
+              type="button"
+              onClick={handleSpot}
+              disabled={spotState === "running"}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded text-[10px] font-semibold uppercase tracking-wider ring-1 transition-colors shrink-0 ${
+                spotState === "running"
+                  ? "bg-amber-500/20 text-amber-200 ring-amber-500/50 animate-pulse cursor-wait"
+                  : "bg-emerald-500/20 text-emerald-200 ring-emerald-500/50 hover:bg-emerald-500/30"
+              }`}
+              title="Run Gemini Vision on a fresh frame from this live cam, then fan out to all 4 A2A peers"
+            >
+              <Sparkles className="w-3 h-3" />
+              {spotState === "running" ? "Spotting…" : "Spot Now"}
+            </button>
+          )}
         </div>
       </div>
     </div>

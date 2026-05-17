@@ -682,6 +682,300 @@ async def run_scenario(scenario_id: str) -> dict:
         return record
 
 
+# ----- Live Cam → real agent activation (v6) --------------------------------
+# Producer ask 2026-05-17: "when we spot something in the live cam, can we
+# launch some agent in real life?" YES. This endpoint pulls a fresh frame
+# from the YouTube live thumbnail surface (which ticks for live streams),
+# runs Gemini 2.5 Pro vision on it via the real stream_watcher tool, and if
+# anything material is detected, fans out to the four A2A peers exactly like
+# /demo/run would — except the trigger is a REAL frame from a REAL live cam,
+# not a canned fixture.
+#
+# Why thumbnail not HLS frame sampling: a full yt-dlp + ffmpeg pull from
+# the HLS manifest gets a sharper frame, but adds 2 binary dependencies and
+# ~3s of latency to the demo. The live thumbnail
+# (https://i.ytimg.com/vi/<id>/maxres_live_1.jpg) ticks every ~30-60s for
+# live streams and is sufficient for a Gemini Vision multi-class detection.
+# v7 will add the yt-dlp path once the demo loop is proven.
+
+import urllib.request as _urllib_request  # noqa: E402
+import urllib.error as _urllib_error  # noqa: E402
+
+from pydantic import BaseModel as _BaseModel  # noqa: E402
+from app.tools.vision import analyze_image_frame as _analyze_image_frame  # noqa: E402
+
+
+class _LivecamSpotRequest(_BaseModel):
+    youtube_id: str
+    cam_label: str | None = None
+
+
+_LIVECAM_COOLDOWN_S = 12.0
+_livecam_last_run: dict[str, float] = {}
+
+
+def _pick_live_thumbnail(youtube_id: str) -> str | None:
+    """Return the freshest publicly fetchable thumbnail URL for a YouTube
+    live stream, or None if every candidate 404s. For live streams YouTube
+    rotates maxres_live_1.jpg / maxres_live_2.jpg / maxres_live_3.jpg every
+    ~30s, with maxresdefault as the static poster fallback."""
+    candidates = [
+        f"https://i.ytimg.com/vi/{youtube_id}/maxres_live_1.jpg",
+        f"https://i.ytimg.com/vi/{youtube_id}/maxres_live_2.jpg",
+        f"https://i.ytimg.com/vi/{youtube_id}/maxres_live_3.jpg",
+        f"https://i.ytimg.com/vi/{youtube_id}/maxresdefault_live.jpg",
+        f"https://i.ytimg.com/vi/{youtube_id}/maxresdefault.jpg",
+        f"https://i.ytimg.com/vi/{youtube_id}/hqdefault_live.jpg",
+        f"https://i.ytimg.com/vi/{youtube_id}/hqdefault.jpg",
+    ]
+    for url in candidates:
+        try:
+            req = _urllib_request.Request(url, method="HEAD", headers={"User-Agent": "GUARDIAN/1.0"})
+            with _urllib_request.urlopen(req, timeout=3) as resp:
+                if resp.status == 200:
+                    return url
+        except (_urllib_error.URLError, _urllib_error.HTTPError, TimeoutError, Exception):
+            continue
+    return None
+
+
+@app.post("/livecam/spot")
+async def livecam_spot(req: _LivecamSpotRequest) -> dict:
+    """Producer-triggered "Spot Now" on a YouTube live cam.
+
+    Pulls the freshest live thumbnail for the supplied YouTube video id,
+    runs Gemini 2.5 Pro vision via the real `analyze_image_frame` tool,
+    decides escalation, and if material fans out to all four A2A peers in
+    parallel — exactly like /demo/run but with a REAL frame from a REAL
+    live stream, not a canned fixture.
+
+    Returns the incident record with the analysis + peer acks. Emits the
+    same firehose event shape /demo/run does, so the Ops Center UI lights
+    up the existing topology + fan-out animation.
+    """
+    import time as _time
+
+    youtube_id = req.youtube_id.strip()
+    if not youtube_id or len(youtube_id) > 32:
+        raise HTTPException(status_code=400, detail="youtube_id required (≤32 chars)")
+    cam_label = (req.cam_label or "Live Cam").strip()[:64]
+
+    now = _time.monotonic()
+    last = _livecam_last_run.get(youtube_id, 0.0)
+    if now - last < _LIVECAM_COOLDOWN_S:
+        wait = _LIVECAM_COOLDOWN_S - (now - last)
+        raise HTTPException(
+            status_code=429,
+            detail=f"Live cam '{youtube_id}' on cooldown. Retry in {wait:.1f}s.",
+        )
+    _livecam_last_run[youtube_id] = now
+
+    thumbnail_url = _pick_live_thumbnail(youtube_id)
+    if thumbnail_url is None:
+        raise HTTPException(
+            status_code=502,
+            detail=f"No fetchable thumbnail for youtube_id={youtube_id}",
+        )
+
+    # Mint the incident now so every downstream event carries the same id.
+    incident_id = mint_incident_id(seed=f"livecam:{youtube_id}|{int(_time.time())}")
+
+    # 1) Announce the spot on the firehose so the UI lights up immediately.
+    _events.emit(
+        kind="incident_event",
+        agent="ops_center",
+        tool="livecam:spot",
+        incident_id=incident_id,
+        severity="info",
+        payload={
+            "scenario_id": "livecam-spot",
+            "title": f"Live Spot — {cam_label}",
+            "narrative": (
+                f"Producer triggered Stream Watcher on a real frame from "
+                f"YouTube live cam {youtube_id}. Frame URL: {thumbnail_url}"
+            ),
+            "fanout": ["park_service", "sponsor_sustainability", "funder_reporter", "neighbor_park"],
+            "source": "livecam",
+            "youtube_id": youtube_id,
+            "thumbnail_url": thumbnail_url,
+            "pre_steps": ["stream_watcher:analyze_image_frame"],
+        },
+    )
+
+    # 2) Run REAL Gemini Vision on the frame. Emit tool_start + tool_end so
+    # the Mission Bridge active line lights up while it's analyzing.
+    _events.emit(
+        kind="tool_start",
+        agent="stream_watcher",
+        tool="analyze_image_frame",
+        incident_id=incident_id,
+        severity="info",
+        payload={"image_uri": thumbnail_url, "focus": "wildlife + threat detection"},
+    )
+    vision_started = _time.monotonic()
+    result = await asyncio.to_thread(
+        _analyze_image_frame,
+        thumbnail_url,
+        "identify wildlife species, count, behavior, and any threat signals "
+        "(humans, vehicles, gunshot residue, fences cut). Be specific.",
+    )
+    latency_ms = int((_time.monotonic() - vision_started) * 1000)
+    _events.emit(
+        kind="tool_end",
+        agent="stream_watcher",
+        tool="analyze_image_frame",
+        incident_id=incident_id,
+        severity="medium",
+        payload=result,
+        latency_ms=latency_ms,
+    )
+
+    # 3) Decide escalation from the vision result.
+    requires_escalation = bool(result.get("requires_escalation"))
+    primary_species = result.get("primary_species") or {}
+    species_name = (primary_species.get("common_name") or "wildlife sighting").strip() or "wildlife sighting"
+    species_count = primary_species.get("count") or 0
+    threat_signals = result.get("threat_signals") or []
+    if not requires_escalation and (species_count > 0 or threat_signals):
+        # Producer ergonomic: any live wildlife sighting is worth a fan-out
+        # so the demo shows the agentic chain reacting. If the vision tool
+        # is conservative, escalate to medium here so the peers always run.
+        requires_escalation = True
+    severity = (
+        "critical" if any("gun" in s.lower() for s in threat_signals)
+        else "high" if any("vehicle" in s.lower() or "human" in s.lower() for s in threat_signals)
+        else "medium"
+    )
+
+    # 4) Falsifier adversarial review — same path /demo/run uses.
+    review = await asyncio.to_thread(
+        review_dispatch,
+        incident_id=incident_id,
+        severity=severity,
+        audio_confidence=None,
+        species_compliance_flag=None,
+        threat_signals=threat_signals,
+        observation_timestamp=None,
+    )
+
+    if not requires_escalation:
+        _events.emit(
+            kind="incident_event",
+            agent="ops_center",
+            tool="livecam:spot:complete",
+            incident_id=incident_id,
+            severity="info",
+            payload={"requires_escalation": False, "vision_status": result.get("status")},
+        )
+        return {
+            "status": "ok",
+            "incident_id": incident_id,
+            "requires_escalation": False,
+            "vision": result,
+            "adversarial_review": review,
+            "thumbnail_url": thumbnail_url,
+        }
+
+    # 5) Fan out to ALL four A2A peers in parallel — real LLM calls, real
+    # acks, real chain of custody. Same path /demo/run uses.
+    park_args = {
+        "location": cam_label,
+        "severity": severity,
+        "summary": (
+            f"Live cam spot · {species_name} detected · "
+            f"threat_signals={threat_signals or 'none'}"
+        ),
+    }
+    sponsor_args = {
+        "location": cam_label,
+        "species_affected": species_name,
+        "threat_type": (
+            "poaching" if any("gun" in s.lower() for s in threat_signals)
+            else "vehicle_intrusion" if any("vehicle" in s.lower() for s in threat_signals)
+            else "habitat_intrusion" if any("human" in s.lower() for s in threat_signals)
+            else "other"
+        ),
+        "severity": severity,
+        "observation_timestamp": None,
+    }
+    funder_args = {
+        "location": cam_label,
+        "species_affected": species_name,
+        "funder_program": "general_impact",
+        "severity": severity,
+        "observation_timestamp": None,
+    }
+    neighbor_args = {
+        "origin_park": cam_label,
+        "crossover_corridor": "live-cam-detected",
+        "severity": severity,
+        "species": species_name,
+        "observation_timestamp": None,
+    }
+
+    tasks = {
+        "park_service": asyncio.create_task(
+            notify_park_service(incident_id=incident_id, **park_args)
+        ),
+        "sponsor_sustainability": asyncio.create_task(
+            notify_sponsor_sustainability(
+                incident_id=incident_id,
+                adversarial_review_verdict=review["verdict"],
+                adversarial_review_severity_0_5=review["severity_0_5"],
+                **sponsor_args,
+            )
+        ),
+        "funder_reporter": asyncio.create_task(
+            notify_funder(incident_id=incident_id, **funder_args)
+        ),
+        "neighbor_park": asyncio.create_task(
+            notify_neighbor_park(incident_id=incident_id, **neighbor_args)
+        ),
+    }
+    peer_names = list(tasks.keys())
+    completed = await asyncio.gather(*tasks.values(), return_exceptions=True)
+    results: dict[str, dict] = {}
+    for peer_name, outcome in zip(peer_names, completed):
+        if isinstance(outcome, Exception):
+            logger.log_struct(
+                {
+                    "event": "livecam_fanout_peer_exception",
+                    "peer": peer_name,
+                    "incident_id": incident_id,
+                    "error": f"{type(outcome).__name__}: {outcome}",
+                },
+                severity="ERROR",
+            )
+            results[peer_name] = {
+                "status": "error",
+                "error": f"{type(outcome).__name__}: {outcome}",
+                "peer": peer_name,
+            }
+        else:
+            results[peer_name] = outcome
+
+    _events.emit(
+        kind="incident_event",
+        agent="ops_center",
+        tool="livecam:spot:complete",
+        incident_id=incident_id,
+        severity="info",
+        payload={
+            f"{peer}_status": r.get("status") for peer, r in results.items()
+        },
+    )
+
+    return {
+        "status": "ok",
+        "incident_id": incident_id,
+        "requires_escalation": True,
+        "vision": result,
+        "adversarial_review": review,
+        "thumbnail_url": thumbnail_url,
+        **results,
+    }
+
+
 # ----- Court-Evidence endpoints ---------------------------------------------
 # Surface the chain-of-custody bundle (JSON + HTML) for any incident that
 # still has events in the firehose ring buffer. Used by:
