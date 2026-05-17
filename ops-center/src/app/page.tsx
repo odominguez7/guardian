@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 
+import ChasePath from "@/components/ChasePath";
 import EventStream from "@/components/EventStream";
 import IncidentPanel, { type ActiveIncident } from "@/components/IncidentPanel";
 import Toolbar from "@/components/Toolbar";
@@ -468,6 +469,11 @@ export default function Home() {
             fanOutFiring={fanOutFiring}
             activePeers={activePeers}
           />
+          {/* PLAN_V3_1 sub-move 6.4 — Watch Dogs chase-path overlay. Reads
+              independent of the map renderer; even in headless / broken-
+              WebGL the narrative (truck closing distance to herd, ranger
+              intercepting) stays legible. */}
+          <ChasePath activeIncident={incidents.length > 0 ? incidents[incidents.length - 1] : null} />
         </div>
         <EventStream events={visibleEvents} status={status} />
       </div>
