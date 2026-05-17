@@ -75,14 +75,34 @@ DESCRIPTION = (
 
 
 def _load_root_agent():
-    """Lazy import so `list` / `describe` work without ADC."""
-    # Add repo root to sys.path so `from app.agent import root_agent` works
-    # when invoked from anywhere.
+    """Lazy import so `list` / `describe` work without ADC.
+
+    Loads the SLIM Agent Engine variant of the orchestrator from
+    app/agent_engine_root.py — drops the Cloud-Run-only deps (BigQuery
+    analytics plugin, yt-dlp/ffmpeg subprocess paths, FastAPI mounting)
+    that don't run in Agent Engine's managed container.
+    """
     repo_root = Path(__file__).resolve().parent.parent
     if str(repo_root) not in sys.path:
         sys.path.insert(0, str(repo_root))
-    from app.agent import root_agent  # noqa: WPS433 (lazy import intentional)
+    from app.agent_engine_root import root_agent  # noqa: WPS433
     return root_agent
+
+
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parent.parent
+
+
+def _source_dirs_for_extra_packages() -> list[str]:
+    """Local source paths uploaded alongside the cloudpickle.
+
+    Without these, the Agent Engine container can't unpickle root_agent
+    because it references functions in our source tree (app.tools.*,
+    app.agents.*) that aren't on PyPI. cloudpickle.loads() fails with
+    ModuleNotFoundError — the exact failure mode 2026-05-17 Day 3.
+    """
+    root = _repo_root()
+    return [str(root / "app")]
 
 
 def cmd_deploy(args: argparse.Namespace) -> int:
@@ -94,12 +114,16 @@ def cmd_deploy(args: argparse.Namespace) -> int:
     root_agent = _load_root_agent()
     existing = os.environ.get("AGENT_ENGINE_RESOURCE_NAME", "").strip()
 
+    extra_packages = _source_dirs_for_extra_packages()
+    log.info("Uploading local source packages: %s", extra_packages)
+
     if existing:
         log.info("Updating existing Agent Engine: %s", existing)
         remote = agent_engines.update(
             resource_name=existing,
             agent_engine=root_agent,
             requirements=RUNTIME_REQUIREMENTS,
+            extra_packages=extra_packages,
             display_name=DISPLAY_NAME,
             description=DESCRIPTION,
         )
@@ -109,6 +133,7 @@ def cmd_deploy(args: argparse.Namespace) -> int:
         remote = agent_engines.create(
             agent_engine=root_agent,
             requirements=RUNTIME_REQUIREMENTS,
+            extra_packages=extra_packages,
             display_name=DISPLAY_NAME,
             description=DESCRIPTION,
         )

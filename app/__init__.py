@@ -12,6 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .agent import app
-
-__all__ = ["app"]
+# v8 Day 3: removed `from .agent import app` re-export.
+# It fired Cloud Run root_agent construction on EVERY `app.*` import,
+# which claimed the specialist instances as the Cloud Run root's children.
+# That made `app.agent_engine_root` (Agent Engine variant) unable to claim
+# the same specialists, breaking deploy with ADK's one-parent-per-agent
+# rule. Callers that need the constructed `app` import it directly:
+#   from app.agent import app
+# Only app/fast_api_app.py does this; nothing else relied on the
+# package-level re-export. Verified with `grep -rn 'from app import app'`.
