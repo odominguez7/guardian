@@ -28,7 +28,8 @@
               { "name": "notify_sponsor_sustainability", "args": { "incident_id": "GU-466F7A6FA1F3", "adversarial_review_verdict": "concur" } },
               { "name": "notify_funder", "args": { "incident_id": "GU-466F7A6FA1F3", "funder_program": "general_impact" } },
               { "name": "notify_neighbor_park", "args": { "incident_id": "GU-466F7A6FA1F3" } }
-            ]
+            ],
+            "_eval_note": "ADK ParallelAgent flattens its sub-agent tool calls into this single tool_uses array; verify with `adk eval --dry-run` before claiming strict-trajectory match. Order within the array is non-deterministic for concurrent sub-agents."
           }
         }
       ],

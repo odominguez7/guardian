@@ -29,7 +29,10 @@ const CAMS: CamProps[] = [
     // Zimbabwe). Demo line: "three rendered, one live from Africa right now."
     id: "wild-africa-live",
     label: "CAM-12 · WILD AFRICA · 30+ waterholes",
-    embedUrl: "https://www.youtube.com/embed/vr4o_AsrU1k?autoplay=1&mute=1&controls=0&loop=1&modestbranding=1",
+    // youtube-nocookie domain so no tracking cookies are dropped — answers
+    // the F500 CSO's first question without prompting. Per CODEX_MOVE_7_V4
+    // WARN on LiveCams iframe hardening.
+    embedUrl: "https://www.youtube-nocookie.com/embed/vr4o_AsrU1k?autoplay=1&mute=1&controls=0&loop=1&modestbranding=1&playsinline=1",
     subtitle: "Live African wildlife · YouTube 24/7",
     accent: "#10b981",
     realLive: true,
@@ -69,7 +72,10 @@ function CamTile({ cam }: { cam: CamProps }) {
           src={cam.embedUrl}
           className="w-full h-full"
           style={{ border: 0 }}
-          allow="autoplay; encrypted-media; picture-in-picture"
+          // Minimal capabilities for a muted wildlife video — no encrypted-media
+          // (DRM, not needed), no forms, no top navigation, no popups.
+          allow="autoplay; picture-in-picture"
+          sandbox="allow-scripts allow-same-origin allow-presentation"
           loading="lazy"
           referrerPolicy="strict-origin-when-cross-origin"
           title={cam.label}
@@ -139,7 +145,7 @@ export default function LiveCams() {
             Live Field Cameras
           </h2>
           <p className="text-[11px] text-zinc-500 mt-0.5">
-            Veo 3.1 Fast generated · 6s loops · what the Stream Watcher & Audio Agent see in production
+            3 Veo 3.1 Fast loops + 1 live YouTube embed · what the Stream Watcher & Audio Agent see in production
           </p>
         </div>
         <div className="text-[10px] text-zinc-500 font-mono">

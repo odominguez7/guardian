@@ -135,47 +135,77 @@ def bundle_incident(incident_id: str) -> dict:
                 "identifier": _peer_identifier(e.get("agent"), payload),
             })
 
-    # v4 sub-move A5: Management Review Required exception workflow stub.
-    # When the Falsifier dissents on a high/critical incident, the F500
-    # sustainability office's internal-audit charter typically requires a
-    # named reviewer (Sustainability Controller or higher) to sign off before
-    # the disclosure ships. Big Four (Deloitte, PwC, EY, KPMG) Information
-    # Technology General Controls testing looks for this. We surface the flag
-    # + the workflow stub here so the Court-Evidence bundle and the Sponsor
-    # TNFD dashboard can route the incident accordingly.
+    # v4 sub-move A5 (post-audit revisions per CODEX_MOVE_7_V4.md):
+    # Management Review Required exception workflow.
+    #
+    # Triggers when EITHER:
+    #   (a) any Falsifier review in the incident's history dissented, OR
+    #   (b) any Falsifier review abstained,
+    # AND the incident's MAX severity (across its lifecycle, not just the
+    # latest event) reached "high" or "critical".
+    #
+    # Rationale:
+    # - Abstain on critical was silently missed by the v4 ship — Big-4 audit
+    #   charters treat "auditor declined to opine" as MORE serious than
+    #   "auditor disagreed."
+    # - Walking events and keeping the latest severity dropped management
+    #   review when an incident downgraded mid-flight (e.g. critical → medium
+    #   on better evidence). We now use the timeline's peak.
+    # - A retracted dissent (dissent → concur on re-review) is still
+    #   audit-material; any-in-history is the right surface, not latest-only.
+    SEVERITY_RANK = {"low": 1, "medium": 2, "high": 3, "critical": 4}
+    severities_seen = [
+        e.get("severity") for e in evts
+        if e.get("severity") in SEVERITY_RANK
+    ]
+    max_severity = (
+        max(severities_seen, key=lambda s: SEVERITY_RANK[s])
+        if severities_seen else None
+    )
+    any_dissent = any(r.get("verdict") == "dissent" for r in adversarial_reviews)
+    any_abstain = any(r.get("verdict") == "abstain" for r in adversarial_reviews)
+    triggering_verdict = "dissent" if any_dissent else ("abstain" if any_abstain else None)
+
     management_review_required = False
     management_review = None
-    if adversarial_review and adversarial_review.get("verdict") == "dissent":
-        last_severity = None
-        for e in evts:
-            sev = e.get("severity")
-            if sev in {"high", "critical"}:
-                last_severity = sev
-        if last_severity in {"high", "critical"}:
-            management_review_required = True
-            management_review = {
-                "status": "pending_assignment",
-                "required_role": "Sustainability Controller (or above)",
-                "trigger": (
-                    f"Falsifier dissent on {last_severity}-severity dispatch. "
-                    "Internal-audit charter requires named-reviewer sign-off "
-                    "before TNFD filing reaches external auditor evidence pack."
-                ),
-                "sla_hours": 24 if last_severity == "high" else 4,
-                "queue": "sponsor.sustainability_controller.exceptions",
-                "audit_artifacts_attached": [
-                    "adversarial_review (verdict + per-gate diagnostics)",
-                    "chain_hash",
-                    "specialists timeline",
-                    "peer_acks (park / sponsor / funder / neighbor)",
-                ],
-            }
+    if triggering_verdict and max_severity in {"high", "critical"}:
+        management_review_required = True
+        management_review = {
+            "status": "pending_assignment",
+            "required_role": "Sustainability Controller (or above)",
+            "trigger": (
+                f"Falsifier {triggering_verdict} in incident review history "
+                f"with peak severity {max_severity}. Internal-audit charter "
+                "requires named-reviewer sign-off before TNFD filing reaches "
+                "external auditor evidence pack."
+            ),
+            "triggering_verdict": triggering_verdict,
+            "peak_severity": max_severity,
+            "sla_hours": 4 if max_severity == "critical" else 24,
+            "queue": "sponsor.sustainability_controller.exceptions",
+            "audit_artifacts_attached": [
+                "adversarial_reviews (full history, not just latest)",
+                "chain_hash",
+                "specialists timeline",
+                "peer_acks (park / sponsor / funder / neighbor)",
+            ],
+        }
+    elif triggering_verdict and not max_severity:
+        # Surface the policy gap rather than hide it: an incident with a
+        # Falsifier dissent/abstain but no severity-tagged events is anomalous
+        # and worth a warning so an operator can audit the upstream emit path.
+        logger.warning(
+            "court_evidence: Falsifier %s with no severity events for "
+            "incident=%s — management-review gate skipped, may indicate "
+            "upstream specialist emit gap.",
+            triggering_verdict, incident_id,
+        )
 
     # Buffer-state context lets an auditor reason about completeness rather
     # than rely on a single heuristic flag. Codex flagged the prior heuristic
     # (len<=2) as missing partial-truncation cases.
     buffer_depth = _events.buffer_depth()
-    buffer_size = _events._BUFFER_SIZE  # underscore = module-private constant, intentional read
+    buffer_size = _events.buffer_size()
     # "Suspicious gap" signal: real 4-peer fan-out produces ~15+ events
     # (1 incident_event + 4 a2a_request + 4 a2a_response + N tool spans).
     # Sub-10 event count OR buffer-full-during-capture (which suggests the

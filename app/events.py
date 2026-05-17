@@ -223,6 +223,13 @@ def buffer_depth() -> int:
         return len(_buffer)
 
 
+def buffer_size() -> int:
+    """Capacity of the ring buffer. Public accessor for callers that need
+    to reason about completeness (court_evidence chain-of-custody bundle).
+    """
+    return _BUFFER_SIZE
+
+
 def lookup_incident_by_a2a_field(
     agent: str, field_name: str, field_value: str
 ) -> str:

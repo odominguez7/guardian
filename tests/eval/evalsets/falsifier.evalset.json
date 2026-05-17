@@ -105,6 +105,7 @@
           },
           "intermediate_data": {
             "tool_uses": [
+              { "name": "new_incident_id", "args": {} },
               { "name": "transfer_to_agent", "args": { "agent_name": "falsifier" } },
               {
                 "name": "review_dispatch",

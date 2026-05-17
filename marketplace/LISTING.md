@@ -53,8 +53,8 @@ GUARDIAN does NOT replace the biodiversity-data, ranger-operations, or carbon-di
 
 | You already run... | GUARDIAN's role |
 |---|---|
-| **IBAT** (IUCN/UNEP-WCMC/BirdLife corporate biodiversity assessment) | GUARDIAN treats IBAT as the authoritative species-and-site data source. The Species ID specialist's IUCN Red List grounding aligns with IBAT's data lineage. We coordinate; we do not re-derive. |
-| **SMART** / **EarthRanger** / **SERCA** (ranger-ops field tools) | GUARDIAN's Park Authority Agent A2A peer can register against your SMART/EarthRanger instance. Your rangers keep their tool. GUARDIAN handles the cross-organization fan-out (sponsor + funder + neighbor park) that SMART intentionally does not. |
+| **IBAT** (IUCN / UNEP-WCMC / BirdLife International / Conservation International — Integrated Biodiversity Assessment Tool) | GUARDIAN treats IBAT as the authoritative species-and-site data source. The Species ID specialist's IUCN Red List grounding aligns with IBAT's data lineage. We coordinate; we do not re-derive. |
+| **SMART** / **EarthRanger** (merging into **SERCA**, the SMART–EarthRanger Conservation Alliance, announced Oct 2025) | GUARDIAN's Park Authority Agent A2A peer can register against your existing SMART, EarthRanger, or post-merger SERCA instance. Your rangers keep their tool. GUARDIAN handles the cross-organization fan-out (sponsor + funder + neighbor park) that those field-ops tools intentionally do not. |
 | **Sweep** / **Asuene** / your CSRD reporting suite | GUARDIAN's Sponsor Sustainability Agent files structured TNFD/CSRD-ESRS-E4 entries with a `compliance_frameworks` tag. Drops into your reporting suite's ingest endpoint. Your suite remains the disclosure system of record; GUARDIAN supplies incident-grade upstream evidence. |
 | **Your CFO's carbon disclosure module** | GUARDIAN is purpose-built for E4 (biodiversity/ecosystems) — the disclosure dimension the carbon module is structurally not designed to produce. |
 

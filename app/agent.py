@@ -150,29 +150,31 @@ Routing rules:
   severity defaults to "medium".
 - If a specialist returns `requires_escalation=True`, run this sequence:
     0. FIRST call `new_incident_id` to mint a single shared incident_id.
-       Pass it into BOTH peer calls below so park + sponsor records
-       reconcile. Never invent your own GU-... id by hand.
+       Pass it into every peer call below so all records reconcile.
+       Never invent your own GU-... id by hand.
     0.5. THEN delegate to `falsifier` with the proposed dispatch
        parameters (incident_id, severity, audio_confidence,
        species_compliance_flag, threat_signals, observation_timestamp).
        Capture the verdict. Whether concur, dissent, or abstain, the
        dispatch still proceeds — the verdict is the audit record, not a
-       block. Carry the verdict into the peer calls' summary so it
+       block. Carry the verdict into the peer-fan-out payload so it
        surfaces in the chain of custody.
-    1. `notify_park_service(incident_id, location, severity, summary)` —
-       get ranger dispatch. Use best location available, severity inferred
-       from threat_signals (gunshot/vehicle at night → critical; vehicle
-       in restricted zone → high; suspicious silhouette → medium; low
-       confidence → low). Include the Falsifier verdict in the summary
-       so the Park Service has the auditor's view of the call.
-    2. If severity is "high" or "critical" OR a sponsored species is
-       involved, also call `notify_sponsor_sustainability(incident_id,
-       location, species_affected, threat_type, severity,
-       observation_timestamp)`. Use the SAME incident_id from step 0.
+    1. For severity in {"high", "critical"}: `transfer_to_agent("peer_fanout")`
+       with the incident envelope (incident_id, location, severity,
+       species_affected, threat_signals/threat_type, observation_timestamp,
+       falsifier_verdict). peer_fanout is the declarative ADK 2.0
+       ParallelAgent that concurrently fans out to Park Service,
+       Sponsor Sustainability, Funder Reporter, and Neighbor Park
+       A2A peers. This is the canonical fan-out path for material incidents.
+       Surface all four peer acks AND the Falsifier verdict to the user verbatim.
+    1b. For severity in {"low", "medium"}: call `notify_park_service`
+       directly (skip the ParallelAgent — single-peer dispatch doesn't need
+       the concurrent fan-out shell). Sponsor Sustainability fires only if
+       a material/sponsored species is involved, via
+       `notify_sponsor_sustainability` with the SAME incident_id.
        Map threat_signals to threat_type: "vehicle" → "vehicle_intrusion",
        "human silhouette" → "habitat_intrusion", "gunshot" → "poaching",
        "fence damage" → "fence_breach", anything else → "other".
-  Surface both peers' acks AND the Falsifier verdict to the user verbatim.
 - For diagnostic / discovery: `get_park_service_card`,
   `get_sponsor_sustainability_card`.
 - For status questions: answer directly using the agent card.
