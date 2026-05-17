@@ -69,11 +69,18 @@ const CAMS: CamProps[] = [
     productionCam: true,
   },
   {
-    id: "cheetah-crossing",
-    label: "CAM-07 · Etosha · F-14 fenceline",
-    src: "/cams/cheetah-crossing.mp4",
-    subtitle: "Cheetah crossing · IUCN Vulnerable",
+    // v7.7: real public webcam — Glacier National Park, Apgar Village.
+    // Lower-elevation cam at the south end of Lake McDonald, captures
+    // wildlife traffic + visitors. Grizzly + black bear country. NPS
+    // refreshes every minute or two.
+    id: "nps-glacier-apgar",
+    label: "CAM-07 · GLACIER · Apgar Village",
+    imageUrl: "https://www.nps.gov/webcams-glac/ApgarVillage.jpg",
+    imageRefreshS: 60,
+    subtitle: "Lake McDonald shoreline · NPS public cam",
     accent: "#f59e0b",
+    realLive: true,
+    productionCam: true,
   },
   {
     // v7.6: second real NPS cam — Yellowstone West Entrance. Heavy
@@ -89,11 +96,18 @@ const CAMS: CamProps[] = [
     productionCam: true,
   },
   {
-    id: "trap-perspective",
-    label: "CAM-04 · Maasai Mara · Border",
-    src: "/cams/trap-perspective.mp4",
-    subtitle: "Camera trap · dawn ambient",
+    // v7.7: real public webcam — Isle Royale National Park (Lake Superior).
+    // Middle Islands cam. Isle Royale is the longest-running predator-prey
+    // study in the world; the only large mammals are gray wolves + moose.
+    // Best chance of catching a wolf or moose on screen.
+    id: "nps-isle-royale-middle",
+    label: "CAM-04 · ISLE ROYALE · Middle Islands",
+    imageUrl: "https://www.nps.gov/webcams-isro/middleislands.jpg",
+    imageRefreshS: 60,
+    subtitle: "Wolf + moose habitat · NPS public cam",
     accent: "#0ea5e9",
+    realLive: true,
+    productionCam: true,
   },
 ];
 
