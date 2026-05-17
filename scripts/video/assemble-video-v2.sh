@@ -123,7 +123,14 @@ fi
 # call (audio confidence 0.93, species_id 0.91, falsifier dissent severity
 # 4 per Move 1's deterministic gate engine).
 DEMO_DUR=60
-FOOTAGE_MASK="drawbox=x=1430:y=0:w=490:h=44:color=black@1.0:t=fill,drawbox=x=0:y=985:w=200:h=95:color=black@1.0:t=fill"
+# FOOTAGE_MASK covers two known UI artifacts in the recorded localhost stream:
+# (1) top-right Firebase auth banner (now suppressed in build but still in old
+#     footage), and (2) bottom-left "2 issues" Next.js dev-mode toast.
+# Codex Move 4 P1 round 2: HUD moved to bottom-left (BG_X=16, BG_Y=968) where
+# there's clean empty black below the incident card stack. FOOTAGE_MASK
+# extended bottom-left strip slightly to clear under HUD's position. Right
+# side now keeps the AGENT ACTIVITY STREAM header visible (good demo content).
+FOOTAGE_MASK="drawbox=x=1430:y=0:w=490:h=44:color=black@1.0:t=fill,drawbox=x=0:y=960:w=560:h=120:color=black@1.0:t=fill"
 # PLAN_V3.md Move 4.2 — telemetric HUD overlay. drawtext is unavailable in
 # this ffmpeg build (libfreetype not linked); we pre-render the HUD as a
 # transparent PNG via scripts/video/render-hud-overlay.py and overlay it
@@ -304,15 +311,25 @@ for sid, dur, _ in beats:
     t0 += dur
 PY
 
-# ── MUX with optional burned-in subtitles ──
+# ── MUX with sidecar SRT ──
+# Codex Move 4 handshake 2026-05-17: tried subtitles burn-in via ffmpeg's
+# subtitles/ass filter — this Homebrew ffmpeg build lacks libass (just as
+# it lacks libfreetype for drawtext). Solution: ALWAYS save the SRT as a
+# sidecar artifact next to the MP4. YouTube auto-displays it; VLC /
+# QuickTime / mpv all pick up "{video}.srt" automatically. Accessibility
+# is preserved via external track.
+# To get burned-in captions, install a libass-enabled ffmpeg
+# (brew install ffmpeg --with-libass) and set BURN_SUBS=1.
 SUBFILE="$TMP/captions.srt"
-BURN_SUBS="${BURN_SUBS:-1}"   # set BURN_SUBS=0 to skip
+BURN_SUBS="${BURN_SUBS:-0}"   # default: sidecar-only. set BURN_SUBS=1 to burn-in (needs libass).
 echo "→ muxing"
+if [[ -s "$SUBFILE" ]]; then
+  cp "$SUBFILE" "$OUT/guardian-demo-v2.srt"
+  echo "  saved sidecar captions: $OUT/guardian-demo-v2.srt"
+fi
 if [[ "$BURN_SUBS" = "1" && -s "$SUBFILE" ]]; then
-  # Use subtitles filter with styling
-  STYLE="FontName=Helvetica,FontSize=11,PrimaryColour=&HFFFFFF&,BorderStyle=4,BackColour=&H80000000,Outline=0,Shadow=0,MarginV=60,Alignment=2"
   ffmpeg -y -loglevel error -i "$TMP/video-track.mp4" -i "$TMP/audio-track.mp3" \
-    -vf "subtitles='$SUBFILE':force_style='$STYLE'" \
+    -vf "subtitles=$SUBFILE" \
     -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p \
     -c:a aac -b:a 192k -shortest "$OUT/guardian-demo-v2.mp4"
 else

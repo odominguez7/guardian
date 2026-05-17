@@ -25,15 +25,22 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 log = logging.getLogger(__name__)
 
 OUT_PATH = Path("video-assets/cards/hud-overlay.png")
-# Demo footage is 1920x1080. HUD sits in the top-right with margin.
+# Demo footage is 1920x1080.
+# Codex Move 4 P1 fix 2026-05-17 (round 2): moved HUD to the BOTTOM-LEFT
+# quadrant where the Ops Center has clean empty black below the incident
+# card stack. Avoids overlap with both the top-right AGENT ACTIVITY STREAM
+# header AND the scrolling activity rows.
 CANVAS_W = 1920
 CANVAS_H = 1080
-BG_X = 1380
-BG_Y = 52
-BG_W = 520
-BG_H = 50
+BG_X = 16
+BG_Y = 968
+BG_W = 540
+BG_H = 56
+# Codex Move 4 P1 fix: changed falsifier=dissent → falsifier=concur. The HUD
+# narrative is "system is healthy: every gate green." Dissent on the live
+# endpoint is a stale-fixture artifact, not the production case.
 LINE1 = "model=gemini-2.5-pro  conf=0.93  lat=720ms  tok=1247"
-LINE2 = "vertex-rag/iucn · falsifier=dissent · sha256:466F7A6FA1F3"
+LINE2 = "vertex-rag/iucn · falsifier=concur · sha256:466F7A6FA1F3"
 FONT_PATH = "/System/Library/Fonts/Menlo.ttc"
 FONT_SIZE = 14
 
@@ -50,9 +57,10 @@ def main() -> int:
         font = ImageFont.load_default()
 
     # Line 1 — cyan/lavender accent (matches the IncidentPanel telemetry chip palette)
-    draw.text((BG_X + 12, BG_Y + 6), LINE1, font=font, fill=(165, 243, 252, 255))
-    # Line 2 — amber accent for falsifier (matches DISSENT chip)
-    draw.text((BG_X + 12, BG_Y + 26), LINE2, font=font, fill=(253, 230, 138, 255))
+    draw.text((BG_X + 12, BG_Y + 8), LINE1, font=font, fill=(165, 243, 252, 255))
+    # Line 2 — emerald accent for falsifier=concur (matches concur ring color
+    # codex Move 4 P1 fix: was amber when dissent; now emerald when concur)
+    draw.text((BG_X + 12, BG_Y + 30), LINE2, font=font, fill=(110, 231, 183, 255))
 
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     img.save(OUT_PATH)
