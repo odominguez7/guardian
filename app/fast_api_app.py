@@ -802,11 +802,13 @@ def _is_hot_species(species_list) -> tuple[bool, str]:
 
 
 class _LivecamSpotRequest(_BaseModel):
-    # v7.5: youtube_id is now OPTIONAL. mp4_url is the alternative source
-    # for MP4-backed cams (Veo loops, bundled wildlife footage). Exactly
-    # one of the two must be set.
+    # v7.6: three optional source types — youtube_id, mp4_url, image_url.
+    # Exactly one must be set per request. Backend dispatches to the
+    # matching frame-fetch path. image_url is for direct JPEG sources
+    # like NPS public webcams (no ffmpeg/yt-dlp needed).
     youtube_id: str | None = None
     mp4_url: str | None = None
+    image_url: str | None = None
     cam_label: str | None = None
 
 
@@ -862,19 +864,31 @@ async def livecam_spot(req: _LivecamSpotRequest) -> dict:
     import secrets as _secrets
     from datetime import datetime, timezone
 
-    # v7.5: either youtube_id (HLS path) or mp4_url (ffmpeg path).
+    # v7.6: three source types — youtube_id (HLS+thumbnail fallback),
+    # mp4_url (ffmpeg frame from a clip), image_url (direct JPEG fetch
+    # for NPS-style public webcams).
     youtube_id = (req.youtube_id or "").strip()
     mp4_url = (req.mp4_url or "").strip()
-    if not youtube_id and not mp4_url:
-        raise HTTPException(status_code=400, detail="youtube_id or mp4_url required")
+    image_url = (req.image_url or "").strip()
+    sources_set = sum(bool(x) for x in (youtube_id, mp4_url, image_url))
+    if sources_set == 0:
+        raise HTTPException(status_code=400, detail="youtube_id, mp4_url, or image_url required")
+    if sources_set > 1:
+        raise HTTPException(status_code=400, detail="set exactly one source")
     if youtube_id and len(youtube_id) > 32:
         raise HTTPException(status_code=400, detail="youtube_id too long")
     if mp4_url and not mp4_url.startswith("https://"):
         raise HTTPException(status_code=400, detail="mp4_url must be https://")
+    if image_url and not image_url.startswith("https://"):
+        raise HTTPException(status_code=400, detail="image_url must be https://")
     cam_label = (req.cam_label or "Live Cam").strip()[:64]
 
-    # Per-source cooldown. Key is whichever source the caller passed.
-    cooldown_key = f"mp4:{mp4_url}" if mp4_url else f"yt:{youtube_id}"
+    # Per-source cooldown.
+    cooldown_key = (
+        f"img:{image_url}" if image_url
+        else f"mp4:{mp4_url}" if mp4_url
+        else f"yt:{youtube_id}"
+    )
     now = _time.monotonic()
     last = _livecam_last_run.get(cooldown_key, 0.0)
     if now - last < _LIVECAM_COOLDOWN_S:
@@ -895,7 +909,39 @@ async def livecam_spot(req: _LivecamSpotRequest) -> dict:
     frame_bytes: bytes | None = None
     thumbnail_url: str | None = None
     source_label = ""
-    if mp4_url:
+    if image_url:
+        # Direct JPEG fetch via urllib. NPS / public webcam style sources.
+        def _fetch_image_bytes(url: str) -> bytes | None:
+            try:
+                req_obj = _urllib_request.Request(
+                    url,
+                    headers={
+                        "User-Agent": "GUARDIAN/1.0",
+                        "Referer": "https://www.nps.gov/",
+                    },
+                )
+                with _urllib_request.urlopen(req_obj, timeout=8) as resp:
+                    if resp.status != 200:
+                        return None
+                    data = resp.read()
+                    if len(data) < 1024 or data[:2] != b"\xff\xd8":
+                        return None
+                    return data
+            except Exception as e:
+                logger.log_struct(
+                    {"event": "image_url_fetch_failed", "url": url, "err": str(e)},
+                    severity="WARNING",
+                )
+                return None
+
+        frame_bytes = await asyncio.to_thread(_fetch_image_bytes, image_url)
+        source_label = "image"
+        if frame_bytes is None:
+            raise HTTPException(
+                status_code=502,
+                detail=f"Could not fetch image from {image_url}",
+            )
+    elif mp4_url:
         frame_bytes = await asyncio.to_thread(_get_mp4_frame, mp4_url)
         source_label = "mp4"
         if frame_bytes is None:
@@ -922,12 +968,12 @@ async def livecam_spot(req: _LivecamSpotRequest) -> dict:
             source_label = "poster"
         else:
             source_label = "hls"
-    using_fresh_frame = frame_bytes is not None and source_label in {"mp4", "hls"}
+    using_fresh_frame = frame_bytes is not None and source_label in {"mp4", "hls", "image"}
 
     # v6.1 codex WARN fix: incident_id seed now includes random entropy so
     # cross-pod / rapid-fire clicks can't collide on the same id. Same
     # second + same youtube_id + different click → unique incident.
-    _seed_src = mp4_url if mp4_url else youtube_id
+    _seed_src = image_url or mp4_url or youtube_id
     incident_id = mint_incident_id(
         seed=f"livecam:{_seed_src}|{int(_time.time())}|{_secrets.token_hex(4)}"
     )

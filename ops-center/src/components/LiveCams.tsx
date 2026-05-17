@@ -20,9 +20,15 @@ interface CamProps {
   id: string;
   label: string;
   /** Local Veo-rendered MP4 OR YouTube live-stream embed URL. Exactly one
-   *  of `src` or `embedUrl` must be set. */
+   *  of `src`, `embedUrl`, or `imageUrl` must be set. */
   src?: string;
   embedUrl?: string;
+  /** v7.6: image-source cam (e.g. NPS public webcam JPEG). Refreshed on
+   *  a client-side timer; the tile renders an <img> tag. */
+  imageUrl?: string;
+  /** Seconds between automatic image refreshes; only used when imageUrl
+   *  is set. Defaults to 60s. */
+  imageRefreshS?: number;
   subtitle: string;
   accent: string;
   /** When true, render a small badge — for the cam that's the active
@@ -48,19 +54,18 @@ const CAMS: CamProps[] = [
     // for that asset OR archived the live broadcast). Replaced with NamibiaCam
     // waterhole stream (ydYDqZQpim8) — verified live + playableInEmbed:true
     // at swap time. Same vibe (24/7 wildlife waterhole), known stable.
-    id: "sponsored-reserve-cam",
-    label: "CAM-12 · SPONSORED RESERVE · Waterhole",
-    // v7.5: dropped YouTube entirely. The channel/live_stream URL also
-    // hit YouTube's "Sign in to confirm you're not a bot" wall 2026-05-17
-    // — producer saw it twice. YouTube has tightened embed bot-detection
-    // sitewide; even the channel-level URL flags now. Switched to a Veo
-    // wildlife loop so the demo NEVER breaks on a third-party policy
-    // change. Backend Spot Now analyzes the actual Veo frame via ffmpeg.
-    src: "/cams/elephant-dusk.mp4",
-    subtitle: "24/7 sponsored-reserve cam · production target",
+    // v7.6: real public webcam from the US National Park Service.
+    // Yellowstone Mount Washburn NE — known wildlife corridor (elk,
+    // bison, bears, wolves visible regularly). NPS refreshes the JPEG
+    // every few minutes; no anti-bot wall, no iframe issues. Backend
+    // Spot Now fetches the same URL + runs real Gemini Vision.
+    id: "nps-washburn-ne",
+    label: "CAM-12 · YELLOWSTONE · Mount Washburn NE",
+    imageUrl: "https://www.nps.gov/webcams-yell/washburn_ne.jpg",
+    imageRefreshS: 60,
+    subtitle: "Wildlife corridor · NPS public cam · refreshes every minute",
     accent: "#10b981",
     realLive: true,
-    mp4Url: "/cams/elephant-dusk.mp4",
     productionCam: true,
   },
   {
@@ -71,11 +76,17 @@ const CAMS: CamProps[] = [
     accent: "#f59e0b",
   },
   {
-    id: "vehicle-night",
-    label: "CAM-22 · Serengeti · Tag-22 corridor",
-    src: "/cams/vehicle-night.mp4",
-    subtitle: "Vehicle approach · night IR",
+    // v7.6: second real NPS cam — Yellowstone West Entrance. Heavy
+    // wildlife traffic at the park boundary. Auto-spot here too so
+    // producer can see two independent real-cam analyses interleaving.
+    id: "nps-west-gate",
+    label: "CAM-22 · YELLOWSTONE · West Entrance",
+    imageUrl: "https://www.nps.gov/webcams-yell/west_gate.jpg",
+    imageRefreshS: 60,
+    subtitle: "Park boundary · NPS public cam · refreshes every minute",
     accent: "#f43f5e",
+    realLive: true,
+    productionCam: true,
   },
   {
     id: "trap-perspective",
@@ -137,6 +148,16 @@ function pickTopSpecies(speciesArr: unknown): {
 
 function CamTile({ cam }: { cam: CamProps }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  // v7.6: cache-buster for image-source cams — bumps every refresh tick
+  // so the browser re-fetches even when the underlying CDN caches
+  // aggressively.
+  const [imgTick, setImgTick] = useState<number>(() => Date.now());
+  useEffect(() => {
+    if (!cam.imageUrl) return;
+    const refreshMs = (cam.imageRefreshS ?? 60) * 1000;
+    const id = setInterval(() => setImgTick(Date.now()), refreshMs);
+    return () => clearInterval(id);
+  }, [cam.imageUrl, cam.imageRefreshS]);
   // v6: "Spot Now" — POST the live thumbnail to /livecam/spot, which runs
   // Gemini 2.5 Pro vision on a fresh frame and fans the result out to all 4
   // A2A peers if anything material is detected.
@@ -158,7 +179,7 @@ function CamTile({ cam }: { cam: CamProps }) {
   });
   const inFlightRef = useRef(false);
   const handleSpot = async () => {
-    if (!cam.youtubeId && !cam.mp4Url) return;
+    if (!cam.youtubeId && !cam.mp4Url && !cam.imageUrl) return;
     // v7.3 codex BLOCK fix: handleSpot now owns inFlightRef itself —
     // sets it true on entry, false in finally. Previous v7.1/v7.2
     // version checked the ref but never set it, so the auto-spot tick
@@ -170,20 +191,19 @@ function CamTile({ cam }: { cam: CamProps }) {
     setSpotMessage("Pulling fresh frame…");
     setSpotResult(null);
     try {
-      // v7.5: support both YouTube-backed and MP4-backed live cams.
-      // mp4_url path: backend fetches the MP4 and extracts a fresh frame
-      // via ffmpeg (already in the container). youtube_id path: existing
-      // yt-dlp/HLS path with thumbnail fallback.
+      // v7.6: three source types — youtube_id, mp4_url, image_url.
+      // Exactly one is set per cam. Backend dispatches to the matching
+      // frame-fetch path.
       const reqBody: Record<string, string> = { cam_label: cam.label };
       if (cam.youtubeId) reqBody.youtube_id = cam.youtubeId;
       if (cam.mp4Url) {
-        // Resolve to an absolute URL so the orchestrator can fetch it.
         const absoluteMp4 =
           cam.mp4Url.startsWith("http")
             ? cam.mp4Url
             : `${window.location.origin}${cam.mp4Url}`;
         reqBody.mp4_url = absoluteMp4;
       }
+      if (cam.imageUrl) reqBody.image_url = cam.imageUrl;
       const res = await fetch(`${ORCH_URL}/livecam/spot`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -260,7 +280,7 @@ function CamTile({ cam }: { cam: CamProps }) {
   // just checks the ref; handleSpot handles the lock + unlock.
   // v7.5: allow auto-spot for either YouTube or MP4 sources.
   useEffect(() => {
-    if (!autoSpot || (!cam.youtubeId && !cam.mp4Url)) return;
+    if (!autoSpot || (!cam.youtubeId && !cam.mp4Url && !cam.imageUrl)) return;
     let cancelled = false;
     const tick = async () => {
       if (cancelled) return;
@@ -291,7 +311,17 @@ function CamTile({ cam }: { cam: CamProps }) {
       className="relative rounded-lg overflow-hidden border bg-black min-h-0"
       style={{ borderColor: `${cam.accent}40` }}
     >
-      {cam.embedUrl ? (
+      {cam.imageUrl ? (
+        <img
+          // v7.6: cache-buster query param forces a real fetch on every
+          // refresh tick — NPS serves with CDN headers that would
+          // otherwise cache for hours.
+          src={`${cam.imageUrl}${cam.imageUrl.includes("?") ? "&" : "?"}_t=${imgTick}`}
+          alt={cam.label}
+          className="absolute inset-0 w-full h-full object-cover"
+          referrerPolicy="no-referrer-when-downgrade"
+        />
+      ) : cam.embedUrl ? (
         <iframe
           src={cam.embedUrl}
           className="absolute inset-0 w-full h-full"
@@ -527,7 +557,7 @@ function CamTile({ cam }: { cam: CamProps }) {
               </div>
             )}
           </div>
-          {cam.realLive && (cam.youtubeId || cam.mp4Url) && (
+          {cam.realLive && (cam.youtubeId || cam.mp4Url || cam.imageUrl) && (
             <div className="flex items-center gap-1.5 shrink-0">
               <button
                 type="button"
