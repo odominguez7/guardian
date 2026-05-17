@@ -12,12 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# v8 Day 3: removed `from .agent import app` re-export.
-# It fired Cloud Run root_agent construction on EVERY `app.*` import,
-# which claimed the specialist instances as the Cloud Run root's children.
-# That made `app.agent_engine_root` (Agent Engine variant) unable to claim
-# the same specialists, breaking deploy with ADK's one-parent-per-agent
-# rule. Callers that need the constructed `app` import it directly:
+# v8 Day 3-4 note: package __init__ deliberately empty.
+# Originally re-exported `from .agent import app`, which fired Cloud Run
+# root_agent construction on every `app.*` import and prevented the
+# Agent Engine variant from claiming the same specialist instances
+# (ADK's one-parent-per-agent rule). Day 3 deploy is now live at
+# reasoningEngines/7109983694676295680.
+#
+# Callers that need the constructed FastAPI `app`:
 #   from app.agent import app
-# Only app/fast_api_app.py does this; nothing else relied on the
-# package-level re-export. Verified with `grep -rn 'from app import app'`.
+#
+# Callers that need root_agent for adk eval:
+#   from app.agent import root_agent
+#
+# This keeps Cloud Run + Agent Engine + adk eval mutually compatible.

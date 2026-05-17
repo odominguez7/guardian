@@ -1,0 +1,73 @@
+# ADK Eval — runs trajectory evaluations against the root_agent on:
+#   - push to main
+#   - PR
+#   - nightly cron (UTC 09:00 = 02:00 PT)
+#
+# Each evalset is a curated multi-turn conversation. The runner replays
+# the conversation through Gemini 2.5 Pro (the orchestrator's model),
+# then uses gemini-3-flash-preview as the LLM-as-judge to score the
+# final response against a rubric (relevance + helpfulness, threshold
+# 0.8). Hackathon Track 3 signal — ADK Eval framework is the
+# canonical way to demonstrate "Technical Implementation (30%)".
+#
+# Required secret: GCP_SA_KEY — a service-account JSON key with
+# roles/aiplatform.user on guardian-gfs-2026. Set it once in the
+# repo's GitHub Actions secrets; rotation handled outside this file.
+
+name: ADK Eval
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 9 * * *"  # daily 09:00 UTC
+  workflow_dispatch:
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      GOOGLE_CLOUD_PROJECT: guardian-gfs-2026
+      GOOGLE_CLOUD_LOCATION: us-central1
+      GOOGLE_GENAI_USE_VERTEXAI: "True"
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false   # o22-render submodule not needed for eval
+
+      - name: Auth to GCP
+        if: ${{ secrets.GCP_SA_KEY != '' }}
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Skip when no GCP creds (forks / first push)
+        if: ${{ secrets.GCP_SA_KEY == '' }}
+        run: |
+          echo "::warning ::No GCP_SA_KEY secret available; ADK eval needs Vertex AI access. Skipping."
+          exit 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "0.8.13"
+
+      - name: Sync dependencies
+        run: uv sync --frozen
+
+      - name: Run all evalsets
+        run: |
+          set -euo pipefail
+          uv run python tests/eval/run_eval.py | tee eval-report.txt
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: adk-eval-report
+          path: eval-report.txt
+          retention-days: 30
