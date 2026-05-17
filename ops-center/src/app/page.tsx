@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 
 import ChasePath from "@/components/ChasePath";
 import EventStream from "@/components/EventStream";
+import HeavyLifting from "@/components/HeavyLifting";
 import IncidentPanel, { type ActiveIncident } from "@/components/IncidentPanel";
 import Toolbar from "@/components/Toolbar";
 import { FirehoseClient, type FirehoseStatus } from "@/lib/firehose";
@@ -181,6 +182,29 @@ export default function Home() {
           pendingFalsifierRef.current.set(targetIid, { verdict, severity_0_5, reason });
           return prev;
         });
+      }
+    }
+
+    // PLAN_V3_1 sub-move 6.2 — surface audio_agent classification onto the
+    // incident card so the human-in-the-loop replay chip can render.
+    if (
+      latest.kind === "tool_end" &&
+      latest.agent === "audio_agent" &&
+      latest.incident_id
+    ) {
+      const payload = latest.payload as Record<string, unknown>;
+      const r = (payload?.result as Record<string, unknown> | undefined) ?? payload;
+      const sc = r?.sound_class as string | undefined;
+      const conf = r?.confidence as number | undefined;
+      if (sc && typeof conf === "number") {
+        const targetIid = latest.incident_id;
+        setIncidents((prev) =>
+          prev.map((inc) =>
+            inc.incident_id === targetIid
+              ? { ...inc, audio: { sound_class: sc, confidence: conf } }
+              : inc,
+          ),
+        );
       }
     }
 
@@ -477,6 +501,11 @@ export default function Home() {
         </div>
         <EventStream events={visibleEvents} status={status} />
       </div>
+      {/* PLAN_V3_1 sub-move 6.5 — Google heavy-lifting bottom strip.
+          Real-time aggregation of model + RAG + A2A calls happening live.
+          Answers the "feels pre-fabricated" complaint by surfacing the
+          real Google AI products doing the work. */}
+      <HeavyLifting events={visibleEvents} />
     </div>
   );
 }

@@ -1,7 +1,181 @@
 "use client";
 
+import { useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Siren, Clock3 } from "lucide-react";
+import { Siren, Clock3, Volume2 } from "lucide-react";
+
+// PLAN_V3_1 sub-move 6.3 — Falsifier Tribunal. Click-to-expand inline panel
+// (NOT modal, per codex Move 6 RECONSIDER) showing the orchestrator's claim
+// LEFT vs the Falsifier's challenge RIGHT. Optional "🔊 Hear the dissent"
+// button uses the browser's native SpeechSynthesis API — zero server cost,
+// works offline, and the voice is recognizably different from any narrator.
+function FalsifierTribunal({
+  falsifier,
+  rangerUnit,
+  incidentTitle,
+}: {
+  falsifier: NonNullable<ActiveIncident["falsifier"]>;
+  rangerUnit?: string;
+  incidentTitle: string;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const verdict = falsifier.verdict;
+  const isDissent = verdict === "dissent";
+  const isConcur = verdict === "concur";
+  const colorRing = isDissent ? "ring-rose-500/50" : isConcur ? "ring-emerald-500/50" : "ring-zinc-600/40";
+  const colorText = isDissent ? "text-rose-300" : isConcur ? "text-emerald-300" : "text-zinc-400";
+  const colorBg = isDissent ? "bg-rose-950/40 border-rose-500/40" : isConcur ? "bg-emerald-950/30 border-emerald-500/30" : "bg-zinc-900/40 border-zinc-700/40";
+
+  // Orchestrator's claim narrative — interpolated from the incident state.
+  const orchestratorClaim = rangerUnit
+    ? `Dispatching ${rangerUnit} based on the multimodal signal chain. Evidence reconciled across Stream Watcher, Audio Agent, and Species ID.`
+    : `Preparing to fan out to four enterprise A2A peers based on the multimodal signal chain for ${incidentTitle}.`;
+
+  function speakDissent() {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    window.speechSynthesis.cancel();
+    const text = `Falsifier dissent. ${falsifier.reason || "A standard operating procedure gate failed."}`;
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.rate = 0.92;
+    utter.pitch = 0.85;
+    // Prefer a lower-register voice to distinguish from any narrator
+    const voices = window.speechSynthesis.getVoices();
+    const lowVoice = voices.find((v) => /daniel|alex|fred|james/i.test(v.name)) ?? voices[0];
+    if (lowVoice) utter.voice = lowVoice;
+    window.speechSynthesis.speak(utter);
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -4 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`rounded text-xs border ${colorBg}`}
+    >
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="w-full p-2 flex items-start gap-2 text-left hover:bg-white/[0.02] rounded-t"
+      >
+        <img
+          src="/portraits/falsifier.png"
+          alt=""
+          className={`w-6 h-6 rounded-full object-cover flex-shrink-0 mt-0.5 ring-1 ${colorRing}`}
+        />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className={`text-[10px] uppercase tracking-wider font-semibold ${colorText}`}>
+              Falsifier · {verdict}
+            </span>
+            {falsifier.severity_0_5 >= 3 && (
+              <span className="px-1.5 py-0.5 rounded text-[9px] bg-rose-500/30 text-rose-200 font-semibold">
+                AUDIT FLAG
+              </span>
+            )}
+            <span className={`ml-auto text-[10px] ${colorText} opacity-60`}>
+              {expanded ? "▾ tribunal" : "▸ tribunal"}
+            </span>
+          </div>
+          {falsifier.reason && (
+            <div className="text-[10px] text-zinc-400 mt-1 leading-relaxed">
+              {falsifier.reason}
+            </div>
+          )}
+        </div>
+      </button>
+
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="border-t border-white/10 overflow-hidden"
+          >
+            <div className="p-3 grid grid-cols-2 gap-3">
+              {/* Orchestrator side */}
+              <div className="space-y-1.5">
+                <div className="text-[9px] uppercase tracking-[0.15em] text-emerald-300/80 font-semibold">
+                  Orchestrator claim
+                </div>
+                <div className="text-[11px] text-zinc-200 leading-snug">
+                  {orchestratorClaim}
+                </div>
+                <div className="text-[9px] text-zinc-500">
+                  Evidence: Stream Watcher · Audio Agent · Species ID
+                </div>
+              </div>
+              {/* Falsifier side */}
+              <div className="space-y-1.5 pl-3 border-l border-white/10">
+                <div className={`text-[9px] uppercase tracking-[0.15em] font-semibold ${colorText}`}>
+                  Falsifier challenge
+                </div>
+                <div className="text-[11px] text-zinc-200 leading-snug">
+                  {falsifier.reason || "No challenge raised."}
+                </div>
+                <div className="text-[9px] text-zinc-500">
+                  Verdict severity {falsifier.severity_0_5}/5 · gates evaluated per SOP
+                </div>
+              </div>
+            </div>
+            {isDissent && (
+              <div className="px-3 pb-3">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    speakDissent();
+                  }}
+                  className="text-[10px] uppercase tracking-wider px-2 py-1 rounded bg-rose-500/20 text-rose-200 ring-1 ring-rose-500/40 hover:bg-rose-500/30"
+                  title="Browser SpeechSynthesis reads the dissent reason aloud — Falsifier voice"
+                >
+                  🔊 Hear the dissent
+                </button>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
+// PLAN_V3_1 sub-move 6.2 — chip that plays the gunshot impulse sample.
+function AudioReplayChip({ soundClass, confidence }: { soundClass: string; confidence: number }) {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const conf = Math.round(confidence * 100);
+  return (
+    <div className="bg-black/30 rounded p-2 text-xs flex items-center gap-2 border border-white/10">
+      <Volume2 className="w-3.5 h-3.5 text-rose-300 flex-shrink-0" />
+      <div className="flex-1 min-w-0">
+        <div className="text-rose-200 font-semibold">
+          Audio captured · {soundClass.replace(/_/g, " ")}
+        </div>
+        <div className="text-[10px] text-zinc-400">
+          {conf}% confidence · click to replay what the agent heard
+        </div>
+      </div>
+      <button
+        onClick={() => {
+          if (!audioRef.current) return;
+          audioRef.current.currentTime = 0;
+          audioRef.current.play().catch(() => {});
+          setPlaying(true);
+          setTimeout(() => setPlaying(false), 800);
+        }}
+        className={`px-2 py-0.5 rounded text-[10px] uppercase tracking-wider ring-1 transition-colors flex-shrink-0 ${
+          playing
+            ? "bg-rose-500/30 text-rose-100 ring-rose-500/60 animate-pulse"
+            : "bg-rose-500/15 text-rose-200 ring-rose-500/40 hover:bg-rose-500/30"
+        }`}
+      >
+        🔊 Replay
+      </button>
+      <audio ref={audioRef} src="/audio/gunshot-sample.mp3" preload="auto" />
+    </div>
+  );
+}
 
 export interface ActiveIncident {
   incident_id: string;
@@ -17,6 +191,9 @@ export interface ActiveIncident {
   expectedPeers?: string[];
   ranger?: { unit: string; eta_min: number; status: string };
   tnfd?: { filing_id: string; materiality: string; status: string; board_slide_url?: string };
+  /** What the Audio Agent classified, if anything. PLAN_V3_1 sub-move 6.2:
+   *  surfaces a "Replay what the agent heard" chip in the incident card. */
+  audio?: { sound_class: string; confidence: number };
   funder?: { receipt_id: string; program: string; tier: string; status: string };
   neighbor?: { handoff_id: string; posture: string; window_until: string; status: string };
   // Falsifier adversarial-review verdict. Populated when the orchestrator
@@ -113,54 +290,22 @@ export default function IncidentPanel({ incidents }: Props) {
               </div>
 
               {inc.falsifier && (
-                <motion.div
-                  initial={{ opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={`rounded p-2 text-xs flex items-start gap-2 border ${
-                    inc.falsifier.verdict === "dissent"
-                      ? "bg-rose-950/40 border-rose-500/40"
-                      : inc.falsifier.verdict === "concur"
-                      ? "bg-emerald-950/30 border-emerald-500/30"
-                      : "bg-zinc-900/40 border-zinc-700/40"
-                  }`}
-                >
-                  <img
-                    src="/portraits/falsifier.png"
-                    alt=""
-                    className={`w-6 h-6 rounded-full object-cover flex-shrink-0 mt-0.5 ring-1 ${
-                      inc.falsifier.verdict === "dissent"
-                        ? "ring-rose-500/50"
-                        : inc.falsifier.verdict === "concur"
-                        ? "ring-emerald-500/50"
-                        : "ring-zinc-600/40"
-                    }`}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`text-[10px] uppercase tracking-wider font-semibold ${
-                          inc.falsifier.verdict === "dissent"
-                            ? "text-rose-300"
-                            : inc.falsifier.verdict === "concur"
-                            ? "text-emerald-300"
-                            : "text-zinc-400"
-                        }`}
-                      >
-                        Falsifier · {inc.falsifier.verdict}
-                      </span>
-                      {inc.falsifier.severity_0_5 >= 3 && (
-                        <span className="px-1.5 py-0.5 rounded text-[9px] bg-rose-500/30 text-rose-200 font-semibold">
-                          AUDIT FLAG
-                        </span>
-                      )}
-                    </div>
-                    {inc.falsifier.reason && (
-                      <div className="text-[10px] text-zinc-400 mt-1 leading-relaxed">
-                        {inc.falsifier.reason}
-                      </div>
-                    )}
-                  </div>
-                </motion.div>
+                <FalsifierTribunal
+                  falsifier={inc.falsifier}
+                  rangerUnit={inc.ranger?.unit}
+                  incidentTitle={inc.title}
+                />
+              )}
+
+              {/* PLAN_V3_1 sub-move 6.2 — Audio replay chip. When the Audio
+                  Agent classified a non-silence signal, surface a click-to-
+                  play button so a human-in-the-loop can hear what the
+                  agent heard. CC0 short impulse, ~700ms, 12KB. */}
+              {inc.audio && inc.audio.sound_class !== "silence" && (
+                <AudioReplayChip
+                  soundClass={inc.audio.sound_class}
+                  confidence={inc.audio.confidence}
+                />
               )}
 
               <AnimatePresence initial={false}>
