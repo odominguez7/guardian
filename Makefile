@@ -248,16 +248,28 @@ wire-neighbor-park:
 # get baked into the static bundle. Public (--allow-unauthenticated) so
 # judges can click + see the demo.
 deploy-ops-center:
-	# Sources ops-center/.env.local first so MAPBOX_TOKEN, ELEVENLABS_*, etc.
-	# are guaranteed in the recipe shell — previously env-var inheritance
-	# from the calling shell was unreliable (2026-05-17 deploy hit this).
+	# Sources ops-center/.env.local first (if present) so the recipe shell
+	# sees NEXT_PUBLIC_* vars. Then unconditionally maps NEXT_PUBLIC_* into
+	# the plain names the cloudbuild substitution expects — works whether
+	# the caller relied on .env.local OR exported the NEXT_PUBLIC_* vars
+	# directly (e.g., CI). Fails fast with a clear error if neither route
+	# produced a Mapbox token (other fields are optional). Codex Move 0
+	# handshake 2026-05-17 caught the regression that motivated this.
 	@if [ -f ops-center/.env.local ]; then \
 	  set -a; . ./ops-center/.env.local; set +a; \
-	  : "$${MAPBOX_TOKEN:=$$NEXT_PUBLIC_MAPBOX_TOKEN}"; \
-	  : "$${FIREBASE_API_KEY:=$$NEXT_PUBLIC_FIREBASE_API_KEY}"; \
-	  : "$${FIREBASE_AUTH_DOMAIN:=$$NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}"; \
-	  : "$${FIREBASE_PROJECT_ID:=$$NEXT_PUBLIC_FIREBASE_PROJECT_ID}"; \
-	  : "$${FIREBASE_APP_ID:=$$NEXT_PUBLIC_FIREBASE_APP_ID}"; \
+	fi; \
+	: "$${MAPBOX_TOKEN:=$$NEXT_PUBLIC_MAPBOX_TOKEN}"; \
+	: "$${FIREBASE_API_KEY:=$$NEXT_PUBLIC_FIREBASE_API_KEY}"; \
+	: "$${FIREBASE_AUTH_DOMAIN:=$$NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}"; \
+	: "$${FIREBASE_PROJECT_ID:=$$NEXT_PUBLIC_FIREBASE_PROJECT_ID}"; \
+	: "$${FIREBASE_APP_ID:=$$NEXT_PUBLIC_FIREBASE_APP_ID}"; \
+	export MAPBOX_TOKEN FIREBASE_API_KEY FIREBASE_AUTH_DOMAIN FIREBASE_PROJECT_ID FIREBASE_APP_ID; \
+	if [ -z "$$MAPBOX_TOKEN" ]; then \
+	  echo ""; \
+	  echo "ERROR: MAPBOX_TOKEN is empty. The deploy would ship without the map."; \
+	  echo "  Either add NEXT_PUBLIC_MAPBOX_TOKEN to ops-center/.env.local,"; \
+	  echo "  or export MAPBOX_TOKEN / NEXT_PUBLIC_MAPBOX_TOKEN before running this target."; \
+	  exit 1; \
 	fi; \
 	PROJECT_ID=$$(gcloud config get-value project) && \
 	PROJECT_NUMBER=$$(gcloud projects describe $$PROJECT_ID --format="value(projectNumber)") && \
