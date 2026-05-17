@@ -21,6 +21,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Optional
 
+from app import events as _events
+
 # --- Threshold constants (the SOPs the Falsifier defends) ------------------
 
 # Audio confidence required for dispatch at each severity.
@@ -169,7 +171,7 @@ def review_dispatch(
         reason = ""
         sev_out = 0
 
-    return {
+    result = {
         "verdict": verdict,
         "dissent_reason": reason,
         "severity_0_5": sev_out,
@@ -177,3 +179,22 @@ def review_dispatch(
         "reviewed_at": datetime.now(timezone.utc).isoformat(),
         "incident_id": incident_id,
     }
+
+    # Emit a structured event so:
+    # (a) the Ops Center firehose surfaces the verdict to the IncidentPanel
+    #     (DISSENT chip lights up when severity_0_5 ≥ 3)
+    # (b) the Court-Evidence bundle picks up the verdict via the event buffer
+    #     (no separate field plumbing needed — bundle_incident scans tool_end
+    #     events for any agent including this one)
+    # tool_end kind is the bundle_incident contract — keep parity with the
+    # other agents.
+    _events.emit(
+        kind="tool_end",
+        agent="falsifier",
+        tool="review_dispatch",
+        incident_id=incident_id,
+        severity="critical" if verdict == "dissent" and sev_out >= 3 else "info",
+        payload=result,
+    )
+
+    return result

@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Siren, FileCheck2, ShieldAlert, Clock3, HandCoins, Map as MapIcon } from "lucide-react";
+import { Siren, FileCheck2, ShieldAlert, Clock3, HandCoins, Map as MapIcon, Gavel } from "lucide-react";
 
 export interface ActiveIncident {
   incident_id: string;
@@ -19,6 +19,15 @@ export interface ActiveIncident {
   tnfd?: { filing_id: string; materiality: string; status: string };
   funder?: { receipt_id: string; program: string; tier: string; status: string };
   neighbor?: { handoff_id: string; posture: string; window_until: string; status: string };
+  // Falsifier adversarial-review verdict. Populated when the orchestrator
+  // delegates to the falsifier agent before dispatch (PLAN_V3.md Move 1).
+  // Big-4 auditors and TNFD reviewers require this record on every
+  // dispatched action.
+  falsifier?: {
+    verdict: "concur" | "dissent" | "abstain";
+    severity_0_5: number;
+    reason: string;
+  };
 }
 
 interface Props {
@@ -83,6 +92,55 @@ export default function IncidentPanel({ incidents }: Props) {
                 <span>{elapsedSec(inc.startedAt)}s elapsed</span>
                 <span className="ml-auto">{inc.incident_id}</span>
               </div>
+
+              {inc.falsifier && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={`rounded p-2 text-xs flex items-start gap-2 border ${
+                    inc.falsifier.verdict === "dissent"
+                      ? "bg-rose-950/40 border-rose-500/40"
+                      : inc.falsifier.verdict === "concur"
+                      ? "bg-emerald-950/30 border-emerald-500/30"
+                      : "bg-zinc-900/40 border-zinc-700/40"
+                  }`}
+                >
+                  <Gavel
+                    className={`w-3.5 h-3.5 flex-shrink-0 mt-0.5 ${
+                      inc.falsifier.verdict === "dissent"
+                        ? "text-rose-300"
+                        : inc.falsifier.verdict === "concur"
+                        ? "text-emerald-300"
+                        : "text-zinc-400"
+                    }`}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`text-[10px] uppercase tracking-wider font-semibold ${
+                          inc.falsifier.verdict === "dissent"
+                            ? "text-rose-300"
+                            : inc.falsifier.verdict === "concur"
+                            ? "text-emerald-300"
+                            : "text-zinc-400"
+                        }`}
+                      >
+                        Falsifier · {inc.falsifier.verdict}
+                      </span>
+                      {inc.falsifier.severity_0_5 >= 3 && (
+                        <span className="px-1.5 py-0.5 rounded text-[9px] bg-rose-500/30 text-rose-200 font-semibold">
+                          AUDIT FLAG
+                        </span>
+                      )}
+                    </div>
+                    {inc.falsifier.reason && (
+                      <div className="text-[10px] text-zinc-400 mt-1 leading-relaxed">
+                        {inc.falsifier.reason}
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
 
               <AnimatePresence initial={false}>
                 {inc.ranger && (

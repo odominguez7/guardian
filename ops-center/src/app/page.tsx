@@ -132,6 +132,37 @@ export default function Home() {
       }
     }
 
+    // Falsifier verdict — populate the IncidentPanel chip from the
+    // falsifier's tool_end event. PLAN_V3.md Move 1.5/1.6.
+    if (
+      latest.kind === "tool_end" &&
+      latest.agent === "falsifier" &&
+      latest.tool === "review_dispatch" &&
+      latest.incident_id
+    ) {
+      const payload = latest.payload as Record<string, unknown>;
+      // tool_span wraps the actual result inside payload.result; the falsifier
+      // also emits directly via events.emit() with payload = the result dict.
+      // Handle both shapes defensively.
+      const verdictPayload =
+        (payload?.result as Record<string, unknown> | undefined) ?? payload;
+      const v = verdictPayload?.verdict as string | undefined;
+      if (v === "concur" || v === "dissent" || v === "abstain") {
+        const verdict = v as "concur" | "dissent" | "abstain";
+        const severity_0_5 =
+          (verdictPayload?.severity_0_5 as number | undefined) ?? 0;
+        const reason =
+          (verdictPayload?.dissent_reason as string | undefined) ?? "";
+        setIncidents((prev) =>
+          prev.map((inc) =>
+            inc.incident_id === latest.incident_id
+              ? { ...inc, falsifier: { verdict, severity_0_5, reason } }
+              : inc,
+          ),
+        );
+      }
+    }
+
     if (latest.kind === "a2a_request") setFanOutFiring(true);
 
     if (latest.kind === "a2a_response" && latest.incident_id) {

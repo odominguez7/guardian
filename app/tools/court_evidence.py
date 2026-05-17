@@ -93,8 +93,22 @@ def bundle_incident(incident_id: str) -> dict:
 
     specialists = []
     peer_acks = []
+    adversarial_review = None
     for e in evts:
         kind = e.get("kind")
+        if kind == "tool_end" and e.get("agent") == "falsifier":
+            # The Falsifier's verdict is part of the chain of custody. Pull
+            # it out as a top-level field so auditors don't have to dig
+            # through the timeline to find the dissent record.
+            payload = e.get("payload") or {}
+            adversarial_review = {
+                "verdict": payload.get("verdict"),
+                "dissent_reason": payload.get("dissent_reason", ""),
+                "severity_0_5": payload.get("severity_0_5"),
+                "audit_threshold_met": payload.get("audit_threshold_met", {}),
+                "reviewed_at": payload.get("reviewed_at"),
+                "reviewer": "falsifier (GUARDIAN internal audit principal)",
+            }
         if kind == "tool_end" and e.get("agent") in {
             "stream_watcher", "audio_agent", "species_id"
         }:
@@ -148,6 +162,7 @@ def bundle_incident(incident_id: str) -> dict:
         ),
         "specialists": specialists,
         "peer_acks": peer_acks,
+        "adversarial_review": adversarial_review,
         "timeline": evts,
         "suspicious_gap": suspicious_gap,
         "compliance_frameworks": ["TNFD", "CSRD-ESRS-E4", "CITES-MIKE"],
@@ -275,6 +290,48 @@ def _format_html(bundle: dict) -> str:
     )
 
     frameworks = ", ".join(html.escape(f) for f in bundle.get("compliance_frameworks", []))
+
+    # Adversarial review block — the Falsifier's verdict on this dispatch.
+    # Required by Big-4 audit standards and TNFD chain-of-custody review.
+    rev = bundle.get("adversarial_review")
+    if rev:
+        verdict = html.escape(rev.get("verdict") or "?")
+        verdict_class = {
+            "concur": "concur",
+            "dissent": "dissent",
+            "abstain": "abstain",
+        }.get(rev.get("verdict") or "", "abstain")
+        reason = html.escape(rev.get("dissent_reason") or "")
+        sev = rev.get("severity_0_5") or 0
+        reviewed_at = html.escape(rev.get("reviewed_at") or "")
+        gates = rev.get("audit_threshold_met") or {}
+        gate_rows = "".join(
+            f"<tr><td>{html.escape(k)}</td>"
+            f'<td><span class="gate-{("pass" if v else "fail")}">'
+            f'{"PASS" if v else "FAIL"}</span></td></tr>'
+            for k, v in gates.items()
+        ) or '<tr><td colspan="2" class="empty">No SOP gates evaluated.</td></tr>'
+        adversarial_block = f"""
+  <h2>Adversarial Review (Falsifier)</h2>
+  <div class="sub">An independent internal-audit principal evaluated the proposed dispatch against the GUARDIAN SOP gates. Verdict and per-gate diagnostics are part of the chain-of-custody record per Big-4 audit standards and TNFD chain-of-custody review.</div>
+  <dl class="meta">
+    <dt>Verdict</dt>          <dd><span class="verdict {verdict_class}">{verdict.upper()}</span></dd>
+    <dt>Severity (0-5)</dt>   <dd>{sev}</dd>
+    <dt>Reviewed at</dt>      <dd>{reviewed_at}</dd>
+    <dt>Reviewer</dt>         <dd>{html.escape(rev.get("reviewer") or "")}</dd>
+    {("<dt>Dissent reason</dt><dd>" + reason + "</dd>") if reason else ""}
+  </dl>
+  <table>
+    <thead><tr><th>SOP gate</th><th>Result</th></tr></thead>
+    <tbody>{gate_rows}</tbody>
+  </table>
+"""
+    else:
+        adversarial_block = """
+  <h2>Adversarial Review (Falsifier)</h2>
+  <div class="warn">No adversarial review found in the event buffer. The Falsifier agent may not have been invoked for this dispatch. Chain-of-custody packets without an internal-audit verdict do not meet Big-4 review standards.</div>
+"""
+
     suspicious_note = (
         f'<div class="warn">Buffer state suggests this bundle may be incomplete '
         f'(event_count={bundle["event_count"]}, buffer_depth={bundle.get("buffer_depth")} / '
@@ -310,6 +367,12 @@ def _format_html(bundle: dict) -> str:
   td.empty {{ color: #94a3b8; font-style: italic; text-align: center; }}
   .stamp {{ display: inline-block; padding: 4px 10px; border-radius: 4px; background: #ecfdf5; color: #047857; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; margin-top: 4px; }}
   .warn {{ background: #fef3c7; color: #92400e; padding: 8px 12px; border-radius: 4px; font-size: 12px; margin-top: 10px; }}
+  .verdict {{ display: inline-block; padding: 3px 8px; border-radius: 3px; font-weight: 600; font-size: 11px; letter-spacing: 0.5px; }}
+  .verdict.concur {{ background: #ecfdf5; color: #047857; }}
+  .verdict.dissent {{ background: #fee2e2; color: #b91c1c; }}
+  .verdict.abstain {{ background: #f1f5f9; color: #475569; }}
+  .gate-pass {{ color: #047857; font-weight: 600; font-size: 11px; }}
+  .gate-fail {{ color: #b91c1c; font-weight: 600; font-size: 11px; }}
   footer {{ margin-top: 40px; color: #94a3b8; font-size: 11px; text-align: center; padding-top: 16px; border-top: 1px solid #e2e8f0; }}
 </style>
 </head>
@@ -341,6 +404,7 @@ def _format_html(bundle: dict) -> str:
     <thead><tr><th>Peer</th><th>Status</th><th>Identifier</th><th>Latency (ms)</th><th>Timestamp</th></tr></thead>
     <tbody>{peer_rows}</tbody>
   </table>
+{adversarial_block}
 
   <h2>Full Timeline</h2>
   <table>

@@ -87,6 +87,8 @@ def file_tnfd_entry(
     threat_type: str,
     severity: str,
     observation_timestamp: str,
+    adversarial_review_verdict: str = "",
+    adversarial_review_severity_0_5: int = 0,
 ) -> dict:
     """File a TNFD-aligned biodiversity-impact entry from a GUARDIAN incident.
 
@@ -107,6 +109,13 @@ def file_tnfd_entry(
         severity: GUARDIAN severity — one of "low", "medium", "high", "critical".
         observation_timestamp: ISO 8601 timestamp of when GUARDIAN observed
             the incident.
+        adversarial_review_verdict: Optional — Falsifier's verdict on this
+            dispatch ("concur" | "dissent" | "abstain"). Carried into the
+            TNFD entry as `adversarial_review_passed: bool` so Big-4 auditors
+            see the dissent record. Empty string means "no review performed."
+        adversarial_review_severity_0_5: Optional — Falsifier's confidence in
+            its position (0-5). Surfaced when verdict is "dissent" so the
+            auditor can prioritize follow-up.
 
     Returns:
         Dict with status, filing_id (TNFD entry ID), dashboard_url,
@@ -165,6 +174,11 @@ def file_tnfd_entry(
         f"entries/{filing_id}"
     )
 
+    # Adversarial review attached to the filing. Big-4 auditors require
+    # the dissent record (if any) to ship with the disclosure. A verdict
+    # of "" means GUARDIAN did not invoke its Falsifier — flagged separately.
+    adversarial_review_passed = adversarial_review_verdict == "concur"
+
     tnfd_entry = {
         "filing_id": filing_id,
         "pillar": _TNFD_PILLAR,
@@ -180,6 +194,9 @@ def file_tnfd_entry(
         "filed_at": filed_at,
         "reporting_period": reporting_period,
         "compliance_frameworks": ["TNFD", "CSRD-ESRS-E4"],
+        "adversarial_review_verdict": adversarial_review_verdict or "not_reviewed",
+        "adversarial_review_passed": adversarial_review_passed,
+        "adversarial_review_severity_0_5": adversarial_review_severity_0_5,
     }
 
     return {
@@ -205,9 +222,13 @@ JSON dict that `file_tnfd_entry` returns.
 
 When you receive an incident report, do exactly this:
 1. Extract incident_id, location, species_affected, threat_type, severity,
-   and observation_timestamp from the request.
+   and observation_timestamp from the request. ALSO extract any Falsifier
+   verdict the orchestrator includes (adversarial_review_verdict +
+   adversarial_review_severity_0_5) — these may be in the request payload
+   or referenced in the summary text.
 2. Call `file_tnfd_entry(incident_id=..., location=..., species_affected=...,
-   threat_type=..., severity=..., observation_timestamp=...)`.
+   threat_type=..., severity=..., observation_timestamp=...,
+   adversarial_review_verdict=..., adversarial_review_severity_0_5=...)`.
 3. Return the tool result verbatim. Do NOT summarize or paraphrase. GUARDIAN
    needs the structured filing ack for chain-of-custody and to surface the
    dashboard URL to the sponsor's CSO.
