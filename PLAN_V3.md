@@ -21,7 +21,7 @@ _Supersedes PLAN.md §8 schedule + reviews/V2_PLAN.md §12.4 execution order. Bo
 
 ## §2 — Stakeholder map (canonical names)
 
-Source of truth: `docs/stakeholders.md`. Every demo card / VO line / Marketplace copy / README must use these names verbatim:
+Source of truth: `docs/stakeholders.md` (the agent ↔ stakeholder map) **plus** `docs/stakeholder_lingo_2026.md` (the demo-voice lingo rules — first-mention acronym spell-outs, "no WWF/IUCN as canonical," Google tooling terms kept verbatim). Every demo card / VO line / Marketplace copy / README must use these names verbatim. Acronyms (TNFD, CSRD, ESRS E4, IUCN, CITES, SHA-256, Big Four) get a first-mention spell-out in prose docs and audio VO; on-screen card text stays tight (cards are space-constrained).
 
 - **F500 sustainability buyer** (Ring 1 — customer / who pays)
 - **Park Authority** + **Park Service** agent (Ring 2 — operator)

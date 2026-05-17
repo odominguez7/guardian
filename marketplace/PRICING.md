@@ -78,7 +78,7 @@ Pricing is FX-stable: quoted in USD; non-USD invoices priced via Google Cloud's 
 
 - **Multi-year prepay:** 15% off for 24-month, 25% off for 36-month
 - **Multi-reserve volume:** Portfolio tier already gets 33% per-reserve discount vs 5× Core
-- **Conservation funder co-purchase:** if both the F500 sponsor AND the WWF/IUCN/IFAW-equivalent funder buy GUARDIAN for the same reserve, each pays 80% of list (= 160% of list combined revenue; 60% premium vs single-buyer list, signals trust-asymmetric ecosystem buy)
+- **Conservation funder co-purchase:** if both the F500 sponsor AND a conservation funder (wildlife NGO or philanthropic program — e.g., WWF / IUCN / IFAW; examples only, not canonical) buy GUARDIAN for the same reserve, each pays 80% of list (= 160% of list combined revenue; 60% premium vs single-buyer list, signals trust-asymmetric ecosystem buy)
 - **Pre-paid in committed GCP spend:** no incremental discount but billing lands clean
 
 ---

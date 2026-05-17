@@ -62,10 +62,10 @@ _Locked 2026-05-15. Track 3 (Refactor for Marketplace + Gemini Enterprise). Subm
   ┌────┴────┐  ┌─────┴────┐  ┌─────┴─────┐  ┌────┴─────┐
   │ Park    │  │ Corporate│  │ Funder    │  │Neighbor  │
   │ Auth.   │  │ Sustain. │  │ Reporter  │  │ Park     │
-  │ Agent   │  │ Agent    │  │ (WWF/IUCN │  │ Mutual   │
-  │(Run #2) │  │(Run #3 — │  │  style)   │  │  Aid     │
-  │         │  │ TNFD/CSRD│  │ (Run #4)  │  │(Run #5)  │
-  │         │  │  report) │  │           │  │          │
+  │ Agent   │  │ Agent    │  │ (NGO /    │  │ Mutual   │
+  │(Run #2) │  │(Run #3 — │  │ philan-   │  │  Aid     │
+  │         │  │ TNFD/CSRD│  │ thropic)  │  │(Run #5)  │
+  │         │  │  report) │  │ (Run #4)  │  │          │
   └─────────┘  └──────────┘  └───────────┘  └──────────┘
 
   Each peer = independent Cloud Run service · own agent.json · own SA
@@ -91,7 +91,7 @@ _Locked 2026-05-15. Track 3 (Refactor for Marketplace + Gemini Enterprise). Subm
 |---|---|---|
 | **Park Authority Agent** | Independent agent run by the park (mocked from us, but separate Cloud Run service with its own agent.json) | Different org, different trust boundary, different schedule of operations |
 | **Corporate Sustainability Agent** | Agent run by a Fortune 500 sponsor needing TNFD/CSRD report data | Sponsor + park need bidirectional reporting without sharing DBs |
-| **Funder Reporter Agent** | Style of WWF/IUCN, but operated by the funder | Funder wants periodic impact reports without raw access to park data |
+| **Funder Reporter Agent** | An impact-reporting agent operated by a conservation funder (e.g., wildlife NGO or philanthropic program — WWF / IUCN style; not canonical, examples only) | Funder wants periodic impact reports without raw access to park data |
 | **Neighboring Park Mutual-Aid Agent** | Adjacent reserve's incident response agent | Cross-border coordination during chase events; agents from rival jurisdictions |
 
 Track 3 says: _"Your agent's communication layer must utilize the Agent-to-Agent (A2A) protocol, ensuring it can be seamlessly discovered by and coordinate with other enterprise agents."_ GUARDIAN ships 4 distinct enterprise agents that aren't owned by us. That's the literal mandate fulfilled, with receipts.

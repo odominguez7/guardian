@@ -2,6 +2,10 @@
 
 _Locked 2026-05-17. Source of truth for who's who in the demo, PLAN.md, and the Marketplace listing. Use these names verbatim. Don't invent new variants._
 
+_Companion: `docs/stakeholder_lingo_2026.md` is the demo-voice lingo guide (audience-facing labels + first-mention acronym spell-outs). Read both._
+
+---
+
 ---
 
 ## The two stakeholder rings
@@ -23,7 +27,7 @@ Conservation operators who use the system to actually protect wildlife. They don
 | Canonical name | Aka / persona | What they want | What GUARDIAN gives them |
 |---|---|---|---|
 | **Park Authority** | National park / reserve operator (e.g., Tanzania Parks for Selous; KWS for Maasai Mara) | Faster ranger dispatch; lower false-positive rate; coordination with adjacent parks; audit trail of incidents | Park Service A2A peer takes orchestrator dispatch, returns ranger unit ID + ETA. Audit log goes back to the funder + sponsor. |
-| **Funder Reporter** | WWF / IUCN / private conservation funder | Quarterly impact reports without raw access to park data; receipts proving their money produced outcomes | Funder Reporter A2A peer auto-emits per-incident impact entries tagged by funder program. |
+| **Funder Reporter** | A program officer / impact lead / reporting lead inside a conservation funder, wildlife NGO, or philanthropic program (e.g., WWF / IUCN — examples only, not canonical) | Quarterly impact reports without raw access to park data; receipts proving their money produced outcomes | Funder Reporter A2A peer auto-emits per-incident impact entries tagged by funder program. |
 | **Neighbor Park** | Adjacent reserve (e.g., Maasai Mara when Selous is the origin) | Mutual-aid handoff during chase events; cross-border coordination | Neighbor Park A2A peer accepts handoff requests with corridor + species + window. |
 
 ### Ring 3 — Judges (the prize evaluators)
@@ -68,10 +72,11 @@ Which agent serves which stakeholder? This is the alignment that the demo needs 
             │                   │                    │                   │
             ▼                   ▼                    ▼                   ▼
        ┌─────────┐        ┌────────────┐      ┌──────────────┐     ┌──────────┐
-       │  PARK   │        │    F500    │      │    FUNDER    │     │ NEIGHBOR │
-       │AUTHORITY│        │  BUYER     │      │ (WWF/IUCN)   │     │   PARK   │
-       │(operator)│       │ (customer) │      │ (operator)   │     │(operator)│
-       │ Ring 2  │        │   Ring 1   │      │    Ring 2    │     │  Ring 2  │
+       │  PARK   │        │    F500    │      │   FUNDER     │     │ NEIGHBOR │
+       │AUTHORITY│        │  BUYER     │      │ (NGO/philan- │     │   PARK   │
+       │(operator)│       │ (customer) │      │  thropic)    │     │(operator)│
+       │ Ring 2  │        │   Ring 1   │      │  (operator)  │     │  Ring 2  │
+       │         │        │            │      │   Ring 2     │     │          │
        └─────────┘        └────────────┘      └──────────────┘     └──────────┘
 ```
 
@@ -92,8 +97,8 @@ Which agent serves which stakeholder? This is the alignment that the demo needs 
 
 When writing demo VO / cards / Marketplace copy, mirror these phrasings:
 
-### To a F500 buyer (Maya CSO):
-> "GUARDIAN's Sponsor Sustainability agent files your TNFD entry the moment an incident is detected. Mapped to ESRS E4. Anchored to a SHA-256 chain of custody that survives a Big-4 audit. Your board slide auto-generates."
+### To a F500 buyer (Chief Sustainability Officer, Head of Sustainability, or ESG Reporting Lead — "Maya CSO" persona for short):
+> "GUARDIAN's Sponsor Sustainability agent files your Taskforce on Nature-related Financial Disclosures (TNFD) entry the moment an incident is detected. Mapped to European Sustainability Reporting Standard E4: Biodiversity and Ecosystems (ESRS E4). Anchored to a Secure Hash Algorithm 256-bit (SHA-256) chain of custody that survives a Big Four audit. Your board slide auto-generates."
 
 ### To a Google judge (ADK/A2A):
 > "GUARDIAN ships four discoverable A2A peers — Park, Sponsor, Funder, Neighbor — each in a separate Cloud Run service with a public agent.json. The orchestrator fans out via A2A protocol v0.2. The Falsifier agent challenges every dispatch on Gemini 2.5 Flash; dissent is logged into the Court-Evidence bundle."

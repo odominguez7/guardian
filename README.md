@@ -1,6 +1,6 @@
 # GUARDIAN
 
-Real-time multi-agent system for biodiversity protection and corporate ESG (TNFD/CSRD) reporting. Built for the **Google for Startups AI Agents Challenge** — Track 3 (Refactor for Marketplace + Gemini Enterprise).
+Real-time multi-agent system for biodiversity protection and corporate ESG reporting under the Taskforce on Nature-related Financial Disclosures (TNFD) and Corporate Sustainability Reporting Directive (CSRD). Built for the **Google for Startups AI Agents Challenge** — Track 3 (Refactor for Marketplace + Gemini Enterprise).
 
 **Submission deadline:** 2026-06-05 · **Status as of 2026-05-16:** core platform LIVE, demo video remains.
 

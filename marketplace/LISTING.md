@@ -15,13 +15,13 @@ Marketing tagline: *Real-time anti-poaching defense + auto-filed TNFD/CSRD biodi
 
 ## Listing summary (max 130 chars)
 
-Multi-agent biodiversity defense + auto-filed TNFD/CSRD disclosure for Fortune 500 sponsors of protected conservation areas.
+Multi-agent biodiversity defense + auto-filed disclosure under the Taskforce on Nature-related Financial Disclosures (TNFD) and the Corporate Sustainability Reporting Directive (CSRD), for Fortune 500 sponsors of protected conservation areas.
 
 ---
 
 ## Solution overview (200–400 words)
 
-Fortune 500 firms with sponsored conservation portfolios now face CSRD (ESRS E4) disclosure requirements when in scope, alongside rising TNFD-aligned expectations. The data required - incident-level evidence that material biodiversity impacts in your sponsored reserves have been detected, dispatched, and chain-of-custody preserved - has historically been impossible to produce at audit grade.
+Fortune 500 firms with sponsored conservation portfolios now face Corporate Sustainability Reporting Directive (CSRD) disclosure requirements under European Sustainability Reporting Standard E4: Biodiversity and Ecosystems (ESRS E4) when in scope, alongside rising Taskforce on Nature-related Financial Disclosures (TNFD) expectations. The data required - incident-level evidence that material biodiversity impacts in your sponsored reserves have been detected, dispatched, and chain-of-custody preserved - has historically been impossible to produce at audit grade.
 
 GUARDIAN is a Gemini-native multi-agent platform that runs in production on the conservation areas your firm sponsors. Stream Watcher, Audio Agent, and Species ID specialists analyze camera-trap and microphone feeds in real time, escalate poaching threats to the Orchestrator, and trigger A2A protocol fan-out to four independent enterprise agents:
 
