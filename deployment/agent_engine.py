@@ -96,13 +96,17 @@ def _repo_root() -> Path:
 def _source_dirs_for_extra_packages() -> list[str]:
     """Local source paths uploaded alongside the cloudpickle.
 
-    Without these, the Agent Engine container can't unpickle root_agent
-    because it references functions in our source tree (app.tools.*,
-    app.agents.*) that aren't on PyPI. cloudpickle.loads() fails with
-    ModuleNotFoundError — the exact failure mode 2026-05-17 Day 3.
+    v8 Day 3 retry note: shipping our `app/` directory directly collided
+    with Agent Engine framework's own /code/app/ namespace inside the
+    container — the unpickle still couldn't find `app.tools.*`. We
+    switched tactics: register the modules with cloudpickle.pickle_by_value
+    in app/agent_engine_root.py so the pickle is self-contained. No
+    extra_packages needed for the slim agent.
+
+    Kept this function as `[]` (no uploads) so future agents can opt
+    back into source uploads by appending paths here.
     """
-    root = _repo_root()
-    return [str(root / "app")]
+    return []
 
 
 def cmd_deploy(args: argparse.Namespace) -> int:
