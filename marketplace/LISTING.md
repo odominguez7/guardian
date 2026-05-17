@@ -9,7 +9,7 @@ mirrors the Google Cloud Marketplace producer portal field structure._
 
 **GUARDIAN - Biodiversity Operations Platform for Enterprise**
 
-Marketing tagline: *Real-time anti-poaching defense + auto-filed TNFD/CSRD biodiversity disclosures, on one Gemini-native multi-agent platform.*
+Marketing tagline: *Real-time anti-poaching defense + auto-filed Taskforce on Nature-related Financial Disclosures (TNFD) and Corporate Sustainability Reporting Directive (CSRD) biodiversity disclosures, on one Gemini-native multi-agent platform.*
 
 ---
 
@@ -114,7 +114,7 @@ Time-to-first-incident in a clean GCP project: ~12 minutes.
 
 - Service-to-service Cloud Run authentication via Google ID tokens
 - All A2A peers deployed `--no-allow-unauthenticated`; only the orchestrator's runtime service account has `roles/run.invoker`
-- Incident IDs are SHA-256-derived and idempotent - same observation produces the same incident_id, preventing duplicate ranger dispatches or duplicate TNFD filings
+- Incident IDs are Secure Hash Algorithm 256-bit (SHA-256) derived and idempotent - same observation produces the same incident_id, preventing duplicate ranger dispatches or duplicate TNFD filings
 - Echo-detection retry guard with prompt-mutation hardens against LLM tool-call flakes
 - Cross-thread-safe event firehose for live operations dashboard
 - SOC 2 Type II evidence-pack roadmap available on Enterprise tier (full SOC 2 attestation in progress; Enterprise customers receive interim controls-mapping workbook + customer-managed-key option)

@@ -90,7 +90,7 @@ _Locked 2026-05-15. Track 3 (Refactor for Marketplace + Gemini Enterprise). Subm
 | Peer | What it is | Why A2A (not API) |
 |---|---|---|
 | **Park Authority Agent** | Independent agent run by the park (mocked from us, but separate Cloud Run service with its own agent.json) | Different org, different trust boundary, different schedule of operations |
-| **Corporate Sustainability Agent** | Agent run by a Fortune 500 sponsor needing TNFD/CSRD report data | Sponsor + park need bidirectional reporting without sharing DBs |
+| **Sponsor Sustainability Agent** | Agent run by a Fortune 500 sponsor needing TNFD/CSRD report data | Sponsor + park need bidirectional reporting without sharing DBs |
 | **Funder Reporter Agent** | An impact-reporting agent operated by a conservation funder (e.g., wildlife NGO or philanthropic program — WWF / IUCN style; not canonical, examples only) | Funder wants periodic impact reports without raw access to park data |
 | **Neighboring Park Mutual-Aid Agent** | Adjacent reserve's incident response agent | Cross-border coordination during chase events; agents from rival jurisdictions |
 

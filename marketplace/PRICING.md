@@ -22,7 +22,7 @@ Free trial: 30 days on a single reserve, capped at 500 incidents. Bills land on 
 
 ### Frame 1: Cost-of-non-compliance avoided
 
-EU CSRD enforcement runs through member-state administrative sanctions and public enforcement - Germany's *Bilanzkontrollverfahren* and France's AMF financial-reporting reviews are early bellwethers. Penalty levels vary by jurisdiction but the reputational cost of a public enforcement action far exceeds the fine. For a $50B revenue F500, a single missed CSRD disclosure cycle that triggers a national-level public enforcement notice is a hundreds-of-millions reputation event. GUARDIAN Portfolio at $180K/yr is a rounding error on the compliance line item.
+EU Corporate Sustainability Reporting Directive (CSRD) enforcement runs through member-state administrative sanctions and public enforcement - Germany's *Bilanzkontrollverfahren* and France's AMF financial-reporting reviews are early bellwethers. Penalty levels vary by jurisdiction but the reputational cost of a public enforcement action far exceeds the fine. For a $50B revenue F500, a single missed CSRD disclosure cycle that triggers a national-level public enforcement notice is a hundreds-of-millions reputation event. GUARDIAN Portfolio at $180K/yr is a rounding error on the compliance line item. CSRD-audit defense reads to a Big Four (Deloitte, PwC, EY, KPMG) auditor as a structured chain-of-custody packet, not as ad-hoc spreadsheets.
 
 ### Frame 2: Cost of the human-only alternative
 
@@ -30,7 +30,7 @@ A single full-time ESG-data analyst at a F500 sustainability office costs **$140
 
 ### Frame 3: Cost of a missed poaching incident
 
-Illegal-wildlife-trade markets value a poached elephant tusk pair or rhino horn at multiples of GUARDIAN's annual subscription price (public TRAFFIC + CITES standing-committee reports across 2018-2024 routinely cite five-to-six-figure per-incident street values; specific number ranges shift year over year). Beyond the trafficked value: the reserve loses the animal, the funder loses a portfolio-grade asset, and the sponsor loses the CSRD compliance evidence the dead animal would have produced. Stopping one critically endangered poaching event a year pays for the Enterprise tier outright.
+Illegal-wildlife-trade markets value a poached elephant tusk pair or rhino horn at multiples of GUARDIAN's annual subscription price (public TRAFFIC + Convention on International Trade in Endangered Species (CITES) standing-committee reports across 2018-2024 routinely cite five-to-six-figure per-incident street values; specific number ranges shift year over year). Beyond the trafficked value: the reserve loses the animal, the funder loses a portfolio-grade asset, and the sponsor loses the CSRD compliance evidence the dead animal would have produced. Stopping one critically endangered poaching event a year pays for the Enterprise tier outright.
 
 ---
 
@@ -51,7 +51,7 @@ Two tiers is too few (Enterprise customers always ask for a middle). Five tiers 
 Deliberately bundled to remove friction:
 
 - **All 4 A2A peers** - Park Authority, Sponsor Sustainability, Funder Reporter, Neighbor Park - are part of every tier. The Track 3 narrative requires the 4-peer story; gating peers behind tiers fragments it.
-- **TNFD report generation** - included. Not a pay-per-report line item. CSRD officers do not want metered output.
+- **Taskforce on Nature-related Financial Disclosures (TNFD) report generation** - included. Not a pay-per-report line item. CSRD officers do not want metered output.
 - **Vertex AI Search corpus seeding** - included. The IUCN Red List + CITES + reserve playbook corpus is part of the SKU.
 - **Audit-prep review** - Portfolio and Enterprise customers get it included quarterly. Core does not (those buyers don't have an external audit yet).
 

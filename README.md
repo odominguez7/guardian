@@ -39,12 +39,12 @@ A team of specialized AI agents watches conservation areas in real time, detects
 | D6 | Pattern Agent + Memory Bank | ⏳ TODO | downscoped to BigQuery-only (no Spanner) |
 | D7 | Visualizer (suspect sketch + heatmap) | ✂️ CUT | pre-render placeholder in demo video |
 | D8 | Dispatch Agent (SMS) | 🟨 STUB | AgentPhone MCP hook documented, mock ack returned |
-| **D9** | Court-Evidence Agent | ✅ SHIPPED | SHA-256 anchored chain-of-custody bundle + `/html` endpoint |
+| **D9** | Court-Evidence Agent | ✅ SHIPPED | Secure Hash Algorithm 256-bit (SHA-256) anchored chain-of-custody bundle + `/html` endpoint |
 | D10 | Spanner GraphRAG | ✂️ CUT | CEO-review downscope, saved $86 + 1 day |
 | **D11** | A2A Peer #1 — Park Authority | ✅ SHIPPED | independent Cloud Run, live ranger dispatch ack |
-| **D12** | A2A Peer #2 — Sponsor Sustainability | ✅ SHIPPED | TNFD/CSRD-ESRS-E4 filer (Pro for tool-call reliability) |
+| **D12** | A2A Peer #2 — Sponsor Sustainability | ✅ SHIPPED | TNFD / Corporate Sustainability Reporting Directive — European Sustainability Reporting Standard E4: Biodiversity and Ecosystems (CSRD-ESRS-E4) filer (Pro for tool-call reliability) |
 | **D13** | A2A Peer #3 — Funder Reporter | ✅ SHIPPED | impact receipt issuer |
-| **D14** | A2A Peer #4 — Neighbor Park | ✅ SHIPPED | cross-border CITES-MIKE handoff (Maasai Mara) |
+| **D14** | A2A Peer #4 — Neighbor Park | ✅ SHIPPED | cross-border Convention on International Trade in Endangered Species (CITES) / Monitoring the Illegal Killing of Elephants (MIKE) handoff (Maasai Mara) |
 | **D15** | Frontend Ops Center | ✅ SHIPPED (-14d) | Next.js 16 + Mapbox + WS firehose + animated 4-peer fan-out |
 | D16 | ParallelAgent refactor | ⏳ TODO | cut chain latency ~90s → ~30-40s |
 | D17 | Looker dashboard + security pass | ⏳ TODO | mTLS, RLS |
