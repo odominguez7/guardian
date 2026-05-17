@@ -143,6 +143,91 @@ def _resolve_hls_manifest(youtube_id: str, timeout_s: float = 10.0) -> str | Non
     return candidate
 
 
+# v7.5 — same idea as get_live_frame() but for an MP4 URL (Veo loops or
+# any bundled wildlife footage). No yt-dlp involved; we just point ffmpeg
+# at the URL with a random seek so producers get different frames on
+# successive Spot Now clicks. URL is validated to https:// + ops-center
+# style domains so users can't smuggle arbitrary file:// paths through.
+import random as _random  # noqa: E402
+
+# Bounded random seek into the clip so successive spots see different
+# moments — most Veo loops are 6-8s.
+_MP4_SEEK_MIN_S = 0.5
+_MP4_SEEK_MAX_S = 6.0
+
+
+def get_mp4_frame(
+    mp4_url: str,
+    *,
+    ffmpeg_timeout_s: float = 12.0,
+) -> bytes | None:
+    """Extract one JPEG frame from a publicly-fetchable MP4 URL.
+
+    Validates the URL is https://, then asks ffmpeg to seek to a random
+    timestamp and decode a single frame to mjpeg/stdout. Returns the
+    JPEG bytes or None on failure.
+
+    Args:
+        mp4_url: Absolute https URL of the MP4.
+        ffmpeg_timeout_s: max seconds for the ffmpeg call.
+    """
+    if not isinstance(mp4_url, str) or not mp4_url.startswith("https://"):
+        logger.warning("get_mp4_frame: invalid mp4_url: %r", mp4_url[:80] if mp4_url else mp4_url)
+        return None
+    if len(mp4_url) > 512:
+        logger.warning("get_mp4_frame: mp4_url too long")
+        return None
+
+    if shutil.which("ffmpeg") is None:
+        logger.warning("get_mp4_frame: ffmpeg not on PATH")
+        return None
+
+    seek = round(_random.uniform(_MP4_SEEK_MIN_S, _MP4_SEEK_MAX_S), 2)
+    try:
+        result = subprocess.run(
+            [
+                "ffmpeg",
+                "-loglevel", "error",
+                "-y",
+                # -ss BEFORE -i is fast keyframe seek; the seek is approximate
+                # but for short Veo loops that's fine and ~10x faster.
+                "-ss", str(seek),
+                "-i", mp4_url,
+                "-vframes", "1",
+                "-q:v", "3",
+                "-f", "image2pipe",
+                "-c:v", "mjpeg",
+                "pipe:1",
+            ],
+            capture_output=True,
+            timeout=ffmpeg_timeout_s,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        logger.warning("get_mp4_frame: ffmpeg timed out for %s", mp4_url[:80])
+        return None
+    except OSError as e:
+        logger.warning("get_mp4_frame: ffmpeg launch failed: %s", e)
+        return None
+
+    if result.returncode != 0 or not result.stdout:
+        stderr_preview = (
+            result.stderr.decode("utf-8", errors="replace")[:200]
+            if result.stderr else ""
+        )
+        logger.warning(
+            "get_mp4_frame: ffmpeg non-zero rc=%s err=%s",
+            result.returncode, stderr_preview,
+        )
+        return None
+
+    data = result.stdout
+    if len(data) < 1024 or data[:2] != b"\xff\xd8":
+        logger.warning("get_mp4_frame: ffmpeg returned non-JPEG payload")
+        return None
+    return data
+
+
 def get_live_frame(
     youtube_id: str,
     *,

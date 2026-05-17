@@ -25,12 +25,19 @@ interface CamProps {
   embedUrl?: string;
   subtitle: string;
   accent: string;
-  /** When true, render a small "REAL · 24/7" pill — for the YouTube live
-   *  stream that's not a Veo render. v4 sub-move A1. */
+  /** When true, render a small badge — for the cam that's the active
+   *  Spot Now target. v4 sub-move A1, repurposed in v7.5. */
   realLive?: boolean;
-  /** Source YouTube video id — required when realLive=true so the
-   *  "Spot Now" button can POST it to /livecam/spot. */
+  /** Source YouTube video id — required when youtube-backed Spot Now is
+   *  desired. v7.5: optional; tiles can also fire Spot Now against the
+   *  bundled MP4 via mp4Url. */
   youtubeId?: string;
+  /** Absolute URL of a bundled Veo MP4 the backend can fetch + analyze
+   *  via ffmpeg → Gemini Vision when youtubeId is absent. v7.5. */
+  mp4Url?: string;
+  /** When true, render a small "REAL · 24/7" pill — visual signal that
+   *  this is a production cam (vs the rendered teaching tiles). */
+  productionCam?: boolean;
 }
 
 const CAMS: CamProps[] = [
@@ -41,19 +48,20 @@ const CAMS: CamProps[] = [
     // for that asset OR archived the live broadcast). Replaced with NamibiaCam
     // waterhole stream (ydYDqZQpim8) — verified live + playableInEmbed:true
     // at swap time. Same vibe (24/7 wildlife waterhole), known stable.
-    id: "namib-waterhole-live",
-    label: "CAM-12 · NAMIB DESERT · Waterhole",
-    // v7.4: switched to the channel/live_stream embed URL pattern so
-    // YouTube auto-resolves to NamibiaCam's CURRENT broadcast. The prior
-    // pinned video id (ydYDqZQpim8) triggered YouTube's anti-bot wall
-    // intermittently — producer saw "Sign in to confirm you're not a bot"
-    // 2026-05-17. The channel-level URL avoids per-video flagging and
-    // gracefully shows "channel offline" if NamibiaCam ever stops.
-    embedUrl: "https://www.youtube-nocookie.com/embed/live_stream?channel=UCWQbkmxC8JU_FHB8uevwcZg&autoplay=1&mute=1&controls=0&modestbranding=1&playsinline=1&rel=0",
-    subtitle: "Live Namib waterhole · YouTube 24/7",
+    id: "sponsored-reserve-cam",
+    label: "CAM-12 · SPONSORED RESERVE · Waterhole",
+    // v7.5: dropped YouTube entirely. The channel/live_stream URL also
+    // hit YouTube's "Sign in to confirm you're not a bot" wall 2026-05-17
+    // — producer saw it twice. YouTube has tightened embed bot-detection
+    // sitewide; even the channel-level URL flags now. Switched to a Veo
+    // wildlife loop so the demo NEVER breaks on a third-party policy
+    // change. Backend Spot Now analyzes the actual Veo frame via ffmpeg.
+    src: "/cams/elephant-dusk.mp4",
+    subtitle: "24/7 sponsored-reserve cam · production target",
     accent: "#10b981",
     realLive: true,
-    youtubeId: "ydYDqZQpim8",
+    mp4Url: "/cams/elephant-dusk.mp4",
+    productionCam: true,
   },
   {
     id: "cheetah-crossing",
@@ -150,7 +158,7 @@ function CamTile({ cam }: { cam: CamProps }) {
   });
   const inFlightRef = useRef(false);
   const handleSpot = async () => {
-    if (!cam.youtubeId) return;
+    if (!cam.youtubeId && !cam.mp4Url) return;
     // v7.3 codex BLOCK fix: handleSpot now owns inFlightRef itself —
     // sets it true on entry, false in finally. Previous v7.1/v7.2
     // version checked the ref but never set it, so the auto-spot tick
@@ -162,10 +170,24 @@ function CamTile({ cam }: { cam: CamProps }) {
     setSpotMessage("Pulling fresh frame…");
     setSpotResult(null);
     try {
+      // v7.5: support both YouTube-backed and MP4-backed live cams.
+      // mp4_url path: backend fetches the MP4 and extracts a fresh frame
+      // via ffmpeg (already in the container). youtube_id path: existing
+      // yt-dlp/HLS path with thumbnail fallback.
+      const reqBody: Record<string, string> = { cam_label: cam.label };
+      if (cam.youtubeId) reqBody.youtube_id = cam.youtubeId;
+      if (cam.mp4Url) {
+        // Resolve to an absolute URL so the orchestrator can fetch it.
+        const absoluteMp4 =
+          cam.mp4Url.startsWith("http")
+            ? cam.mp4Url
+            : `${window.location.origin}${cam.mp4Url}`;
+        reqBody.mp4_url = absoluteMp4;
+      }
       const res = await fetch(`${ORCH_URL}/livecam/spot`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ youtube_id: cam.youtubeId, cam_label: cam.label }),
+        body: JSON.stringify(reqBody),
       });
       if (res.status === 429) {
         const body = (await res.json().catch(() => null)) as { detail?: string } | null;
@@ -236,8 +258,9 @@ function CamTile({ cam }: { cam: CamProps }) {
   // v7.3: handleSpot now owns the inFlightRef lock itself, so the
   // auto-spot effect can call it without pre-setting the ref. The tick
   // just checks the ref; handleSpot handles the lock + unlock.
+  // v7.5: allow auto-spot for either YouTube or MP4 sources.
   useEffect(() => {
-    if (!autoSpot || !cam.youtubeId) return;
+    if (!autoSpot || (!cam.youtubeId && !cam.mp4Url)) return;
     let cancelled = false;
     const tick = async () => {
       if (cancelled) return;
@@ -504,7 +527,7 @@ function CamTile({ cam }: { cam: CamProps }) {
               </div>
             )}
           </div>
-          {cam.realLive && cam.youtubeId && (
+          {cam.realLive && (cam.youtubeId || cam.mp4Url) && (
             <div className="flex items-center gap-1.5 shrink-0">
               <button
                 type="button"

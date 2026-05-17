@@ -707,7 +707,10 @@ from app.tools.vision import (  # noqa: E402
     analyze_image_bytes as _analyze_image_bytes,
     analyze_image_frame as _analyze_image_frame,
 )
-from app.tools.livecam_frame import get_live_frame as _get_live_frame  # noqa: E402
+from app.tools.livecam_frame import (  # noqa: E402
+    get_live_frame as _get_live_frame,
+    get_mp4_frame as _get_mp4_frame,
+)
 
 
 # v7 hot list (IUCN EN/CR + CITES Appendix I/II of the species GUARDIAN
@@ -799,7 +802,11 @@ def _is_hot_species(species_list) -> tuple[bool, str]:
 
 
 class _LivecamSpotRequest(_BaseModel):
-    youtube_id: str
+    # v7.5: youtube_id is now OPTIONAL. mp4_url is the alternative source
+    # for MP4-backed cams (Veo loops, bundled wildlife footage). Exactly
+    # one of the two must be set.
+    youtube_id: str | None = None
+    mp4_url: str | None = None
     cam_label: str | None = None
 
 
@@ -855,53 +862,74 @@ async def livecam_spot(req: _LivecamSpotRequest) -> dict:
     import secrets as _secrets
     from datetime import datetime, timezone
 
-    youtube_id = req.youtube_id.strip()
-    if not youtube_id or len(youtube_id) > 32:
-        raise HTTPException(status_code=400, detail="youtube_id required (≤32 chars)")
+    # v7.5: either youtube_id (HLS path) or mp4_url (ffmpeg path).
+    youtube_id = (req.youtube_id or "").strip()
+    mp4_url = (req.mp4_url or "").strip()
+    if not youtube_id and not mp4_url:
+        raise HTTPException(status_code=400, detail="youtube_id or mp4_url required")
+    if youtube_id and len(youtube_id) > 32:
+        raise HTTPException(status_code=400, detail="youtube_id too long")
+    if mp4_url and not mp4_url.startswith("https://"):
+        raise HTTPException(status_code=400, detail="mp4_url must be https://")
     cam_label = (req.cam_label or "Live Cam").strip()[:64]
 
+    # Per-source cooldown. Key is whichever source the caller passed.
+    cooldown_key = f"mp4:{mp4_url}" if mp4_url else f"yt:{youtube_id}"
     now = _time.monotonic()
-    last = _livecam_last_run.get(youtube_id, 0.0)
+    last = _livecam_last_run.get(cooldown_key, 0.0)
     if now - last < _LIVECAM_COOLDOWN_S:
         wait = _LIVECAM_COOLDOWN_S - (now - last)
         raise HTTPException(
             status_code=429,
-            detail=f"Live cam '{youtube_id}' on cooldown. Retry in {wait:.1f}s.",
+            detail=f"Cam on cooldown. Retry in {wait:.1f}s.",
         )
-    _livecam_last_run[youtube_id] = now
+    _livecam_last_run[cooldown_key] = now
 
-    # v7: pull a REAL current frame from the live HLS stream via
-    # yt-dlp + ffmpeg. Producer caught v6's bug 2026-05-17 — the
-    # maxresdefault_live.jpg URL we used previously is a static poster
-    # cached when the broadcast started, NOT a live thumbnail. Verified
-    # by 3 identical SHA hashes across 24s. The new path runs in 1.5-2.5s
-    # warm + 3-5s cold and returns genuinely fresh JPEG bytes every call.
-    frame_bytes = await asyncio.to_thread(_get_live_frame, youtube_id)
-    using_fresh_frame = frame_bytes is not None
+    # v7.5: dual-source frame extraction.
+    # mp4_url path: ffmpeg seeks to a random timestamp in the MP4 and emits
+    #   one JPEG. Used for Veo-rendered demo cams (reliable, no third-party
+    #   bot wall).
+    # youtube_id path: yt-dlp + ffmpeg against the HLS manifest. Often
+    #   blocked from Cloud Run egress IPs ("Sign in to confirm..."); falls
+    #   back to the legacy poster URL when blocked.
+    frame_bytes: bytes | None = None
     thumbnail_url: str | None = None
-    if not using_fresh_frame:
-        # Degrade gracefully: if yt-dlp or ffmpeg failed (network blip,
-        # manifest expired, binary missing), fall back to the legacy
-        # poster path so the demo never fully breaks — and log the
-        # event so we know to investigate.
-        logger.log_struct(
-            {"event": "livecam_frame_fallback_to_poster", "youtube_id": youtube_id},
-            severity="WARNING",
-        )
-        thumbnail_url = await asyncio.to_thread(_pick_live_thumbnail, youtube_id)
-        if thumbnail_url is None:
+    source_label = ""
+    if mp4_url:
+        frame_bytes = await asyncio.to_thread(_get_mp4_frame, mp4_url)
+        source_label = "mp4"
+        if frame_bytes is None:
             raise HTTPException(
                 status_code=502,
-                detail=f"Live frame + poster fallback both unavailable for {youtube_id}",
+                detail=f"Could not extract frame from {mp4_url}",
             )
-        sep = "&" if "?" in thumbnail_url else "?"
-        thumbnail_url = f"{thumbnail_url}{sep}_ts={int(_time.time())}"
+    else:
+        # YouTube path with the existing fallback ladder.
+        frame_bytes = await asyncio.to_thread(_get_live_frame, youtube_id)
+        if frame_bytes is None:
+            logger.log_struct(
+                {"event": "livecam_frame_fallback_to_poster", "youtube_id": youtube_id},
+                severity="WARNING",
+            )
+            thumbnail_url = await asyncio.to_thread(_pick_live_thumbnail, youtube_id)
+            if thumbnail_url is None:
+                raise HTTPException(
+                    status_code=502,
+                    detail=f"Live frame + poster fallback both unavailable for {youtube_id}",
+                )
+            sep = "&" if "?" in thumbnail_url else "?"
+            thumbnail_url = f"{thumbnail_url}{sep}_ts={int(_time.time())}"
+            source_label = "poster"
+        else:
+            source_label = "hls"
+    using_fresh_frame = frame_bytes is not None and source_label in {"mp4", "hls"}
 
     # v6.1 codex WARN fix: incident_id seed now includes random entropy so
     # cross-pod / rapid-fire clicks can't collide on the same id. Same
     # second + same youtube_id + different click → unique incident.
+    _seed_src = mp4_url if mp4_url else youtube_id
     incident_id = mint_incident_id(
-        seed=f"livecam:{youtube_id}|{int(_time.time())}|{_secrets.token_hex(4)}"
+        seed=f"livecam:{_seed_src}|{int(_time.time())}|{_secrets.token_hex(4)}"
     )
     # Real ISO timestamp — passed to every peer arg below. v6 codex BLOCK
     # fix: sponsor / funder / neighbor all reject None timestamps with a
