@@ -89,6 +89,20 @@ build-inspector-if-needed:
 # Backend Deployment Targets
 # ==============================================================================
 
+# Render the 2-minute hackathon demo video via the vendored o22-render
+# pipeline (rev13 cinematic baseline). $30-50 Vertex AI Veo spend per
+# run. See RUNBOOKS/render-demo-video.md for first-time setup.
+render-demo-video:
+	@echo "============================================================="
+	@echo "| 🎬 Rendering GUARDIAN demo video via o22-render pipeline    |"
+	@echo "| Brief: briefs/guardian-hero.yaml                            |"
+	@echo "| Output: tools/o22-render/validation/output/<run>/finished/  |"
+	@echo "| Spend cap: \$$50                                              |"
+	@echo "============================================================="
+	cd tools/o22-render && \
+	  source .venv/bin/activate && \
+	  python validation/render_pack.py --brief ../../briefs/guardian-hero.yaml --max-cost-usd 50
+
 # Run ADK Eval trajectories — multi-turn LLM-as-judge against root_agent.
 # Track 3 signal: judges expect the "Technical Implementation 30%" score
 # to be backed by a real evaluation pipeline, not unit tests alone.
