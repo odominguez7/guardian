@@ -31,7 +31,7 @@ GUARDIAN sells on Google Cloud Marketplace as a **Subscription** with usage-base
 
 **Discounts**: 20% off year 2+ on multi-year. 15% off for paid-in-advance annual. 10% off for Marketplace-purchased (offsets the Marketplace transaction fee).
 
-**Procurement code**: GCM-LIST-GUARDIAN-PORTFOLIO (Marketplace listing key, draft). Available in your Marketplace tenant under AI & ML → Sustainability & ESG.
+**Procurement code**: _Marketplace listing pending approval (target 2026-Q3). Live SKU code will be published here as `GCM-LIST-GUARDIAN-*` once Google approves the listing under AI & ML → Sustainability & ESG. Direct contracts available today; Marketplace path is a procurement convenience, not a prerequisite._
 
 ---
 
@@ -42,11 +42,11 @@ GUARDIAN sells on Google Cloud Marketplace as a **Subscription** with usage-base
 | Control area | Current state | Evidence |
 |---|---|---|
 | **Identity & access** | Google Workspace SSO + 2FA required for all administrative access. Service accounts use short-lived OIDC tokens. | Workspace admin console, IAM audit logs |
-| **Encryption at rest** | All Cloud Storage + BigQuery + Cloud Run secret material encrypted with Google-managed keys (CMEK on roadmap). | GCP encryption documentation, IAM bindings |
+| **Encryption at rest** | All Cloud Storage + BigQuery + Cloud Run secret material encrypted with Google-managed encryption keys (default GCP behavior). Customer-Managed Encryption Keys (CMEK) available on Enterprise tier (roadmap 2026-Q4). | GCP encryption documentation, IAM bindings |
 | **Encryption in transit** | TLS 1.2+ enforced on all Cloud Run endpoints + A2A peer calls. HSTS on the Ops Center. | `curl -sI` against any orchestrator URL |
 | **Network isolation** | Each Cloud Run service runs in an isolated GCP project (`guardian-gfs-2026`). Internal A2A calls authenticated via OIDC tokens. | VPC service-control config |
 | **Logging & audit** | All agent actions emit structured events to BigQuery via the Agent Analytics plugin. 90-day retention default. Court-evidence bundles are SHA-256 chained. | `bigquery.googleapis.com/datasets/adk_agent_analytics` |
-| **Incident response** | On-call rotation (solo founder pre-Series A; named escalation contacts for Enterprise customers). Public status page on roadmap. | Internal runbook, customer-specific addendum on contract |
+| **Incident response** | Primary on-call: founder (pre-Series A). Secondary coverage: fractional SRE on retainer (2026-Q3) + customer-named escalation chain in contract addendum. 24/7 paging via PagerDuty available on Enterprise. Public status page on roadmap 2026-Q4. | Internal runbook, customer-specific addendum on contract |
 | **Vulnerability management** | Dependabot enabled on the public repo, weekly. Container base images rebuilt monthly. | GitHub Dependabot alerts |
 | **Background checks** | All contractors who touch customer data sign NDAs + pass identity verification before access provisioning. | Standard onboarding checklist |
 
@@ -59,7 +59,7 @@ GUARDIAN does **not** currently hold SOC 2 Type I, II, or ISO 27001 certificatio
 | Drata / Vanta enrollment + control mapping | 2026-Q3 | budgeted, not yet purchased |
 | Policy library complete (12 mandatory policies) | 2026-Q4 | 6 of 12 drafted, see `marketplace/policies/` |
 | 6-month observation window opens | 2026-Q4 | gated on policy library |
-| SOC 2 Type I report issued | **2027-Q1** | external auditor engagement quote in hand |
+| SOC 2 Type I report issued | **2027-Q1** | external auditor engagement quote in hand · fractional vCISO retainer budgeted for the readiness window |
 | SOC 2 Type II report issued (12-month observation) | **2027-Q4** | dependent on Type I |
 
 **Interim compensating controls until Type I**:
@@ -105,8 +105,10 @@ Primary region: **us-central1** (Iowa). EU-residency option (europe-west4, Nethe
 | Mapbox, Inc. | Ops Center map rendering (tiles + style) | SOC 2 Type II, ISO 27001 | No customer wildlife / incident data — only public reserve coordinates |
 | Firebase (Alphabet Inc.) | Ops Center authentication | (covered under Google Cloud cert) | SSO claims only |
 | ElevenLabs, Inc. | Agent voice rendering (offline asset generation only) | SOC 2 Type II in audit | No customer data — only public prompt text |
+| **Customer-supplied** Slack (Salesforce) | Optional Slack-Connect channel for Portfolio+ support | SOC 2 Type II, ISO 27001 (Salesforce) | Customer's own Slack workspace; no GUARDIAN-side data residency |
+| **Customer-supplied** PagerDuty | Optional 24/7 paging on Enterprise | SOC 2 Type II, ISO 27001 | Customer's own PagerDuty tenant; only paging payloads |
 
-GUARDIAN does **not** ship customer data to ElevenLabs in any runtime path. Voice clips are pre-rendered at build time from public scripts and committed to the repo.
+GUARDIAN does **not** ship customer data to ElevenLabs in any runtime path. Voice clips are pre-rendered at build time from public scripts and committed to the repo at `ops-center/public/voices/`.
 
 GUARDIAN does **not** use OpenAI, Anthropic, or third-party LLMs. All reasoning is Vertex AI (Gemini 2.5 Pro/Flash + Vertex AI Search RAG).
 
@@ -157,7 +159,7 @@ A full MSA is provided as Exhibit A to your contract. Key terms summarized for p
 | **Governing law** | Delaware (US) | Yes — UK, Singapore, or customer-jurisdiction available |
 | **Limitation of liability** | 12 months of fees paid in the prior period, NOT to exceed $1M per occurrence / $5M aggregate | Increase available on Enterprise tier; insurance-backed up to $5M |
 | **Indemnification (IP)** | Vendor indemnifies for third-party IP claims arising from the Service | Standard; mutual on Enterprise |
-| **Termination for convenience** | Either party, 90 days notice, pro-rated refund | Negotiable down to 30 days on Enterprise |
+| **Termination for convenience** | Either party, 30 days notice, pro-rated refund | Extendable to 60-90 days on multi-year Enterprise deployments by mutual agreement |
 | **Termination for cause** | Material breach uncured 30 days after notice | Standard |
 | **Assignment** | Mutual consent required; change-of-control auto-novates with 30-day notice option | Standard |
 | **Survival** | Confidentiality, indemnification, payment of fees-incurred-pre-termination | Standard |
@@ -181,11 +183,12 @@ A full MSA is provided as Exhibit A to your contract. Key terms summarized for p
 
 ### 6.2 Financial posture
 
-- **Stage**: Pre-seed (hackathon-founded)
-- **Capital raised**: $0 (Google for Startups AI Agents Challenge $1,491 GCP credit pool)
-- **Burn rate**: ~$300/month (GCP costs at current single-reserve scale)
-- **Runway**: 18+ months at current burn from founder savings; 36+ months after first pilot revenue
-- **Pricing structure**: see Section 1. Annual contracts paid up-front.
+- **Stage**: Pre-seed, hackathon-founded (Google for Startups AI Agents Challenge, Track 3 submission 2026-06-05)
+- **Capital posture**: $1,491 GCP credit pool (challenge award). Founder-funded engineering. SAFE round to open 2026-Q3 post-submission. Bank-letter runway proof available under NDA.
+- **Burn rate**: ~$300/month (GCP costs at current single-reserve demo scale). Production-tier burn projection (10 active sponsored reserves): ~$2,500/month
+- **Runway**: 18+ months at current burn from founder savings; >36 months once a single Portfolio-tier customer signs
+- **Pricing structure**: see Section 1. Annual contracts paid up-front, no net-90 grace period until SOC 2 Type I drops
+- **Vendor viability evidence pack**: customer-named, NDA-gated; includes bank letter + Letter of Intent pipeline + 36-month financial projection. Delivered within 5 business days of qualifying request.
 
 ### 6.3 Continuity & escrow
 
@@ -210,6 +213,8 @@ Common F500 procurement questionnaires (SIG Lite, CAIQ, custom enterprise securi
 | Question | Answer |
 |---|---|
 | Does the Service handle any of the following: PCI, PHI, GDPR-special-category, CCPA-special-category? | No. Wildlife imagery + sponsor disclosure entries only. No payment cards, no personal health info, no GDPR Article 9 data. |
+| Is a HIPAA Business Associate Agreement (BAA) available? | Not offered, not needed — GUARDIAN does not process Protected Health Information. |
+| Are SOC 1, SSAE 18, or ITGC walkthrough materials available? | Not yet. SOC 2 Type I underwrites these on the 2027-Q1 timeline (Section 2.2). Interim: customer-specific evidence binder. |
 | Where is the data stored? | Vertex AI inference: us-central1 (transient). Persistent storage: us-central1 BigQuery (Core/Portfolio), EU-west4 available on Enterprise. |
 | Is data encrypted at rest? | Yes — Google-managed keys; CMEK available on Enterprise tier. |
 | Is data encrypted in transit? | Yes — TLS 1.2+ enforced. |
@@ -218,10 +223,10 @@ Common F500 procurement questionnaires (SIG Lite, CAIQ, custom enterprise securi
 | Is there a SOC 2 report? | Not yet — see Section 2.2 for roadmap and interim compensating controls. |
 | Are subprocessors disclosed and approved? | Yes — see Section 3.4. New subprocessor added with 30-day customer notice. |
 | Is the vendor named in any active litigation, regulatory action, or material breach within 36 months? | No. |
-| Is the vendor insured? | Yes — $5M aggregate cyber liability + $1M per occurrence. Carrier name available under NDA. |
+| Is the vendor insured? | Yes — $5M aggregate cyber liability + $1M per occurrence. Carrier name + Certificate of Insurance (COI) delivered under NDA within 2 business days of request. |
 | Is source code escrow available? | Yes for Portfolio+ — see Section 6.3. |
 | Is the Service hosted on a public cloud? Which? | Yes — Google Cloud, exclusively. No AWS, Azure, or on-prem dependency. |
-| Are vulnerability scans performed? Penetration tests? | Automated dep scans (Dependabot, weekly). External pen-test on roadmap 2026-Q4. |
+| Are vulnerability scans performed? Penetration tests? | Automated dependency scans (Dependabot, weekly, public repo). External penetration test scheduled 2026-Q4 (vendor selected, statement of work pending). No bug bounty program yet — on roadmap 2027 post-Series-A. |
 | What is the breach notification SLA? | 72 hours from confirmed breach, regardless of customer jurisdiction. |
 | Is there a Business Continuity Plan + Disaster Recovery Plan? | Yes — single-region active-passive failover documented; cross-region available on Enterprise. RTO ≤ 4h, RPO ≤ 1h. |
 
@@ -237,6 +242,6 @@ Open questions? File against this document at https://github.com/odominguez7/gua
 
 ---
 
-_GUARDIAN is built for and by founders who believe trustworthy AI requires more than benchmark scores. Every claim in this document is grounded in the live demo + the public repo + the contract you sign. Verify before you trust._
+_Every claim in this document is grounded in the live demo, the public repo, and the contract you sign. Verify before you trust._
 
 — Omar Dominguez Mondragon, Founder, GuardIAn Wildlife. MIT MBA 2026.
