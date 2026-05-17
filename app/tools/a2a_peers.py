@@ -162,7 +162,7 @@ def _looks_echoed(result: dict, instruction: str) -> bool:
     if result.get("status") in ("dispatched", "filed", "accepted", "ok"):
         return False
     op_signals = {
-        "filing_id", "ranger_unit", "handoff_id", "receipt_id",
+        "filing_id", "ranger_unit", "handoff_id", "receipt_id", "board_slide_url",
         "dashboard_url", "posture", "materiality", "estimated_arrival_minutes",
         "impact_tier", "tnfd_entry", "handoff_record", "impact_entry",
     }

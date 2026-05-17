@@ -705,6 +705,7 @@ from app.tools.court_evidence import (  # noqa: E402
     bundle_incident as _bundle_incident,
     render_evidence_html as _render_evidence_html,
 )
+from app.tools.board_slide import render_board_slide as _render_board_slide  # noqa: E402
 
 
 def _check_evidence_auth(authorization: str | None) -> None:
@@ -763,6 +764,30 @@ async def evidence_html(
         headers={
             "Content-Disposition": (
                 f'inline; filename="evidence-{incident_id}.html"'
+            ),
+        },
+    )
+
+
+@app.get("/board-slide/{filing_id}", response_class=HTMLResponse)
+async def board_slide(filing_id: str) -> HTMLResponse:
+    """Return the board-ready 16:9 slide for a Sponsor Sustainability TNFD filing.
+
+    PLAN_V3.md Move 3 — Maya CSO's #1 ask. The CSO clicks the link from
+    the Ops Center Sponsor ack card, the slide opens in a new tab, she
+    clicks "Download as PNG" (html2canvas), drags the PNG into Slide 14
+    of her Q2 board pack. No public auth gate — the slide content is
+    aggregate-only (no PII) and serves as audit-trail evidence.
+    """
+    rendered = _render_board_slide(filing_id)
+    if rendered.get("status") != "ok":
+        raise HTTPException(status_code=404, detail=rendered.get("error", "no slide"))
+    return HTMLResponse(
+        content=rendered["html"],
+        status_code=200,
+        headers={
+            "Content-Disposition": (
+                f'inline; filename="board-slide-{filing_id}.html"'
             ),
         },
     )

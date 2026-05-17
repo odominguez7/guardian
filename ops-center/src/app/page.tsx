@@ -208,6 +208,7 @@ export default function Home() {
                 filing_id: (payload.filing_id as string) ?? "?",
                 materiality: (payload.materiality as string) ?? "?",
                 status: "filed",
+                board_slide_url: (payload.board_slide_url as string) ?? undefined,
               },
             };
           }

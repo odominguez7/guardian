@@ -199,10 +199,22 @@ def file_tnfd_entry(
         "adversarial_review_severity_0_5": adversarial_review_severity_0_5,
     }
 
+    # Board-ready slide URL (PLAN_V3.md Move 3). The slide endpoint lives on
+    # the GUARDIAN orchestrator (it has the event buffer); the Sponsor peer
+    # just emits the link the CSO can hand to a board pack assembler. The
+    # endpoint is best-effort — the slide renders when the orchestrator
+    # buffer still has the incident's events; eviction returns 404.
+    orchestrator_base = os.environ.get(
+        "GUARDIAN_ORCHESTRATOR_URL",
+        "https://guardian-180171737110.us-central1.run.app",
+    )
+    board_slide_url = f"{orchestrator_base}/board-slide/{filing_id}"
+
     return {
         "status": "filed",
         "filing_id": filing_id,
         "dashboard_url": dashboard_url,
+        "board_slide_url": board_slide_url,
         "materiality": materiality,
         "tnfd_entry": tnfd_entry,
         "filing_authority": "Sponsor Sustainability Operations",

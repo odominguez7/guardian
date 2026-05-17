@@ -16,7 +16,7 @@ export interface ActiveIncident {
   // didn't include a fanout list (legacy / backwards compat).
   expectedPeers?: string[];
   ranger?: { unit: string; eta_min: number; status: string };
-  tnfd?: { filing_id: string; materiality: string; status: string };
+  tnfd?: { filing_id: string; materiality: string; status: string; board_slide_url?: string };
   funder?: { receipt_id: string; program: string; tier: string; status: string };
   neighbor?: { handoff_id: string; posture: string; window_until: string; status: string };
   // Falsifier adversarial-review verdict. Populated when the orchestrator
@@ -203,6 +203,17 @@ export default function IncidentPanel({ incidents }: Props) {
                         TNFD entry filed · {inc.tnfd.materiality} materiality
                       </div>
                     </div>
+                    {inc.tnfd.board_slide_url && (
+                      <a
+                        href={inc.tnfd.board_slide_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded bg-sky-500/15 text-sky-200 ring-1 ring-sky-500/40 hover:bg-sky-500/30 flex-shrink-0"
+                        title="Open the board-ready slide (Maya CSO's Q2 deck)"
+                      >
+                        📋 Slide
+                      </a>
+                    )}
                   </motion.div>
                 )}
                 {inc.funder && (
