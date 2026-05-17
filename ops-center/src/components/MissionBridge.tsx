@@ -234,6 +234,9 @@ export default function MissionBridge({ falsifierVerdict }: MissionBridgeProps =
   }, [activeId, active.voiceFile]);
 
   // Auto-walk: orchestrator → 4 specialists → falsifier → 4 peers, then loop.
+  // v5 codex BLOCK fix: progression is now driven by audio `ended` (with a
+  // 9.5s ceiling for clips that fail to load or peers with no voice). Prior
+  // 4.5s setInterval cut narrations mid-sentence on the 6-12s clips.
   useEffect(() => {
     const sequence = [
       "root_agent",
@@ -247,14 +250,37 @@ export default function MissionBridge({ falsifierVerdict }: MissionBridgeProps =
       "funder_reporter",
       "neighbor_park",
     ];
-    let idx = 0;
-    const tick = () => {
-      idx = (idx + 1) % sequence.length;
-      setActiveId(sequence[idx]);
+    const audio = audioRef.current;
+    let cancelled = false;
+    let safetyTimer: ReturnType<typeof setTimeout> | null = null;
+    const advance = () => {
+      if (cancelled) return;
+      setActiveId((cur) => {
+        const idx = sequence.indexOf(cur);
+        return sequence[(idx + 1) % sequence.length];
+      });
     };
-    const interval = setInterval(tick, 4500);
-    return () => clearInterval(interval);
-  }, []);
+    const scheduleSafety = () => {
+      if (safetyTimer) clearTimeout(safetyTimer);
+      // Upper bound — used when audio.ended doesn't fire (no clip, autoplay
+      // blocked, or peers with empty voiceFile). 9.5s covers the longest
+      // clip we ship + a 500ms breath.
+      safetyTimer = setTimeout(advance, 9500);
+    };
+    const onEnded = () => {
+      if (safetyTimer) clearTimeout(safetyTimer);
+      // Hold the speech bubble visible for a beat after the clip ends,
+      // then advance. Feels less robotic than instant tick.
+      safetyTimer = setTimeout(advance, 900);
+    };
+    if (audio) audio.addEventListener("ended", onEnded);
+    scheduleSafety();
+    return () => {
+      cancelled = true;
+      if (safetyTimer) clearTimeout(safetyTimer);
+      if (audio) audio.removeEventListener("ended", onEnded);
+    };
+  }, [activeId]);
 
   // Pre-compute the SVG line endpoints (orchestrator → each non-orch agent).
   // Active line draws on top in white; rest in agent's own color at 30% opacity.
@@ -297,12 +323,23 @@ export default function MissionBridge({ falsifierVerdict }: MissionBridgeProps =
         </div>
       </div>
 
-      <div className="relative flex-1 min-h-0">
+      <div className="relative flex-1 min-h-0 flex items-center justify-center">
+        {/* v5 codex WARN fix: stage held to square aspect so the circular
+            topology stays circular on 16:9 viewports. The SVG and the badge
+            layer share coordinates; viewBox + preserveAspectRatio="xMidYMid
+            meet" stops the ellipse-distortion seen at deploy. */}
+        <div
+          className="relative"
+          style={{
+            width: "min(100%, calc(100vh - 220px))",
+            aspectRatio: "1 / 1",
+          }}
+        >
         {/* SVG connection lines layer — below badges but above background */}
         <svg
           className="absolute inset-0 w-full h-full pointer-events-none"
           viewBox="0 0 100 100"
-          preserveAspectRatio="none"
+          preserveAspectRatio="xMidYMid meet"
           style={{ zIndex: 1 }}
         >
           {lines.map((l) => (
@@ -343,31 +380,35 @@ export default function MissionBridge({ falsifierVerdict }: MissionBridgeProps =
             />
           ))}
         </div>
-
-        {/* Active-agent speech bubble — anchored bottom-center, doesn't overlap topology */}
-        <div
-          className="absolute left-1/2 -translate-x-1/2 max-w-2xl px-6"
-          style={{ bottom: 88, zIndex: 25 }}
+        </div>
+        {/* v5 codex BLOCK fix: speech bubble now lives in a side rail outside
+            the topology, so it can never overlap a badge (prior bottom: 88
+            collided with Species ID at y=79%). Anchored right on wide screens,
+            collapses to a slim header on narrow ones. */}
+        <aside
+          className="hidden lg:flex absolute right-4 top-4 bottom-4 w-[320px] xl:w-[380px] flex-col gap-2"
+          style={{ zIndex: 25 }}
         >
           <div
-            className="px-6 py-4 rounded-2xl backdrop-blur"
+            className="px-5 py-4 rounded-2xl backdrop-blur"
             style={{
-              background: "rgba(9, 9, 11, 0.78)",
+              background: "rgba(9, 9, 11, 0.82)",
               border: "1px solid rgba(255,255,255,0.08)",
               boxShadow: "0 30px 80px rgba(0,0,0,0.55)",
             }}
           >
             <div className="text-[10px] uppercase tracking-[0.15em] text-zinc-500 mb-1.5 flex items-baseline gap-2">
               <span>{active.name}</span>
-              <span className="text-zinc-700">·</span>
-              <span className="text-zinc-400">{POSITION_STYLE[active.position].label}</span>
               {active.id === "falsifier" && falsifierVerdict && falsifierVerdict !== "concur" && (
                 <span className="ml-auto px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 ring-1 ring-rose-500/40 text-[9px] uppercase tracking-wider">
                   ● {falsifierVerdict}
                 </span>
               )}
             </div>
-            <p className="text-lg text-zinc-100 leading-snug font-light">
+            <div className="text-[10px] text-zinc-500 mb-2">
+              {POSITION_STYLE[active.position].label}
+            </div>
+            <p className="text-base text-zinc-100 leading-snug font-light">
               "{active.intro}"
             </p>
             {active.voiceFile && (
@@ -377,7 +418,7 @@ export default function MissionBridge({ falsifierVerdict }: MissionBridgeProps =
               </div>
             )}
           </div>
-        </div>
+        </aside>
       </div>
 
       {/* Bottom legend */}

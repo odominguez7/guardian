@@ -87,7 +87,7 @@ const PRODUCTS: ProductRow[] = [
   {
     tag: "Music",
     name: "Lyria 2",
-    cost: "$0.06 / 15s clip",
+    cost: "$0.06 / 30s clip",
     role: "Demo-video ambient bed (REST API, not in SDK).",
     modelId: "lyria-002",
     classifyKey: "lyria",
@@ -96,8 +96,8 @@ const PRODUCTS: ProductRow[] = [
   {
     tag: "Continuity",
     name: "Nano Banana",
-    cost: "$0.039 / image",
-    role: "Species-identity continuity (reserved for v5).",
+    cost: "$30 / 1M image tokens",
+    role: "Species-identity continuity (reserved for v5). Per-image cost varies with resolution.",
     modelId: "gemini-2.5-flash-image",
     classifyKey: "nano-banana",
     amortized: true,
@@ -145,39 +145,55 @@ const PRODUCTS: ProductRow[] = [
   },
 ];
 
-// Map a firehose event to one of the live-traffic-bearing classifyKeys.
-// Static products (Imagen / Veo / Lyria / Nano Banana) don't tick on
-// live events — they were rendered at build time. ADK / Cloud Run /
-// BigQuery / Mapbox tick on every event implicitly; we don't bump those
-// per-event either because the counts would dominate.
-function classifyLive(e: GuardianEvent): string | null {
+// Map a firehose event to one or more live-traffic-bearing classifyKeys.
+// Static products (Imagen / Veo / Lyria / Nano Banana) don't tick on live
+// events — they were rendered at build time. ADK shows "always-on" (the
+// framework, not a per-event surface). Cloud Run + BigQuery tick on every
+// event because every event implies one Cloud Run service invocation and
+// one BigQuery analytics row via the AgentAnalyticsPlugin.
+//
+// v5 codex WARN fix: prior version returned a single classifyKey and left
+// Cloud Run / BigQuery as "idle" — undermined the "Built on Google Cloud"
+// pitch. New version returns an array so a single event ticks multiple
+// rows when the event genuinely uses multiple products.
+function classifyLive(e: GuardianEvent): string[] {
+  const keys: string[] = [];
   if (e.kind === "tool_end") {
-    if (e.agent === "root_agent") return "gemini-pro-orch";
-    if (e.agent === "stream_watcher") return "gemini-pro-vision";
-    if (e.agent === "species_id") {
-      if (e.tool === "lookup_species_factsheet") return "vertex-search";
-      return "gemini-pro-vision";
+    if (e.agent === "root_agent") keys.push("gemini-pro-orch");
+    else if (e.agent === "stream_watcher") keys.push("gemini-pro-vision");
+    else if (e.agent === "species_id") {
+      if (e.tool === "lookup_species_factsheet") keys.push("vertex-search");
+      else keys.push("gemini-pro-vision");
     }
-    if (e.agent === "court_evidence") return "gemini-pro-orch";
-    if (e.agent === "audio_agent") return "gemini-flash";
-    if (e.agent === "falsifier") return "gemini-flash";
+    else if (e.agent === "court_evidence") keys.push("gemini-pro-orch");
+    else if (e.agent === "audio_agent") keys.push("gemini-flash");
+    else if (e.agent === "falsifier") keys.push("gemini-flash");
   }
   if (e.kind === "a2a_request" || e.kind === "a2a_response") {
-    return "a2a";
+    keys.push("a2a");
   }
-  return null;
+  // Every emitted event is observable infrastructure: served from Cloud Run,
+  // sunk into BigQuery via the ADK Agent Analytics plugin. Tick those rows.
+  if (e.kind !== "heartbeat") {
+    keys.push("cloud-run");
+    keys.push("bigquery");
+  }
+  return keys;
 }
 
 export default function BuiltOnGoogleCloud({ events }: Props) {
   const [expanded, setExpanded] = useState(false);
 
-  // Live call counts per classifyKey. Static products show "—".
+  // Live call counts per classifyKey. Static products show "—". A single
+  // event can tick multiple rows (e.g. an LLM tool_end ticks Gemini + Cloud
+  // Run + BigQuery) because each product is genuinely doing work for it.
   const liveCounts = useMemo(() => {
     const acc = new Map<string, number>();
     for (const e of events) {
-      const k = classifyLive(e);
-      if (!k) continue;
-      acc.set(k, (acc.get(k) ?? 0) + 1);
+      const keys = classifyLive(e);
+      for (const k of keys) {
+        acc.set(k, (acc.get(k) ?? 0) + 1);
+      }
     }
     return acc;
   }, [events]);
@@ -211,7 +227,10 @@ export default function BuiltOnGoogleCloud({ events }: Props) {
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
             {PRODUCTS.map((p) => {
               const calls = liveCounts.get(p.classifyKey);
-              const isLiveTickable = !p.amortized && !p.thirdParty || p.classifyKey === "a2a" || p.classifyKey === "elevenlabs";
+              // ADK is always-on (framework, not per-event tickable);
+              // amortized/static products show "pre-rendered."
+              const isFramework = p.classifyKey === "adk";
+              const isLiveTickable = !isFramework && (!p.amortized || p.classifyKey === "elevenlabs");
               return (
                 <div
                   key={p.modelId + p.tag}
@@ -249,14 +268,19 @@ export default function BuiltOnGoogleCloud({ events }: Props) {
                     </span>
                     {isLiveTickable && (
                       <span className="text-[9px] text-zinc-500 tabular-nums shrink-0">
-                        {calls !== undefined ? (
+                        {calls !== undefined && calls > 0 ? (
                           <span className="text-emerald-300">● {calls} live</span>
                         ) : (
                           <span>idle</span>
                         )}
                       </span>
                     )}
-                    {p.amortized && (
+                    {isFramework && (
+                      <span className="text-[9px] text-emerald-300/80 shrink-0">
+                        always-on
+                      </span>
+                    )}
+                    {p.amortized && !isFramework && (
                       <span className="text-[9px] text-zinc-600 italic shrink-0">
                         pre-rendered
                       </span>

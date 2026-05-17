@@ -350,7 +350,15 @@ export default function Home() {
   const runScenario = useCallback(
     async (id: string) => {
       lastActivityRef.current = Date.now();
-      setRunningScenarioId(id);
+      // v5 codex WARN fix: capture the previous runningScenarioId BEFORE we
+      // optimistically set our own id, so a 429 (cooldown — first scenario
+      // still running) can revert to that prior id rather than locking the
+      // toolbar to our id for the full 18s fallback.
+      let priorRunning: string | null = null;
+      setRunningScenarioId((cur) => {
+        priorRunning = cur;
+        return id;
+      });
       // v5 producer feedback: 90s fallback reads as "menu frozen" when the
       // firehose stutters. Drop to 18s — just past the 15s server cooldown
       // so a legit second click is still gated, but the UI doesn't feel
@@ -363,12 +371,13 @@ export default function Home() {
           headers: { "Content-Type": "application/json" },
         });
         if (res.status === 429) {
-          // Cooldown hit. Don't clear runningScenarioId — the previously-
-          // running scenario is still in flight. Log and exit silently;
-          // the firehose :complete event from the first run will reset us.
+          // Cooldown hit — server still running a prior scenario. Revert
+          // the runningScenarioId to whatever was running before we
+          // clicked (the actual in-flight scenario), and clear our
+          // fallback timer so we don't shadow the real scenario's reset.
           console.warn(`Scenario ${id} on cooldown; first run still in flight`);
-          // Clear the fallback only because we won't get the success path.
-          // The firehose-driven reset is still expected.
+          clearTimeout(fallback);
+          setRunningScenarioId((cur) => (cur === id ? priorRunning : cur));
           return;
         }
         if (!res.ok) {
