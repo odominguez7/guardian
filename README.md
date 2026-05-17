@@ -2,7 +2,20 @@
 
 Real-time multi-agent system for biodiversity protection and corporate ESG reporting under the Taskforce on Nature-related Financial Disclosures (TNFD) and Corporate Sustainability Reporting Directive (CSRD). Built for the **Google for Startups AI Agents Challenge** — Track 3 (Refactor for Marketplace + Gemini Enterprise).
 
-**Submission deadline:** 2026-06-05 · **Status as of 2026-05-17:** core platform LIVE + final v2.1 demo video rendered + adversarial Falsifier agent shipped + Maya CSO board-ready slide auto-export live.
+**Submission deadline:** 2026-06-05 · **Status as of 2026-05-17 (v8 Days 1-12 of 19 shipped):** Mission Bridge photo-real portraits live · Vertex AI Agent Engine deployed (2 of 3 Track 3 mandated runtimes) · ADK Eval framework wired into nightly CI · procurement pack + Marketplace listing committed · Devpost submission draft written · 19 codex adversarial handshakes cleared.
+
+**Live demos right now:**
+- Ops Center: https://guardian-ops-center-180171737110.us-central1.run.app/
+- Orchestrator (Cloud Run): https://guardian-180171737110.us-central1.run.app/
+- Agent Engine resource: `projects/180171737110/locations/us-central1/reasoningEngines/7109983694676295680`
+
+**Key docs:**
+- Procurement & legal pack: [`marketplace/PROCUREMENT.md`](./marketplace/PROCUREMENT.md)
+- Marketplace listing: [`marketplace/LISTING.md`](./marketplace/LISTING.md)
+- Devpost submission draft: [`marketplace/DEVPOST_SUBMISSION.md`](./marketplace/DEVPOST_SUBMISSION.md)
+- Agent Engine deploy: [`docs/AGENT_ENGINE.md`](./docs/AGENT_ENGINE.md)
+- v8 master plan: [`reviews/MASTER_PLAN_v8.md`](./reviews/MASTER_PLAN_v8.md)
+- Demo-video runbook: [`RUNBOOKS/render-demo-video.md`](./RUNBOOKS/render-demo-video.md)
 
 ---
 
@@ -14,10 +27,11 @@ A team of specialized AI agents watches conservation areas in real time, detects
 
 ## Live endpoints
 
-| Service | URL | Revision |
+| Service | URL | Revision (2026-05-17) |
 |---|---|---|
-| GUARDIAN orchestrator | https://guardian-180171737110.us-central1.run.app | `guardian-00022-rs8` |
-| Ops Center (frontend) | https://guardian-ops-center-180171737110.us-central1.run.app | `guardian-ops-center-00012-rd9` |
+| GUARDIAN orchestrator (Cloud Run) | https://guardian-180171737110.us-central1.run.app | `guardian-00035-lwf` |
+| Ops Center (frontend) | https://guardian-ops-center-180171737110.us-central1.run.app | `guardian-ops-center-00036-ksk` |
+| **Vertex AI Agent Engine** (NEW v8) | `projects/180171737110/locations/us-central1/reasoningEngines/7109983694676295680` | `guardian-orchestrator` |
 | A2A peer — Park Service | https://guardian-park-service-180171737110.us-central1.run.app | `guardian-park-service-00004-2sk` |
 | A2A peer — Sponsor Sustainability (TNFD) | https://guardian-sponsor-sustainability-180171737110.us-central1.run.app | `guardian-sponsor-sustainability-00004-729` |
 | A2A peer — Funder Reporter | https://guardian-funder-reporter-180171737110.us-central1.run.app | `guardian-funder-reporter-00002-vfp` |
@@ -71,22 +85,25 @@ A team of specialized AI agents watches conservation areas in real time, detects
 
 ## Stack
 
-- **Intelligence:** Gemini 3 Pro (orchestrator, legal output) · Gemini 2.5 Flash (sub-agents) · Gemini Live (real-time video + audio)
-- **Orchestration:** Agent Development Kit (ADK) · Model Context Protocol (MCP) · Agent-to-Agent (A2A) protocol v0.3.0
-- **Knowledge:** Vertex AI Search · BigQuery (Spanner downscoped) · planned Memory Bank (D6)
-- **Vision/Media:** Imagen 4 (cut from runtime) · Document AI · Speech-to-Text
-- **Runtime:** 6 Cloud Run services · Firebase Auth · Pub/Sub · Cloud Storage
-- **AgentOps:** Agent Starter Pack v0.41.3 (`adk_a2a` template) · Cloud Build CI/CD · Cloud Trace · Looker Studio (D17) · Cloud Logging → BigQuery
+- **Intelligence:** Gemini 2.5 Pro (orchestrator + Stream Watcher vision + Species ID + Court Evidence) · Gemini 2.5 Flash (Audio + Falsifier) · gemini-3-flash-preview (LLM-as-judge for ADK Eval)
+- **Orchestration:** Agent Development Kit (ADK) 2.0 with `ParallelAgent` peer fan-out + sub-agent topology · Agent-to-Agent (A2A) protocol v0.3.0
+- **Knowledge:** Vertex AI Search RAG over IUCN / CITES / TNFD corpus
+- **Vision/Media:** Imagen 4 (Mission Bridge agent portraits, board-slide art) · Veo 3.1 Fast (wildlife loops + hero) · Lyria 2 (demo music bed) · Nano Banana / Gemini 2.5 Flash Image (held for v9 species continuity)
+- **Runtime:** Cloud Run (6 services) **+ Vertex AI Agent Engine (live)** · Firebase Auth · Cloud Storage
+- **AgentOps:** ADK Agent Analytics → BigQuery · Cloud Build CI/CD · Cloud Trace · Cloud Logging
+- **Evaluation:** ADK Eval framework (5 evalsets · LLM-as-judge · nightly GitHub Action) · 19 codex adversarial handshakes through v8
+- **3rd-party:** ElevenLabs (offline voice render only — no runtime data flow) · Mapbox GL JS (Ops Center map)
 
 ## Track 3 mandate checklist
 
 | Mandate | Implementation | Status |
 |---|---|---|
 | B2B core function | F500 TNFD/CSRD compliance buyers · conservation orgs · insurance underwriters | ✅ |
-| Cloud-native runtime | 6 Cloud Run services | ✅ |
-| Google Cloud powered intelligence | Gemini 3 Pro orchestrator + 2.5 Flash sub-agents + Vertex AI Search | ✅ |
+| Cloud-native runtime | **2 of 3 mandated**: Cloud Run (6 services) + Vertex AI Agent Engine (live) | ✅ |
+| Vertex-powered intelligence | Gemini 2.5 Pro/Flash + Vertex AI Search RAG | ✅ |
 | **A2A interoperability** | 4 distinct enterprise peers in separate Cloud Run services, each with `agent.json` + service-to-service ID token auth | ✅ |
-| Marketplace-ready | Listing package + pricing + producer-portal submission evidence | ✅ |
+| Marketplace-ready | Listing package + procurement pack + pricing rate card + SOC 2 roadmap | ✅ |
+| ADK core-concept demonstration | ParallelAgent fan-out + 5 specialist sub-agents + ADK Eval CI | ✅ |
 
 ## Repo layout
 
