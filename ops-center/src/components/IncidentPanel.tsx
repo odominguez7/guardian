@@ -58,10 +58,29 @@ export default function IncidentPanel({ incidents }: Props) {
       </div>
       <div className="flex-1 overflow-y-auto p-3 space-y-3">
         {incidents.length === 0 && (
-          <div className="text-zinc-500 text-xs px-2 py-8 text-center">
-            No active incidents.
-            <br />
-            <span className="text-zinc-600">Fire a demo scenario from the toolbar.</span>
+          <div className="relative overflow-hidden rounded-lg border border-zinc-800 bg-black">
+            {/* Veo 3.1 Fast hero loop — PLAN_V3.md Move 2.3. Plays in the
+                IncidentPanel idle region so the page has motion even before
+                any scenario fires. Muted, loops, autoplays (no user-gesture
+                gate since it has no audio). */}
+            <video
+              src="/hero-6s.mp4"
+              autoPlay
+              loop
+              muted
+              playsInline
+              className="w-full h-48 object-cover opacity-80"
+              aria-hidden="true"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
+            <div className="absolute bottom-3 left-3 right-3 text-zinc-300">
+              <div className="text-xs font-semibold uppercase tracking-wider">
+                Standing watch
+              </div>
+              <div className="text-[10px] text-zinc-400 mt-1 leading-relaxed">
+                Fire a scenario from the toolbar — or wait 10s for Auto Demo Mode.
+              </div>
+            </div>
           </div>
         )}
         <AnimatePresence initial={false}>
@@ -105,13 +124,15 @@ export default function IncidentPanel({ incidents }: Props) {
                       : "bg-zinc-900/40 border-zinc-700/40"
                   }`}
                 >
-                  <Gavel
-                    className={`w-3.5 h-3.5 flex-shrink-0 mt-0.5 ${
+                  <img
+                    src="/portraits/falsifier.png"
+                    alt=""
+                    className={`w-6 h-6 rounded-full object-cover flex-shrink-0 mt-0.5 ring-1 ${
                       inc.falsifier.verdict === "dissent"
-                        ? "text-rose-300"
+                        ? "ring-rose-500/50"
                         : inc.falsifier.verdict === "concur"
-                        ? "text-emerald-300"
-                        : "text-zinc-400"
+                        ? "ring-emerald-500/50"
+                        : "ring-zinc-600/40"
                     }`}
                   />
                   <div className="flex-1 min-w-0">
@@ -150,7 +171,11 @@ export default function IncidentPanel({ incidents }: Props) {
                     exit={{ opacity: 0, height: 0 }}
                     className="bg-black/30 rounded p-2 text-xs flex items-center gap-2 border border-white/10"
                   >
-                    <ShieldAlert className="w-3.5 h-3.5 text-emerald-300 flex-shrink-0" />
+                    <img
+                      src="/portraits/park_service.png"
+                      alt=""
+                      className="w-6 h-6 rounded-full object-cover flex-shrink-0 ring-1 ring-emerald-500/40"
+                    />
                     <div className="flex-1">
                       <span className="font-semibold text-emerald-200">{inc.ranger.unit}</span>
                       <span className="text-zinc-400"> dispatched</span>
@@ -167,7 +192,11 @@ export default function IncidentPanel({ incidents }: Props) {
                     exit={{ opacity: 0, height: 0 }}
                     className="bg-black/30 rounded p-2 text-xs flex items-center gap-2 border border-white/10"
                   >
-                    <FileCheck2 className="w-3.5 h-3.5 text-sky-300 flex-shrink-0" />
+                    <img
+                      src="/portraits/sponsor_sustainability.png"
+                      alt=""
+                      className="w-6 h-6 rounded-full object-cover flex-shrink-0 ring-1 ring-sky-500/40"
+                    />
                     <div className="flex-1">
                       <div className="font-mono text-[11px] text-sky-200">{inc.tnfd.filing_id}</div>
                       <div className="text-[10px] text-zinc-400">
@@ -183,7 +212,11 @@ export default function IncidentPanel({ incidents }: Props) {
                     exit={{ opacity: 0, height: 0 }}
                     className="bg-black/30 rounded p-2 text-xs flex items-center gap-2 border border-white/10"
                   >
-                    <HandCoins className="w-3.5 h-3.5 text-violet-300 flex-shrink-0" />
+                    <img
+                      src="/portraits/funder_reporter.png"
+                      alt=""
+                      className="w-6 h-6 rounded-full object-cover flex-shrink-0 ring-1 ring-violet-500/40"
+                    />
                     <div className="flex-1">
                       <div className="font-mono text-[11px] text-violet-200">{inc.funder.receipt_id}</div>
                       <div className="text-[10px] text-zinc-400">
@@ -199,7 +232,11 @@ export default function IncidentPanel({ incidents }: Props) {
                     exit={{ opacity: 0, height: 0 }}
                     className="bg-black/30 rounded p-2 text-xs flex items-center gap-2 border border-white/10"
                   >
-                    <MapIcon className="w-3.5 h-3.5 text-orange-300 flex-shrink-0" />
+                    <img
+                      src="/portraits/neighbor_park.png"
+                      alt=""
+                      className="w-6 h-6 rounded-full object-cover flex-shrink-0 ring-1 ring-orange-500/40"
+                    />
                     <div className="flex-1">
                       <div className="font-mono text-[11px] text-orange-200">{inc.neighbor.handoff_id}</div>
                       <div className="text-[10px] text-zinc-400">

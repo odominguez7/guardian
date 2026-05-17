@@ -11,9 +11,10 @@ interface Props {
   onRunScenario: (id: string) => void;
   runningId: string | null;
   autoCycleActive?: boolean;
+  ambientReady?: boolean;
 }
 
-export default function Toolbar({ scenarios, onRunScenario, runningId, autoCycleActive }: Props) {
+export default function Toolbar({ scenarios, onRunScenario, runningId, autoCycleActive, ambientReady }: Props) {
   const [user, setUser] = useState<User | null>(null);
   const [authConfigured, setAuthConfigured] = useState(false);
 
@@ -47,6 +48,14 @@ export default function Toolbar({ scenarios, onRunScenario, runningId, autoCycle
       {autoCycleActive && (
         <span className="ml-4 px-2 py-0.5 rounded text-[10px] uppercase tracking-wider bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/40 animate-pulse">
           ● AUTO DEMO
+        </span>
+      )}
+      {ambientReady && (
+        <span
+          className="ml-2 px-2 py-0.5 rounded text-[10px] uppercase tracking-wider bg-zinc-800/60 text-zinc-400 ring-1 ring-zinc-700/40"
+          title="Lyria 2 ambient bed (Vertex AI)"
+        >
+          ♪ AMBIENT
         </span>
       )}
 

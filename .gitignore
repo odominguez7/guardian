@@ -38,6 +38,10 @@ demo-renders/
 *.mp4
 *.mov
 
+# Exception: Ops Center Veo hero loop ships in the Docker build
+# (PLAN_V3.md Move 2.3). All other mp4s remain excluded.
+!ops-center/public/*.mp4
+
 # Heavy video pipeline intermediates — regenerable from scripts/video/*.
 # Keep mp3 voice tracks tracked (small + locked to script).
 video-assets/footage/*.webm
