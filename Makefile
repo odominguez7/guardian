@@ -89,6 +89,14 @@ build-inspector-if-needed:
 # Backend Deployment Targets
 # ==============================================================================
 
+# Deploy the orchestrator to Vertex AI Agent Engine. Track 3 alignment.
+# See docs/AGENT_ENGINE.md for the rationale + verification steps.
+deploy-agent-engine:
+	@echo "============================================================="
+	@echo "| 🚀 Deploying GUARDIAN root_agent to Vertex AI Agent Engine |"
+	@echo "============================================================="
+	uv run python deployment/agent_engine.py deploy
+
 # Deploy the agent remotely
 # Usage: make deploy [IAP=true] [PORT=8080] - Set IAP=true to enable Identity-Aware Proxy, PORT to specify container port
 deploy:
