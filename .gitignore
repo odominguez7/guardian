@@ -258,3 +258,4 @@ tools/a2a-inspector/
 # ADK runtime session/state directories (regenerated on each run)
 .adk/
 **/.adk/
+.gstack/

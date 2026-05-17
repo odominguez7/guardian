@@ -172,11 +172,12 @@ gen_silence () { local dur="$1" out="$2"
 
 gen_silence 6      "$TMP/a-silence-6s.mp3"
 gen_silence 4      "$TMP/a-silence-4s.mp3"
-gen_silence 3      "$TMP/a-pad-hook.mp3"        # pad 5s hook VO to 8s visual
-gen_silence 8      "$TMP/a-pad-demo.mp3"          # ≈8s tail of 60s demo beat
-gen_silence 9      "$TMP/a-pad-proof.mp3"
-gen_silence 16.4   "$TMP/a-pad-arch.mp3"
-gen_silence 1.8    "$TMP/a-pad-business.mp3"
+gen_silence 0.2    "$TMP/a-pad-hook.mp3"          # 8s window − 7.8s hook VO
+gen_silence 22.3   "$TMP/a-pad-demo.mp3"          # 60s window − (7.2+16.0+9.8+4.7) demo VOs
+gen_silence 12.6   "$TMP/a-pad-proof.mp3"         # 20s window − 7.4s proof VO
+gen_silence 6.6    "$TMP/a-pad-arch.mp3"          # 35s window − 28.4s arch VO
+gen_silence 7.2    "$TMP/a-pad-business.mp3"     # 25s window − 17.8s business VO
+gen_silence 4.1    "$TMP/a-pad-close.mp3"        # 10s window − 5.9s close VO
 
 # 02-hook-stat is ~5s after tightening; we'll add a 3s silence pad after.
 cp "$VOICE/02-hook-stat.mp3" "$TMP/a02.mp3"
@@ -202,7 +203,8 @@ ffmpeg -y -loglevel error -t 10 -i "$VOICE/12-close.mp3" -c:a libmp3lame -b:a 12
   echo "file '$PWD/$TMP/a-pad-arch.mp3'"
   echo "file '$PWD/$VOICE/11-business.mp3'"          # v08 (25s with pad)
   echo "file '$PWD/$TMP/a-pad-business.mp3'"
-  echo "file '$PWD/$TMP/a09.mp3'"                    # v09 close (10s)
+  echo "file '$PWD/$TMP/a09.mp3'"                    # v09 close VO (5.9s)
+  echo "file '$PWD/$TMP/a-pad-close.mp3'"             # + 4.1s silence → 10s window
 } > "$TMP/concat-audio.txt"
 
 ffmpeg -y -loglevel error -f concat -safe 0 -i "$TMP/concat-audio.txt" -c:a libmp3lame -b:a 192k "$TMP/audio-vo.mp3"

@@ -71,7 +71,7 @@
     {
       "id": "07-demo-fanout",
       "duration_target_s": 25,
-      "visual": "Map pulse on Tag-22. 4 amber arrows animate from Selous to peer markers (Dar es Salaam, London-anchored Sponsor card, Geneva-anchored Funder card, Maasai Mara). Each peer ack card lands under incident panel with real IDs: PSR-9737, TNFD-2026-A0192B2A32, FUND-A0192B2A32, MUTAID-A019282A32. Lower-third overlay: \"Each peer = separate Cloud Run service · github.com/odominguez7/guardian\"",
+      "visual": "Map pulse on Tag-22. 4 amber arrows animate from Selous to peer markers (Dar es Salaam, London-anchored Sponsor card, Geneva-anchored Funder card, Maasai Mara). Each peer ack card lands under incident panel with real IDs from the live cut: PSR-5280 (ranger unit; seeded deterministically by incident_id post-2026-05-17), TNFD-2026-A0192B2A32, FUND-2026-A0192B2A32, MUTAID-2026-A0192B2A32. Lower-third overlay: \"Each peer = separate Cloud Run service · github.com/odominguez7/guardian\"",
       "audio": "Music holds.",
       "text": "The orchestrator fans out to four independent A2A peers, each a separate service: <break time=\"150ms\"/> Park Service. <break time=\"100ms\"/> Sponsor Sustainability. <break time=\"100ms\"/> Funder Reporter. <break time=\"100ms\"/> Neighbor Park."
     },

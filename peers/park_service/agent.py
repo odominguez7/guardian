@@ -68,7 +68,11 @@ def dispatch_rangers(incident_id: str, location: str, severity: str) -> dict:
         return {"status": "error", "error": f"unknown severity: {severity}"}
 
     eta_minutes = {"critical": 8, "high": 15, "medium": 30, "low": 60}[sev]
-    unit_id = "PSR-" + "".join(random.choices(string.digits, k=4))
+    # Seed by incident_id so repeated calls for the same incident return the
+    # same unit. Makes the demo's "every ID is from a live, reproducible call"
+    # claim true for ranger_unit too — codex P0 #6/#7 fix 2026-05-17.
+    rng = random.Random(incident_id)
+    unit_id = "PSR-" + "".join(rng.choices(string.digits, k=4))
 
     return {
         "status": "dispatched",
