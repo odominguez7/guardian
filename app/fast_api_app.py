@@ -859,8 +859,9 @@ async def livecam_spot(req: _LivecamSpotRequest) -> dict:
     # the smoke test caught 5 ostriches + 1 oryx but didn't fan out.
     requires_escalation = bool(result.get("requires_escalation"))
     species_list = result.get("species") or []
+    threat_signals = result.get("threat_signals") or []
     # Pick the highest-confidence common name as the headline species.
-    species_headline: str = "wildlife sighting"
+    species_headline: str = ""
     if isinstance(species_list, list) and species_list:
         try:
             top = sorted(
@@ -874,12 +875,20 @@ async def livecam_spot(req: _LivecamSpotRequest) -> dict:
         except (TypeError, ValueError):
             pass
     total_animal_count = int(result.get("total_animal_count") or 0)
-    threat_signals = result.get("threat_signals") or []
     if not requires_escalation and (total_animal_count > 0 or threat_signals):
         # Producer ergonomic: any live wildlife sighting is worth a fan-out
         # so the demo shows the agentic chain reacting. If the vision tool
         # is conservative, escalate to medium here so the peers always run.
         requires_escalation = True
+    # v6.3 codex WARN fix: threat-only escalations (e.g. fence breach with
+    # no animals visible in the frame) used to ship "wildlife sighting" as
+    # species_affected on every peer payload — misleading on the TNFD
+    # filing. Now we derive a threat-specific label when species is empty.
+    if not species_headline:
+        if threat_signals:
+            species_headline = f"scene event ({threat_signals[0]})"
+        else:
+            species_headline = "wildlife sighting"
     # Bind back to species_name for the peer-args dicts below.
     species_name = species_headline
     severity = (

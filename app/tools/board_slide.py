@@ -72,6 +72,28 @@ def _species_summary(evts: list[dict]) -> dict[str, str | int]:
             if isinstance(tm, dict) and tm.get("common_name"):
                 species_name = species_name or tm["common_name"]
         if e.get("agent") == "stream_watcher" and isinstance(result, dict):
+            # v6.3 codex WARN fix: stream_watcher emits species as a LIST
+            # ({"species": [{"common_name": ..., "count": N, "confidence": 0.95}]})
+            # not primary_species. /livecam/spot uses this path. Pick the
+            # top-confidence entry. Legacy /demo/run fixtures may still
+            # supply primary_species as a string; keep that fallback.
+            sl = result.get("species")
+            if isinstance(sl, list) and sl:
+                top = max(
+                    (s for s in sl if isinstance(s, dict)),
+                    key=lambda s: float(s.get("confidence") or 0),
+                    default=None,
+                )
+                if top:
+                    cn = (top.get("common_name") or top.get("name") or "").strip()
+                    if cn and not species_name:
+                        species_name = cn
+                    try:
+                        c = int(top.get("count") or 0)
+                        if c > count:
+                            count = c
+                    except (TypeError, ValueError):
+                        pass
             species_name = species_name or (result.get("primary_species") or "")
             tac = result.get("total_animal_count")
             if isinstance(tac, int) and tac > count:
