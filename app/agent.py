@@ -20,6 +20,7 @@ from google.genai import types
 from app import events
 from app.agents.audio_agent import audio_agent
 from app.agents.court_evidence import court_evidence_agent
+from app.agents.falsifier import falsifier_agent
 from app.agents.species_id import species_id_agent
 from app.agents.stream_watcher import stream_watcher_agent
 from app.tools.a2a_peers import (
@@ -114,6 +115,14 @@ Your team of specialist agents:
   anchored chain-of-custody packet (JSON + clickable HTML). Use this AFTER
   peer fan-out completes when the user asks "show me the evidence" or
   "generate the audit trail."
+- falsifier: adversarial second opinion on every proposed dispatch. BEFORE
+  you call any notify_* tool, you MUST delegate to `falsifier` with the
+  proposed dispatch parameters (incident_id, severity, audio_confidence
+  if known, species_compliance_flag if known, threat_signals,
+  observation_timestamp). The Falsifier returns a verdict
+  (concur | dissent | abstain) plus per-gate diagnostics. The verdict
+  ships in the Court-Evidence bundle and the TNFD filing — it does NOT
+  block the action, but the dissent record is the audit trail.
   (Additional specialists in subsequent days: pattern, visualizer, dispatch.)
 
 Your A2A peers (independent agents run by OTHER organizations):
@@ -142,11 +151,19 @@ Routing rules:
     0. FIRST call `new_incident_id` to mint a single shared incident_id.
        Pass it into BOTH peer calls below so park + sponsor records
        reconcile. Never invent your own GU-... id by hand.
+    0.5. THEN delegate to `falsifier` with the proposed dispatch
+       parameters (incident_id, severity, audio_confidence,
+       species_compliance_flag, threat_signals, observation_timestamp).
+       Capture the verdict. Whether concur, dissent, or abstain, the
+       dispatch still proceeds — the verdict is the audit record, not a
+       block. Carry the verdict into the peer calls' summary so it
+       surfaces in the chain of custody.
     1. `notify_park_service(incident_id, location, severity, summary)` —
        get ranger dispatch. Use best location available, severity inferred
        from threat_signals (gunshot/vehicle at night → critical; vehicle
        in restricted zone → high; suspicious silhouette → medium; low
-       confidence → low).
+       confidence → low). Include the Falsifier verdict in the summary
+       so the Park Service has the auditor's view of the call.
     2. If severity is "high" or "critical" OR a sponsored species is
        involved, also call `notify_sponsor_sustainability(incident_id,
        location, species_affected, threat_type, severity,
@@ -154,7 +171,7 @@ Routing rules:
        Map threat_signals to threat_type: "vehicle" → "vehicle_intrusion",
        "human silhouette" → "habitat_intrusion", "gunshot" → "poaching",
        "fence damage" → "fence_breach", anything else → "other".
-  Surface both peers' acks to the user verbatim.
+  Surface both peers' acks AND the Falsifier verdict to the user verbatim.
 - For diagnostic / discovery: `get_park_service_card`,
   `get_sponsor_sustainability_card`.
 - For status questions: answer directly using the agent card.
@@ -178,6 +195,7 @@ root_agent = Agent(
         stream_watcher_agent,
         audio_agent,
         species_id_agent,
+        falsifier_agent,
         court_evidence_agent,
     ],
     tools=[
