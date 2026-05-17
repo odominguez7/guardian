@@ -90,8 +90,13 @@ function CamTile({ cam }: { cam: CamProps }) {
         body: JSON.stringify({ youtube_id: cam.youtubeId, cam_label: cam.label }),
       });
       if (res.status === 429) {
-        const body = await res.json().catch(() => ({}));
-        setSpotMessage(body.detail ?? "Cooldown — retry in a few seconds.");
+        const body = (await res.json().catch(() => null)) as { detail?: string } | null;
+        // v6.1 codex WARN fix: fall back to a stable message when the server
+        // omits or renames the `detail` field — empty status strings looked
+        // like the button silently broke.
+        setSpotMessage(
+          body?.detail ?? "Live cam on cooldown — retry in a few seconds.",
+        );
         setSpotState("error");
         return;
       }

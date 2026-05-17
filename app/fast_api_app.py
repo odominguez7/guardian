@@ -718,7 +718,12 @@ def _pick_live_thumbnail(youtube_id: str) -> str | None:
     """Return the freshest publicly fetchable thumbnail URL for a YouTube
     live stream, or None if every candidate 404s. For live streams YouTube
     rotates maxres_live_1.jpg / maxres_live_2.jpg / maxres_live_3.jpg every
-    ~30s, with maxresdefault as the static poster fallback."""
+    ~30s, with maxresdefault as the static poster fallback.
+
+    v6 codex BLOCK fix: callers wrap this in asyncio.to_thread because the
+    sequential HEAD probes can take up to ~21s worst-case and would freeze
+    the event loop otherwise.
+    """
     candidates = [
         f"https://i.ytimg.com/vi/{youtube_id}/maxres_live_1.jpg",
         f"https://i.ytimg.com/vi/{youtube_id}/maxres_live_2.jpg",
@@ -754,6 +759,8 @@ async def livecam_spot(req: _LivecamSpotRequest) -> dict:
     up the existing topology + fan-out animation.
     """
     import time as _time
+    import secrets as _secrets
+    from datetime import datetime, timezone
 
     youtube_id = req.youtube_id.strip()
     if not youtube_id or len(youtube_id) > 32:
@@ -770,15 +777,30 @@ async def livecam_spot(req: _LivecamSpotRequest) -> dict:
         )
     _livecam_last_run[youtube_id] = now
 
-    thumbnail_url = _pick_live_thumbnail(youtube_id)
+    # v6.1 codex BLOCK fix: wrap the 7-URL HEAD probe in to_thread so the
+    # event loop isn't frozen for up to ~21s while we search for a frame.
+    thumbnail_url = await asyncio.to_thread(_pick_live_thumbnail, youtube_id)
     if thumbnail_url is None:
         raise HTTPException(
             status_code=502,
             detail=f"No fetchable thumbnail for youtube_id={youtube_id}",
         )
+    # v6.1 codex WARN fix: add a cache-buster query param. YouTube's CDN
+    # otherwise serves the same edge-cached crop, which would make every
+    # successive "Spot Now" click analyze the same image.
+    sep = "&" if "?" in thumbnail_url else "?"
+    thumbnail_url = f"{thumbnail_url}{sep}_ts={int(_time.time())}"
 
-    # Mint the incident now so every downstream event carries the same id.
-    incident_id = mint_incident_id(seed=f"livecam:{youtube_id}|{int(_time.time())}")
+    # v6.1 codex WARN fix: incident_id seed now includes random entropy so
+    # cross-pod / rapid-fire clicks can't collide on the same id. Same
+    # second + same youtube_id + different click → unique incident.
+    incident_id = mint_incident_id(
+        seed=f"livecam:{youtube_id}|{int(_time.time())}|{_secrets.token_hex(4)}"
+    )
+    # Real ISO timestamp — passed to every peer arg below. v6 codex BLOCK
+    # fix: sponsor / funder / neighbor all reject None timestamps with a
+    # structured error envelope and the incident would silently not fan out.
+    observation_iso = datetime.now(timezone.utc).isoformat()
 
     # 1) Announce the spot on the firehose so the UI lights up immediately.
     _events.emit(
@@ -896,21 +918,23 @@ async def livecam_spot(req: _LivecamSpotRequest) -> dict:
             else "other"
         ),
         "severity": severity,
-        "observation_timestamp": None,
+        "observation_timestamp": observation_iso,
     }
     funder_args = {
         "location": cam_label,
         "species_affected": species_name,
         "funder_program": "general_impact",
         "severity": severity,
-        "observation_timestamp": None,
+        "observation_timestamp": observation_iso,
     }
+    # v6.1 codex BLOCK fix: neighbor_park's arg is species_affected (not
+    # species), and observation_timestamp must be ISO not None.
     neighbor_args = {
         "origin_park": cam_label,
         "crossover_corridor": "live-cam-detected",
         "severity": severity,
-        "species": species_name,
-        "observation_timestamp": None,
+        "species_affected": species_name,
+        "observation_timestamp": observation_iso,
     }
 
     tasks = {
