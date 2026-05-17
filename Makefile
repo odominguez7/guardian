@@ -263,7 +263,9 @@ deploy-ops-center:
 	: "$${FIREBASE_AUTH_DOMAIN:=$$NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}"; \
 	: "$${FIREBASE_PROJECT_ID:=$$NEXT_PUBLIC_FIREBASE_PROJECT_ID}"; \
 	: "$${FIREBASE_APP_ID:=$$NEXT_PUBLIC_FIREBASE_APP_ID}"; \
-	export MAPBOX_TOKEN FIREBASE_API_KEY FIREBASE_AUTH_DOMAIN FIREBASE_PROJECT_ID FIREBASE_APP_ID; \
+	: "$${DEMO_MODE:=$$NEXT_PUBLIC_DEMO_MODE}"; \
+	: "$${DEMO_MODE:=1}"; \
+	export MAPBOX_TOKEN FIREBASE_API_KEY FIREBASE_AUTH_DOMAIN FIREBASE_PROJECT_ID FIREBASE_APP_ID DEMO_MODE; \
 	if [ -z "$$MAPBOX_TOKEN" ]; then \
 	  echo ""; \
 	  echo "ERROR: MAPBOX_TOKEN is empty. The deploy would ship without the map."; \
@@ -278,7 +280,7 @@ deploy-ops-center:
 	echo "Deploying with MAPBOX_TOKEN length=$${#MAPBOX_TOKEN}, FIREBASE_API_KEY length=$${#FIREBASE_API_KEY}" && \
 	gcloud builds submit . \
 		--config ops-center/cloudbuild.yaml \
-		--substitutions "COMMIT_SHA=$$COMMIT_SHA,_ORCHESTRATOR_URL=$$ORCH_URL,_MAPBOX_TOKEN=$${MAPBOX_TOKEN:-},_FIREBASE_API_KEY=$${FIREBASE_API_KEY:-},_FIREBASE_AUTH_DOMAIN=$${FIREBASE_AUTH_DOMAIN:-},_FIREBASE_PROJECT_ID=$${FIREBASE_PROJECT_ID:-},_FIREBASE_APP_ID=$${FIREBASE_APP_ID:-}" \
+		--substitutions "COMMIT_SHA=$$COMMIT_SHA,_ORCHESTRATOR_URL=$$ORCH_URL,_MAPBOX_TOKEN=$${MAPBOX_TOKEN:-},_FIREBASE_API_KEY=$${FIREBASE_API_KEY:-},_FIREBASE_AUTH_DOMAIN=$${FIREBASE_AUTH_DOMAIN:-},_FIREBASE_PROJECT_ID=$${FIREBASE_PROJECT_ID:-},_FIREBASE_APP_ID=$${FIREBASE_APP_ID:-},_DEMO_MODE=$${DEMO_MODE:-1}" \
 		--project $$PROJECT_ID && \
 	gcloud beta run deploy guardian-ops-center \
 		--image us-central1-docker.pkg.dev/$$PROJECT_ID/cloud-run-source-deploy/guardian-ops-center:latest \

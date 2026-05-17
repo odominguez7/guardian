@@ -24,6 +24,8 @@ steps:
       - 'NEXT_PUBLIC_FIREBASE_PROJECT_ID=${_FIREBASE_PROJECT_ID}'
       - '--build-arg'
       - 'NEXT_PUBLIC_FIREBASE_APP_ID=${_FIREBASE_APP_ID}'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_DEMO_MODE=${_DEMO_MODE}'
       - 'ops-center/'
 
 substitutions:
@@ -33,6 +35,12 @@ substitutions:
   _FIREBASE_AUTH_DOMAIN: ''
   _FIREBASE_PROJECT_ID: ''
   _FIREBASE_APP_ID: ''
+  # Move 6.0 banner regression fix 2026-05-17: NEXT_PUBLIC_DEMO_MODE wasn't
+  # in the substitutions list, so the deployed image had it undefined at
+  # build time and the Toolbar.tsx guard {DEMO_MODE !== "1"} always matched.
+  # Default to '1' so any deploy without the .env.local source still hides
+  # the "ANONYMOUS DEMO · FIREBASE AUTH NOT CONFIGURED" banner.
+  _DEMO_MODE: '1'
 
 images:
   - 'us-central1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/guardian-ops-center:${COMMIT_SHA}'
