@@ -248,10 +248,22 @@ wire-neighbor-park:
 # get baked into the static bundle. Public (--allow-unauthenticated) so
 # judges can click + see the demo.
 deploy-ops-center:
+	# Sources ops-center/.env.local first so MAPBOX_TOKEN, ELEVENLABS_*, etc.
+	# are guaranteed in the recipe shell — previously env-var inheritance
+	# from the calling shell was unreliable (2026-05-17 deploy hit this).
+	@if [ -f ops-center/.env.local ]; then \
+	  set -a; . ./ops-center/.env.local; set +a; \
+	  : "$${MAPBOX_TOKEN:=$$NEXT_PUBLIC_MAPBOX_TOKEN}"; \
+	  : "$${FIREBASE_API_KEY:=$$NEXT_PUBLIC_FIREBASE_API_KEY}"; \
+	  : "$${FIREBASE_AUTH_DOMAIN:=$$NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}"; \
+	  : "$${FIREBASE_PROJECT_ID:=$$NEXT_PUBLIC_FIREBASE_PROJECT_ID}"; \
+	  : "$${FIREBASE_APP_ID:=$$NEXT_PUBLIC_FIREBASE_APP_ID}"; \
+	fi; \
 	PROJECT_ID=$$(gcloud config get-value project) && \
 	PROJECT_NUMBER=$$(gcloud projects describe $$PROJECT_ID --format="value(projectNumber)") && \
 	ORCH_URL="https://guardian-$$PROJECT_NUMBER.us-central1.run.app" && \
 	COMMIT_SHA=$$(git rev-parse --short HEAD) && \
+	echo "Deploying with MAPBOX_TOKEN length=$${#MAPBOX_TOKEN}, FIREBASE_API_KEY length=$${#FIREBASE_API_KEY}" && \
 	gcloud builds submit . \
 		--config ops-center/cloudbuild.yaml \
 		--substitutions "COMMIT_SHA=$$COMMIT_SHA,_ORCHESTRATOR_URL=$$ORCH_URL,_MAPBOX_TOKEN=$${MAPBOX_TOKEN:-},_FIREBASE_API_KEY=$${FIREBASE_API_KEY:-},_FIREBASE_AUTH_DOMAIN=$${FIREBASE_AUTH_DOMAIN:-},_FIREBASE_PROJECT_ID=$${FIREBASE_PROJECT_ID:-},_FIREBASE_APP_ID=$${FIREBASE_APP_ID:-}" \
