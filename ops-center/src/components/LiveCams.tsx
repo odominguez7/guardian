@@ -43,7 +43,13 @@ const CAMS: CamProps[] = [
     // at swap time. Same vibe (24/7 wildlife waterhole), known stable.
     id: "namib-waterhole-live",
     label: "CAM-12 · NAMIB DESERT · Waterhole",
-    embedUrl: "https://www.youtube-nocookie.com/embed/ydYDqZQpim8?autoplay=1&mute=1&controls=0&loop=1&playlist=ydYDqZQpim8&modestbranding=1&playsinline=1&rel=0",
+    // v7.4: switched to the channel/live_stream embed URL pattern so
+    // YouTube auto-resolves to NamibiaCam's CURRENT broadcast. The prior
+    // pinned video id (ydYDqZQpim8) triggered YouTube's anti-bot wall
+    // intermittently — producer saw "Sign in to confirm you're not a bot"
+    // 2026-05-17. The channel-level URL avoids per-video flagging and
+    // gracefully shows "channel offline" if NamibiaCam ever stops.
+    embedUrl: "https://www.youtube-nocookie.com/embed/live_stream?channel=UCWQbkmxC8JU_FHB8uevwcZg&autoplay=1&mute=1&controls=0&modestbranding=1&playsinline=1&rel=0",
     subtitle: "Live Namib waterhole · YouTube 24/7",
     accent: "#10b981",
     realLive: true,
