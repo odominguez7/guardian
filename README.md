@@ -2,7 +2,7 @@
 
 Real-time multi-agent system for biodiversity protection and corporate ESG reporting under the Taskforce on Nature-related Financial Disclosures (TNFD) and Corporate Sustainability Reporting Directive (CSRD). Built for the **Google for Startups AI Agents Challenge** — Track 3 (Refactor for Marketplace + Gemini Enterprise).
 
-**Submission deadline:** 2026-06-05 · **Status as of 2026-05-17 (v8 Days 1-12 of 19 shipped):** Mission Bridge photo-real portraits live · Vertex AI Agent Engine deployed (2 of 3 Track 3 mandated runtimes) · ADK Eval framework wired into nightly CI · procurement pack + Marketplace listing committed · Devpost submission draft written · 19 codex adversarial handshakes cleared.
+**Submission deadline:** 2026-06-05 · **Status as of 2026-05-17 (v8 Days 1-7 + 12-14 of 19 shipped autonomously; Days 8-11 producer-supervised Veo render + cut):** Mission Bridge photo-real portraits live · Vertex AI Agent Engine deployed (2 of 3 Track 3 mandated runtimes) · ADK Eval framework wired into nightly GitHub Action (first green run after `GCP_SA_KEY` secret is provisioned in CI) · procurement pack + Marketplace listing committed · Devpost submission draft + architecture deep-dive written · 19+ codex adversarial handshakes cleared.
 
 **Live demos right now:**
 - Ops Center: https://guardian-ops-center-180171737110.us-central1.run.app/
@@ -10,12 +10,14 @@ Real-time multi-agent system for biodiversity protection and corporate ESG repor
 - Agent Engine resource: `projects/180171737110/locations/us-central1/reasoningEngines/7109983694676295680`
 
 **Key docs:**
+- Architecture deep-dive: [`ARCHITECTURE.md`](./ARCHITECTURE.md)
 - Procurement & legal pack: [`marketplace/PROCUREMENT.md`](./marketplace/PROCUREMENT.md)
 - Marketplace listing: [`marketplace/LISTING.md`](./marketplace/LISTING.md)
 - Devpost submission draft: [`marketplace/DEVPOST_SUBMISSION.md`](./marketplace/DEVPOST_SUBMISSION.md)
 - Agent Engine deploy: [`docs/AGENT_ENGINE.md`](./docs/AGENT_ENGINE.md)
 - v8 master plan: [`reviews/MASTER_PLAN_v8.md`](./reviews/MASTER_PLAN_v8.md)
 - Demo-video runbook: [`RUNBOOKS/render-demo-video.md`](./RUNBOOKS/render-demo-video.md)
+- Policy library roadmap: [`marketplace/policies/`](./marketplace/policies/)
 
 ---
 
@@ -53,7 +55,7 @@ A team of specialized AI agents watches conservation areas in real time, detects
 | **1** | **Falsifier adversarial agent**: 4-gate deterministic SOP engine (audio-conf × severity, species-flag materiality ceiling, observation freshness, hot threat_signal) returns `concur` / `dissent` / `abstain`. Verdict logged in Court-Evidence bundle + Sponsor TNFD filing (`adversarial_review_passed: bool`). DISSENT chip on Ops Center IncidentPanel. 15 unit + integration tests. | ✅ CLEAR |
 | **2** | **GCP suite taste pass**: Lyria 2 ambient bed (30s) + Imagen 4 cinematic portraits (10 agents) + Veo 3.1 Fast hero loop (6s African elephant dusk). All wired into Ops Center. ~$1.10 spend. | ✅ CLEAR |
 | **3** | **Board-ready slide auto-export** (Maya CSO's #1 ask): Sponsor TNFD filing returns `board_slide_url` → live HTML page at `/board-slide/{filing_id}` with KPI tiles + SHA-256 audit hash + client-side "Download as PNG" via vendored html2canvas. LRU render cache survives buffer eviction. | ✅ CLEAR |
-| **4** | **Final video v2.1 cut**: Lyria 2 music bed mixed under VO at -22 dBFS + bottom-left telemetric HUD overlay (real Cloud Trace numbers). SRT sidecar captions for accessibility. 179.9s / 45 MB. | ✅ CLEAR |
+| **4** | Demo video pipeline: brief authored (`briefs/guardian-hero.yaml`) + render runbook + Makefile target. Final 2-min cut produced via o22-render Days 8-11 of v8 plan. | 🟨 brief + pipeline ready, render producer-supervised |
 | **5** | Stranger lean-in test + final codex sweep + Devpost submit | ⏳ in progress |
 
 ### Original 22-day schedule

@@ -57,7 +57,7 @@ The same artifact serves the ranger response, the sponsor's external auditor, th
 
 **Observability**: ADK Agent Analytics plugin streams every tool call to BigQuery (`adk_agent_analytics`). The Ops Center's WebSocket firehose visualizes the chain in real time.
 
-**Evaluation**: 5 ADK Eval framework evalsets (10 multi-turn trajectories) with gemini-3-flash-preview as LLM-as-judge, threshold 0.8 on relevance + helpfulness. Nightly GitHub Action publishes pass/fail.
+**Evaluation**: 5 ADK Eval framework evalsets (10 multi-turn trajectories) with gemini-3-flash-preview as LLM-as-judge, threshold 0.8 on relevance + helpfulness. Wired into a GitHub Action triggered on push + PR + nightly cron — first green run lands once the `GCP_SA_KEY` secret is provisioned in repo settings pre-submission.
 
 **Cost**: ~$0.30 per fully-fanned-out incident end-to-end.
 
@@ -65,13 +65,13 @@ The same artifact serves the ranger response, the sponsor's external auditor, th
 
 ## "Challenges we ran into" (max ~250 words)
 
-Three real obstacles, with the engineering response on each:
+Three real obstacles, three engineering responses:
 
-**1. YouTube blocks Cloud Run egress IPs.** v6 used a YouTube live cam as the canonical "real wildlife" surface for the Spot Now demo, with yt-dlp + ffmpeg pulling fresh HLS frames server-side. YouTube's anti-bot wall fires on every cloud-IP request. Verified via Cloud Run logs: "Sign in to confirm you're not a bot." Solution in v7.6: switched to NPS public webcam JPEGs (Yellowstone Mt Washburn NE, Glacier Apgar Village, Yellowstone West Entrance, Isle Royale Middle Islands). No anti-bot, public refresh cadence ~60s, real wildlife. Live demo works because the source doesn't have YouTube's policy.
+**1. YouTube blocks Cloud Run egress IPs.** v6 used a YouTube live cam with yt-dlp + ffmpeg pulling fresh HLS frames server-side. YouTube's anti-bot wall fires on every cloud-IP request. Solution in v7.6: switched to NPS public webcam JPEGs (Yellowstone, Glacier, Isle Royale). No anti-bot, ~60s refresh, real wildlife. Live demo works because the source doesn't have YouTube's policy.
 
-**2. Vertex AI Agent Engine cloudpickle won't tolerate threading.Lock.** Track 3 explicitly names Agent Engine as a valid infra target. The natural deploy path — `agent_engines.create(agent_engine=root_agent, ...)` — pickles the agent locally and ships to GCP. Our `app.events` firehose has a module-level `threading.Lock()` (necessary for the WebSocket fan-out on Cloud Run), and `cloudpickle.register_pickle_by_value` couldn't serialize it. Solution: shipped a slim `app/agent_engine_root.py` variant with no firehose, no subprocesses, no tool side effects — just the orchestrator identity prompt. 3.6 KB pickle. Deployment now live.
+**2. Vertex AI Agent Engine cloudpickle won't tolerate `threading.Lock`.** Track 3 names Agent Engine as a valid infra target. The natural deploy path pickles the agent and ships it to GCP. Our firehose has a module-level lock necessary for WebSocket fan-out, and `cloudpickle` can't serialize it. Solution: shipped a slim `app/agent_engine_root.py` with no firehose, no subprocesses — just the orchestrator identity prompt. 3.6 KB pickle. Deployment now live.
 
-**3. Codex handshake at every Move.** Built a §4.5 handshake gate where every commit triggers a codex adversarial review with BLOCK / WARN / NIT / OK verdicts. 14 successful handshakes over the v4-v8 arc, multiple rounds per Move when needed. Caught real bugs: peer-timestamp-None rejections, ADK one-parent-per-agent rule collisions, double-pickle re-exports, hot-species substring false positives.
+**3. Codex handshake at every Move.** Built a §4.5 gate where every commit triggers an independent codex adversarial review. 19+ handshakes over v4-v8, multiple rounds per Move when needed. Caught real bugs: peer-timestamp rejections, ADK one-parent-per-agent collisions, double-pickle re-exports, hot-species substring false positives.
 
 ---
 

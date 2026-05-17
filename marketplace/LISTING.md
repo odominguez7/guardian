@@ -15,7 +15,7 @@ Marketing tagline: *Real-time anti-poaching defense + auto-filed Taskforce on Na
 
 ## Listing summary (max 130 chars)
 
-Multi-agent biodiversity defense + auto-filed disclosure under the Taskforce on Nature-related Financial Disclosures (TNFD) and the Corporate Sustainability Reporting Directive (CSRD), for Fortune 500 sponsors of protected conservation areas.
+Multi-agent biodiversity defense + auto-filed TNFD/CSRD disclosure for Fortune 500 reserve sponsors. ADK + Gemini + A2A.
 
 ---
 
