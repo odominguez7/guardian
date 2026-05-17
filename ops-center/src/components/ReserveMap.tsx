@@ -142,8 +142,10 @@ export default function ReserveMap({ activeReserveId, fanOutFiring, activePeers 
         map.flyTo({ center: cinemaCenter, zoom: 2.6, speed: 1.0, curve: 1.4, duration: 1500 });
       }
     } else {
-      // Reset to wide Africa view; also hide peer markers
-      map.flyTo({ center: [25, -10], zoom: 3.1, speed: 1.0 });
+      // Reset to wide Africa view; also hide peer markers. Center +
+      // zoom matched to the init values in v3.2 sub-move 7.0 (was
+      // [25,-10]/3.1 — clipped East-African reserves on common viewports).
+      map.flyTo({ center: [32, -3], zoom: 2.6, speed: 1.0 });
       for (const m of peerMarkersRef.current.values()) {
         m.getElement().style.opacity = "0";
       }
