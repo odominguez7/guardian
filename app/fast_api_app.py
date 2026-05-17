@@ -853,16 +853,35 @@ async def livecam_spot(req: _LivecamSpotRequest) -> dict:
     )
 
     # 3) Decide escalation from the vision result.
+    # v6.2 fix: the analyze_image_frame response schema uses `species` (list)
+    # + `total_animal_count`, NOT `primary_species`. v6.0 read the wrong
+    # fields and the fallback-escalation never fired on real sightings —
+    # the smoke test caught 5 ostriches + 1 oryx but didn't fan out.
     requires_escalation = bool(result.get("requires_escalation"))
-    primary_species = result.get("primary_species") or {}
-    species_name = (primary_species.get("common_name") or "wildlife sighting").strip() or "wildlife sighting"
-    species_count = primary_species.get("count") or 0
+    species_list = result.get("species") or []
+    # Pick the highest-confidence common name as the headline species.
+    species_headline: str = "wildlife sighting"
+    if isinstance(species_list, list) and species_list:
+        try:
+            top = sorted(
+                (s for s in species_list if isinstance(s, dict)),
+                key=lambda s: float(s.get("confidence") or 0),
+                reverse=True,
+            )[0]
+            cn = (top.get("common_name") or top.get("name") or "").strip()
+            if cn:
+                species_headline = cn
+        except (TypeError, ValueError):
+            pass
+    total_animal_count = int(result.get("total_animal_count") or 0)
     threat_signals = result.get("threat_signals") or []
-    if not requires_escalation and (species_count > 0 or threat_signals):
+    if not requires_escalation and (total_animal_count > 0 or threat_signals):
         # Producer ergonomic: any live wildlife sighting is worth a fan-out
         # so the demo shows the agentic chain reacting. If the vision tool
         # is conservative, escalate to medium here so the peers always run.
         requires_escalation = True
+    # Bind back to species_name for the peer-args dicts below.
+    species_name = species_headline
     severity = (
         "critical" if any("gun" in s.lower() for s in threat_signals)
         else "high" if any("vehicle" in s.lower() or "human" in s.lower() for s in threat_signals)
