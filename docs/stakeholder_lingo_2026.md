@@ -1,5 +1,7 @@
 # GUARDIAN stakeholder language for the 2026 demo
 
+_Source: producer-provided lingo guide, 2026-05-17. Saved into repo as a companion to `docs/stakeholders.md`. Inline `[cite:NN]` markers from the original source doc were research-process annotations and have been stripped — they did not resolve to repo-trackable URLs. Conflicts resolve in favor of `docs/stakeholders.md` for canonical naming, and in favor of this doc for audience-voice / lingo._
+
 ## Purpose
 
 This file reframes stakeholder language so the demo is easy to understand for Google judges, Fortune 500 buyers, and general viewers, while keeping Google agent tooling terms exactly as they are: **A2A, CLI, SDK, ADK, Cloud Run, agent.json, mTLS**. The sustainability, audit, and conservation terms should be written in full on first mention so the story reads clearly to a human audience and still signals enterprise credibility.
