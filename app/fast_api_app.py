@@ -752,27 +752,30 @@ def _normalize_species_label(label: str) -> str:
     """Normalize a Gemini-emitted species label for hot-list comparison.
 
     - lowercases
+    - strips parenthetical clauses (including NESTED parens — v7.3 codex
+      WARN fix). "giraffe (giraffa camelopardalis (angolan))" → "giraffe"
     - collapses internal whitespace
-    - strips trailing parenthetical clauses, e.g. "Elephant (Loxodonta)"
-      → "elephant"
-    - strips trailing taxonomic qualifiers (subspecies suffix patterns
-      like " ssp." / " sp.") to keep the core species/genus comparison
-      strict.
     """
     if not label:
         return ""
     s = str(label).lower().strip()
-    # Drop any "(...)" parenthetical clauses — common_name often includes
-    # the scientific name in parens.
-    while "(" in s and ")" in s:
-        a, b = s.index("("), s.index(")")
-        if a < b:
-            s = (s[:a] + s[b + 1:]).strip()
-        else:
-            break
-    # Collapse whitespace.
-    s = " ".join(s.split())
-    return s
+    # Balanced-parens strip via depth counter. We emit only characters at
+    # depth 0 so any nested paren block is silently dropped. Stray closing
+    # parens at depth 0 are dropped too — the alternative is to keep them
+    # and break hot-list equality.
+    out: list[str] = []
+    depth = 0
+    for ch in s:
+        if ch == "(":
+            depth += 1
+            continue
+        if ch == ")":
+            if depth > 0:
+                depth -= 1
+            continue
+        if depth == 0:
+            out.append(ch)
+    return " ".join("".join(out).split())
 
 
 def _is_hot_species(species_list) -> tuple[bool, str]:

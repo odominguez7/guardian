@@ -145,9 +145,13 @@ function CamTile({ cam }: { cam: CamProps }) {
   const inFlightRef = useRef(false);
   const handleSpot = async () => {
     if (!cam.youtubeId) return;
-    // v7.1 codex WARN fix: gate on inFlightRef (always current) instead of
-    // spotState (stale closure inside the auto-spot useEffect tick).
+    // v7.3 codex BLOCK fix: handleSpot now owns inFlightRef itself —
+    // sets it true on entry, false in finally. Previous v7.1/v7.2
+    // version checked the ref but never set it, so the auto-spot tick
+    // (which pre-sets inFlightRef before awaiting handleSpot) caused
+    // handleSpot to bail immediately every cycle → auto-spot was dead.
     if (inFlightRef.current) return;
+    inFlightRef.current = true;
     setSpotState("running");
     setSpotMessage("Pulling fresh frame…");
     setSpotResult(null);
@@ -218,26 +222,21 @@ function CamTile({ cam }: { cam: CamProps }) {
     } catch (err) {
       setSpotMessage(err instanceof Error ? err.message : "Spot failed");
       setSpotState("error");
+    } finally {
+      inFlightRef.current = false;
     }
   };
 
-  // v7.1 codex WARN fix: previous useEffect closed over `spotState` at
-  // mount, so toggling auto while a manual spot was "running" cached the
-  // stale value and every future tick aborted. Now the only re-entry gate
-  // is the inFlightRef ref (always current), and the effect only restarts
-  // when autoSpot or the cam id changes — not on every spotState tick.
+  // v7.3: handleSpot now owns the inFlightRef lock itself, so the
+  // auto-spot effect can call it without pre-setting the ref. The tick
+  // just checks the ref; handleSpot handles the lock + unlock.
   useEffect(() => {
     if (!autoSpot || !cam.youtubeId) return;
     let cancelled = false;
     const tick = async () => {
       if (cancelled) return;
       if (inFlightRef.current) return;
-      inFlightRef.current = true;
-      try {
-        await handleSpot();
-      } finally {
-        inFlightRef.current = false;
-      }
+      await handleSpot();
     };
     tick(); // fire immediately when toggled on
     const id = setInterval(tick, AUTO_SPOT_INTERVAL_MS);
