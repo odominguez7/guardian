@@ -80,11 +80,14 @@ PORTRAITS = {
         "careful attention, courtroom-noir lighting."
     ),
     "falsifier": (
-        "An incisive internal auditor in their 50s, white-haired, sharp "
-        "features, wearing a dark high-collared garment, single rose-red "
-        "accent light catching the edge of the frame from one side against "
-        "deep black background, posture suggesting skeptical questioning. "
-        "Adversarial counter-stage character — sharp but fair."
+        "A respected senior internal auditor in their 50s of European "
+        "descent, warm-aged face with kind eyes behind subtle "
+        "wire-frame glasses, neatly combed graying hair, wearing a soft "
+        "burgundy turtleneck under an open charcoal jacket, looking "
+        "thoughtfully at the camera with measured skepticism, gentle "
+        "warm key-light from one side, soft off-white wall slightly out "
+        "of focus behind them. Counter-stage role but reads as a "
+        "tough-but-fair respected senior colleague — NOT a villain."
     ),
     "park_service": (
         "A weathered African park ranger in their 40s wearing a tan "

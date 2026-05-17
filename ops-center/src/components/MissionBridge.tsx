@@ -41,6 +41,13 @@ function portraitPath(agentId: string, variant: "v1" | "v2"): string {
     : `/portraits/${agentId}.png`;
 }
 
+// v8 Day 2.1 — prefer WebP (512px, ~15-25 KB) over PNG (1024px, ~1.3 MB)
+// when the v2 set is loaded. Cuts Mission Bridge cold load from 12.5 MB
+// to ~187 KB. Codex Day 2 WARN absorption.
+function portraitWebpPath(agentId: string, variant: "v1" | "v2"): string | null {
+  return variant === "v2" ? `/portraits-v2/${agentId}.webp` : null;
+}
+
 type Position = "orchestrator" | "specialist" | "adversary" | "peer";
 
 interface AgentSpec {
@@ -207,11 +214,25 @@ function AgentBadge({
         }`}
         style={{ width: agent.size, height: agent.size }}
       >
-        <img
-          src={portraitPath(agent.id, variant)}
-          alt={agent.name}
-          className="w-full h-full object-cover"
-        />
+        <picture>
+          {portraitWebpPath(agent.id, variant) && (
+            <source srcSet={portraitWebpPath(agent.id, variant)!} type="image/webp" />
+          )}
+          <img
+            src={portraitPath(agent.id, variant)}
+            alt={agent.name}
+            className="w-full h-full object-cover"
+            loading={active ? "eager" : "lazy"}
+            // v8 Day 2.1 codex NIT: if the v2 image 404s or fails, swap to
+            // v1 silhouette automatically so a single broken portrait
+            // doesn't leave an empty badge.
+            onError={(e) => {
+              const fallback = portraitPath(agent.id, "v1");
+              if (e.currentTarget.src.endsWith(fallback)) return;
+              e.currentTarget.src = fallback;
+            }}
+          />
+        </picture>
         {active && (
           <div
             className="absolute inset-0 animate-pulse"
