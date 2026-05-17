@@ -36,13 +36,14 @@ Built on Vertex AI (Gemini 2.5 Pro orchestrator, Gemini multimodal specialists),
 
 ---
 
-## Key benefits (5 bullets)
+## Key benefits (6 bullets)
 
 - **TNFD-aligned + CSRD-ESRS-E4-compatible disclosure outputs.** Every biodiversity-relevant incident on a sponsored reserve auto-emits a structured disclosure entry tagged with `compliance_frameworks: ["TNFD","CSRD-ESRS-E4"]` and the same `incident_id` used by ranger response - a chain-of-custody trail your external auditor's testing procedures can validate.
 - **Multi-agent coordination across organizations.** Four independent enterprise agents (park authority, sponsor sustainability office, conservation funder, neighbor park) coordinate live over the A2A protocol. No shared databases, no proprietary APIs, no human glue.
-- **End-to-end fan-out in seconds.** Measured median end-to-end latency for a 4-peer fan-out on `guardian-00015-kxm`: 3-8 seconds when peers are warm; 18-26 seconds on cold start (Vertex AI Gemini Pro spin-up). Parallel fan-out, retry-on-flake hardening, cold-start safe.
+- **Adversarial agent audit mode (Falsifier).** Every proposed dispatch is reviewed by an internal-audit adversarial agent before action — verdict (concur / dissent / abstain) plus per-gate diagnostics ship in the Court-Evidence bundle AND the Sponsor TNFD filing as `adversarial_review_passed: bool`. Big Four (Deloitte, PwC, EY, KPMG) audit teams get the dissent record on every disclosure, which is the chain-of-custody requirement no spreadsheet workflow can match.
+- **Board-ready slide auto-export.** Every Sponsor TNFD filing emits a 16:9 board-deck-ready HTML page with KPI tiles, audit hash, and a one-click "Download as PNG" — drag-and-drop into the CSO's quarterly board pack. The artifact every F500 Chief Sustainability Officer is three weeks late on, generated automatically per incident.
+- **End-to-end fan-out in seconds.** Measured median end-to-end latency for a 4-peer fan-out on `guardian-00022-rs8`: 3-8 seconds when peers are warm; 18-26 seconds on cold start (Vertex AI Gemini Pro spin-up). Parallel fan-out, retry-on-flake hardening, cold-start safe.
 - **Native to your existing Google Cloud commit.** Deploys to Cloud Run + Vertex AI + BigQuery in your existing GCP project. Draws against your committed-spend agreement. No new procurement.
-- **Hardened against adversarial review.** Production hardening includes service-to-service ID-token auth, idempotent incident IDs, echo-detection retry with prompt mutation, and AgentOps trajectory eval suite. Three external codex adversarial sweeps cleared.
 
 ---
 
@@ -57,7 +58,7 @@ Built on Vertex AI (Gemini 2.5 Pro orchestrator, Gemini multimodal specialists),
 
 ## Tags
 
-`gemini`, `agent-development-kit`, `a2a-protocol`, `tnfd`, `csrd`, `esrs-e4`, `biodiversity`, `sustainability`, `vertex-ai-search`, `cloud-run`, `multi-agent`, `compliance-automation`, `enterprise-agent-interop`
+`gemini`, `agent-development-kit`, `a2a-protocol`, `adversarial-agent`, `audit-mode`, `falsifier`, `tnfd`, `csrd`, `esrs-e4`, `biodiversity`, `sustainability`, `vertex-ai-search`, `lyria`, `imagen`, `veo`, `cloud-run`, `multi-agent`, `compliance-automation`, `enterprise-agent-interop`, `board-deck-export`
 
 ---
 

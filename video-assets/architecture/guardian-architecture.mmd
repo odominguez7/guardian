@@ -12,6 +12,7 @@ flowchart LR
     SW["Stream Watcher<br/>(sub-agent)"]
     AA["Audio Agent<br/>(sub-agent)"]
     SID["Species ID<br/>(sub-agent)"]
+    FALS["Falsifier<br/>(adversarial agent<br/>SOP gates · concur/dissent)"]
     CE["Court-Evidence<br/>(sub-agent)"]
   end
 
@@ -39,18 +40,24 @@ flowchart LR
   AA --> ORCH
   SID --> ORCH
   SID -.->|RAG| VS
+  ORCH -->|"adversarial<br/>review<br/>(step 0.5)"| FALS
+  FALS -.->|verdict| CE
+  FALS -.->|verdict| P2
   ORCH -->|A2A| P1
   ORCH -->|A2A| P2
   ORCH -->|A2A| P3
   ORCH -->|A2A| P4
   ORCH --> CE
   CE --> EV
+  P2 -.->|"board-ready<br/>slide URL"| F500((F500 CSO<br/>board deck))
   ORCH --> BQ
   ORCH --> TR
 
   classDef gcp fill:#1a73e8,color:#fff,stroke:#1a73e8;
   classDef peer fill:#34a853,color:#fff,stroke:#34a853;
   classDef data fill:#fbbc04,color:#000,stroke:#fbbc04;
+  classDef audit fill:#ea4335,color:#fff,stroke:#ea4335;
   class ORCH,SW,AA,SID,CE gcp;
   class P1,P2,P3,P4 peer;
   class VS,BQ,TR,EV,VID,AUD,IMG data;
+  class FALS audit;

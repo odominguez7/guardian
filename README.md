@@ -16,18 +16,33 @@ A team of specialized AI agents watches conservation areas in real time, detects
 
 | Service | URL | Revision |
 |---|---|---|
-| GUARDIAN orchestrator | https://guardian-180171737110.us-central1.run.app | `guardian-00015-kxm` |
-| Ops Center (frontend) | https://guardian-ops-center-180171737110.us-central1.run.app | `guardian-ops-center-00006-zws` |
-| A2A peer — Park Authority | https://guardian-park-service-180171737110.us-central1.run.app | live |
-| A2A peer — Sponsor Sustainability (TNFD) | https://guardian-sponsor-sustainability-180171737110.us-central1.run.app | live |
+| GUARDIAN orchestrator | https://guardian-180171737110.us-central1.run.app | `guardian-00022-rs8` |
+| Ops Center (frontend) | https://guardian-ops-center-180171737110.us-central1.run.app | `guardian-ops-center-00012-rd9` |
+| A2A peer — Park Authority | https://guardian-park-service-180171737110.us-central1.run.app | `guardian-park-service-00004-2sk` |
+| A2A peer — Sponsor Sustainability (TNFD) | https://guardian-sponsor-sustainability-180171737110.us-central1.run.app | `guardian-sponsor-sustainability-00004-729` |
 | A2A peer — Funder Reporter | live on Cloud Run | live |
 | A2A peer — Neighbor Park (Maasai Mara) | live on Cloud Run | live |
 
-**A2A agent card:** `/a2a/app/.well-known/agent-card.json` · **API docs:** `/docs` · **Court-evidence packet:** `/demo/evidence/{id}` · **Evidence HTML:** `/demo/evidence/{id}/html`
+**A2A agent card:** `/a2a/app/.well-known/agent-card.json` · **API docs:** `/docs` · **Court-evidence packet:** `/demo/evidence/{id}` · **Evidence HTML:** `/demo/evidence/{id}/html` · **Board-ready slide (F500 CSO Q2 deck artifact):** `/board-slide/{filing_id}` · **Vendored html2canvas:** `/static/html2canvas.min.js`
+
+**Reproducibility check:** `python3 scripts/dev/verify_ids.py --runs 5` → all 5 ID families (incident_id, ranger_unit, filing_id, funder_receipt_id, neighbor_handoff_id) deterministic across N back-to-back calls. Every on-screen ID in the demo video can be re-derived live by anyone with `gcloud auth print-identity-token`.
 
 ## Build status — 22-day plan
 
-12 of 22 plan-days shipped in 1.3 calendar days (2026-05-15 → 2026-05-16). 4 codex adversarial sweeps cleared inline.
+12 of 22 plan-days shipped in 1.3 calendar days (2026-05-15 → 2026-05-16). 4 codex adversarial sweeps cleared inline that session; an additional 5 per-Move codex handshakes cleared on 2026-05-17 during the v3 execution pass (see `reviews/CODEX_MOVE_*.md`).
+
+### v3 execution pass (2026-05-17) — see `PLAN_V3.md` for full plan
+
+| Move | What shipped | Status |
+|---|---|---|
+| **0** | Live-site truth: Mapbox token + Firebase config baked into Ops Center; **Auto-Cycle Demo Mode** (judges land, 10s idle → scenarios auto-rotate). Makefile env-source hardening. | ✅ CLEAR |
+| **1** | **Falsifier adversarial agent**: 4-gate deterministic SOP engine (audio-conf × severity, species-flag materiality ceiling, observation freshness, hot threat_signal) returns `concur` / `dissent` / `abstain`. Verdict logged in Court-Evidence bundle + Sponsor TNFD filing (`adversarial_review_passed: bool`). DISSENT chip on Ops Center IncidentPanel. 15 unit + integration tests. | ✅ CLEAR |
+| **2** | **GCP suite taste pass**: Lyria 2 ambient bed (30s) + Imagen 4 cinematic portraits (10 agents) + Veo 3.1 Fast hero loop (6s African elephant dusk). All wired into Ops Center. ~$1.10 spend. | ✅ CLEAR |
+| **3** | **Board-ready slide auto-export** (Maya CSO's #1 ask): Sponsor TNFD filing returns `board_slide_url` → live HTML page at `/board-slide/{filing_id}` with KPI tiles + SHA-256 audit hash + client-side "Download as PNG" via vendored html2canvas. LRU render cache survives buffer eviction. | ✅ CLEAR |
+| **4** | **Final video v2.1 cut**: Lyria 2 music bed mixed under VO at -22 dBFS + bottom-left telemetric HUD overlay (real Cloud Trace numbers). SRT sidecar captions for accessibility. 179.9s / 45 MB. | ✅ CLEAR |
+| **5** | Stranger lean-in test + final codex sweep + Devpost submit | ⏳ in progress |
+
+### Original 22-day schedule
 
 | Day | Milestone | Status | Evidence |
 |---|---|---|---|
