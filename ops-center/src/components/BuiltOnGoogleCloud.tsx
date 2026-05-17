@@ -198,7 +198,16 @@ export default function BuiltOnGoogleCloud({ events }: Props) {
     return acc;
   }, [events]);
 
-  const liveTotalCalls = Array.from(liveCounts.values()).reduce((s, x) => s + x, 0);
+  // Distinct event count for the headline — counts events, not key-hits,
+  // so a single tool_end that touches Gemini + Cloud Run + BigQuery still
+  // reports as 1 user-facing event rather than 3 product touchpoints.
+  // v5.2 codex WARN fix: prior version summed every classifyLive key per
+  // event, triple-counting real scenario activity.
+  const liveTotalEvents = useMemo(
+    () => events.filter((e) => classifyLive(e).length > 0).length,
+    [events],
+  );
+  const liveTotalTouchpoints = Array.from(liveCounts.values()).reduce((s, x) => s + x, 0);
   const totalProducts = PRODUCTS.length;
   const googleProducts = PRODUCTS.filter((p) => !p.thirdParty).length;
 
@@ -216,7 +225,7 @@ export default function BuiltOnGoogleCloud({ events }: Props) {
           Built on Google Cloud
         </span>
         <span className="text-[10px] text-zinc-500">
-          {googleProducts} Google products + 1 partner · {liveTotalCalls} live calls this session
+          {googleProducts} Google products + 1 partner · {liveTotalEvents} events · {liveTotalTouchpoints} product touchpoints
         </span>
         <span className="ml-auto text-[10px] text-zinc-500 italic">
           {expanded ? "click to collapse" : `click to expand the full ${totalProducts}-product stack`}

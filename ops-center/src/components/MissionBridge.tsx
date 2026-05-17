@@ -319,7 +319,7 @@ export default function MissionBridge({ falsifierVerdict }: MissionBridgeProps =
           </p>
         </div>
         <div className="text-[10px] text-zinc-500 font-mono">
-          Imagen 4 portraits · ElevenLabs voice · auto-walk every 4.5s · click any badge to speak
+          Imagen 4 portraits · ElevenLabs voice · clip-length pacing (≤9.5s) · click any badge to replay
         </div>
       </div>
 
@@ -419,6 +419,25 @@ export default function MissionBridge({ falsifierVerdict }: MissionBridgeProps =
             )}
           </div>
         </aside>
+      </div>
+
+      {/* v5.2 codex WARN fix: render an inline narration strip on viewports
+          where the right-side rail is hidden (< lg / 1024px). Same agent
+          intro copy, compact form, doesn't overlap the topology. */}
+      <div
+        className="lg:hidden px-6 py-2 border-t border-zinc-900 bg-zinc-950/70 flex items-start gap-3"
+      >
+        <span className="text-[10px] uppercase tracking-[0.15em] text-zinc-400 font-semibold shrink-0 mt-0.5">
+          {active.name}
+        </span>
+        <p className="text-[11px] text-zinc-200 leading-snug font-light">
+          "{active.intro}"
+        </p>
+        {active.id === "falsifier" && falsifierVerdict && falsifierVerdict !== "concur" && (
+          <span className="ml-auto px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 ring-1 ring-rose-500/40 text-[9px] uppercase tracking-wider shrink-0">
+            ● {falsifierVerdict}
+          </span>
+        )}
       </div>
 
       {/* Bottom legend */}
