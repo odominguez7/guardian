@@ -1,0 +1,42 @@
+{
+  "eval_set_id": "peer_fanout_eval",
+  "name": "ParallelAgent Peer Fan-out Evaluation",
+  "description": "Golden trajectories for the peer_fanout ParallelAgent (v4 sub-move A4). Verifies the ADK 2.0 ParallelAgent shell concurrently runs all 4 A2A peer callers — park_service_caller, sponsor_sustainability_caller, funder_reporter_caller, neighbor_park_caller — when the orchestrator transfers an incident to it after Falsifier review. Each peer caller must invoke its single notify_* tool and return the result verbatim.",
+  "eval_cases": [
+    {
+      "eval_id": "fanout_critical_poaching_serengeti",
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "Incident GU-466F7A6FA1F3 reviewed, Falsifier concurs. Fan out to all 4 peers. Location: Serengeti Tag-22, species: African elephant, severity: critical, threat_type: poaching, observation: 2026-05-17T23:47Z, falsifier_verdict: concur."
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Park Service: ranger_unit PSR-5349 dispatched (ETA 18 min). Sponsor Sustainability: TNFD filing-id SS-... + board_slide_url, adversarial_review_passed=true. Funder Reporter: impact receipt FR-... issued, program=general_impact. Neighbor Park: mutual-aid request ACK from Maasai Mara, crossover corridor flagged."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              { "name": "transfer_to_agent", "args": { "agent_name": "peer_fanout" } },
+              { "name": "notify_park_service", "args": { "incident_id": "GU-466F7A6FA1F3", "severity": "critical" } },
+              { "name": "notify_sponsor_sustainability", "args": { "incident_id": "GU-466F7A6FA1F3", "adversarial_review_verdict": "concur" } },
+              { "name": "notify_funder", "args": { "incident_id": "GU-466F7A6FA1F3", "funder_program": "general_impact" } },
+              { "name": "notify_neighbor_park", "args": { "incident_id": "GU-466F7A6FA1F3" } }
+            ]
+          }
+        }
+      ],
+      "session_input": {
+        "app_name": "app",
+        "user_id": "eval_user",
+        "state": {}
+      }
+    }
+  ]
+}

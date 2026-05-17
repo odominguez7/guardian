@@ -21,6 +21,7 @@ from app import events
 from app.agents.audio_agent import audio_agent
 from app.agents.court_evidence import court_evidence_agent
 from app.agents.falsifier import falsifier_agent
+from app.agents.peer_fanout import peer_fanout_agent
 from app.agents.species_id import species_id_agent
 from app.agents.stream_watcher import stream_watcher_agent
 from app.tools.a2a_peers import (
@@ -197,6 +198,13 @@ root_agent = Agent(
         species_id_agent,
         falsifier_agent,
         court_evidence_agent,
+        # v4 sub-move A2: declarative ADK 2.0 ParallelAgent for the 4-way
+        # A2A peer fan-out. The full SequentialAgent pipeline lives in
+        # app/agents/incident_pipeline.py as a factory (build_incident_pipeline)
+        # because ADK 2.0 enforces one-parent-per-agent — the specialists
+        # below already have root_agent as their parent, so the SequentialAgent
+        # has to instantiate fresh copies on demand for ADK Eval runs.
+        peer_fanout_agent,
     ],
     tools=[
         LongRunningFunctionTool(func=request_user_input),

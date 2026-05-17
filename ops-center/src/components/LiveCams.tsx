@@ -11,18 +11,28 @@ import { useRef } from "react";
 interface CamProps {
   id: string;
   label: string;
-  src: string;
+  /** Local Veo-rendered MP4 OR YouTube live-stream embed URL. Exactly one
+   *  of `src` or `embedUrl` must be set. */
+  src?: string;
+  embedUrl?: string;
   subtitle: string;
   accent: string;
+  /** When true, render a small "REAL · 24/7" pill — for the YouTube live
+   *  stream that's not a Veo render. v4 sub-move A1. */
+  realLive?: boolean;
 }
 
 const CAMS: CamProps[] = [
   {
-    id: "elephant-dusk",
-    label: "CAM-12 · Selous · NW Sector",
-    src: "/cams/elephant-dusk.mp4",
-    subtitle: "African elephant herd · dusk patrol",
+    // v4 sub-move A1 — REAL live stream from Wild Africa Live (24/7 HD
+    // from 30+ cameras across South Africa, Kenya, Botswana, Namibia,
+    // Zimbabwe). Demo line: "three rendered, one live from Africa right now."
+    id: "wild-africa-live",
+    label: "CAM-12 · WILD AFRICA · 30+ waterholes",
+    embedUrl: "https://www.youtube.com/embed/vr4o_AsrU1k?autoplay=1&mute=1&controls=0&loop=1&modestbranding=1",
+    subtitle: "Live African wildlife · YouTube 24/7",
     accent: "#10b981",
+    realLive: true,
   },
   {
     id: "cheetah-crossing",
@@ -54,28 +64,40 @@ function CamTile({ cam }: { cam: CamProps }) {
       className="relative rounded-lg overflow-hidden border bg-black"
       style={{ borderColor: `${cam.accent}40` }}
     >
-      <video
-        ref={videoRef}
-        src={cam.src}
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="w-full h-full object-cover"
-        onError={() => {
-          // Veo asset not yet on disk; the placeholder backdrop is fine.
-        }}
-      />
-      {/* IR overlay vignette */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background:
-            "radial-gradient(circle at 50% 50%, transparent 60%, rgba(0,0,0,0.55) 100%)",
-        }}
-      />
+      {cam.embedUrl ? (
+        <iframe
+          src={cam.embedUrl}
+          className="w-full h-full"
+          style={{ border: 0 }}
+          allow="autoplay; encrypted-media; picture-in-picture"
+          loading="lazy"
+          referrerPolicy="strict-origin-when-cross-origin"
+          title={cam.label}
+        />
+      ) : (
+        <video
+          ref={videoRef}
+          src={cam.src}
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="w-full h-full object-cover"
+        />
+      )}
+      {/* IR overlay vignette (skipped on real YouTube embeds — let the
+          actual broadcast through without our color cast) */}
+      {!cam.realLive && (
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              "radial-gradient(circle at 50% 50%, transparent 60%, rgba(0,0,0,0.55) 100%)",
+          }}
+        />
+      )}
       {/* Top-left tag */}
-      <div className="absolute top-2 left-2 flex items-center gap-1.5">
+      <div className="absolute top-2 left-2 flex items-center gap-1.5 z-10 pointer-events-none">
         <div
           className="w-1.5 h-1.5 rounded-full animate-pulse"
           style={{ backgroundColor: cam.accent }}
@@ -84,12 +106,19 @@ function CamTile({ cam }: { cam: CamProps }) {
           {cam.label}
         </div>
       </div>
-      {/* Top-right LIVE */}
-      <div className="absolute top-2 right-2 text-[9px] font-mono text-rose-400 uppercase tracking-wider">
-        ● live
+      {/* Top-right LIVE — v4 sub-move A1 distinguishes REAL vs Veo */}
+      <div className="absolute top-2 right-2 z-10 pointer-events-none flex flex-col items-end gap-1">
+        <div className="text-[9px] font-mono text-rose-400 uppercase tracking-wider">
+          ● live
+        </div>
+        {cam.realLive && (
+          <div className="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-200 text-[8px] uppercase tracking-wider ring-1 ring-rose-500/40">
+            real · 24/7
+          </div>
+        )}
       </div>
       {/* Bottom subtitle */}
-      <div className="absolute bottom-0 left-0 right-0 px-3 py-2 bg-gradient-to-t from-black via-black/70 to-transparent">
+      <div className="absolute bottom-0 left-0 right-0 px-3 py-2 bg-gradient-to-t from-black via-black/70 to-transparent pointer-events-none z-10">
         <div
           className="text-[10px] uppercase tracking-wider font-semibold"
           style={{ color: cam.accent }}
@@ -124,12 +153,11 @@ export default function LiveCams() {
       </div>
       <div className="px-6 py-2 border-t border-zinc-900 text-[10px] text-zinc-500 flex items-center justify-between">
         <span>
-          Generated via{" "}
+          1 real (YouTube live · Wild Africa) · 3 rendered via{" "}
           <span className="text-zinc-300">Veo 3.1 Fast</span>{" "}
-          (Vertex AI) · audio-off · 16:9 1080p · indistinguishable from a real
-          camera-trap stream in the demo loop
+          (Vertex AI) · audio-off · 16:9 1080p
         </span>
-        <span className="font-mono">$0.60/clip · $2.40 total</span>
+        <span className="font-mono">3 × $0.60 Veo · 1 × $0 YouTube embed</span>
       </div>
     </div>
   );

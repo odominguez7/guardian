@@ -135,6 +135,42 @@ def bundle_incident(incident_id: str) -> dict:
                 "identifier": _peer_identifier(e.get("agent"), payload),
             })
 
+    # v4 sub-move A5: Management Review Required exception workflow stub.
+    # When the Falsifier dissents on a high/critical incident, the F500
+    # sustainability office's internal-audit charter typically requires a
+    # named reviewer (Sustainability Controller or higher) to sign off before
+    # the disclosure ships. Big Four (Deloitte, PwC, EY, KPMG) Information
+    # Technology General Controls testing looks for this. We surface the flag
+    # + the workflow stub here so the Court-Evidence bundle and the Sponsor
+    # TNFD dashboard can route the incident accordingly.
+    management_review_required = False
+    management_review = None
+    if adversarial_review and adversarial_review.get("verdict") == "dissent":
+        last_severity = None
+        for e in evts:
+            sev = e.get("severity")
+            if sev in {"high", "critical"}:
+                last_severity = sev
+        if last_severity in {"high", "critical"}:
+            management_review_required = True
+            management_review = {
+                "status": "pending_assignment",
+                "required_role": "Sustainability Controller (or above)",
+                "trigger": (
+                    f"Falsifier dissent on {last_severity}-severity dispatch. "
+                    "Internal-audit charter requires named-reviewer sign-off "
+                    "before TNFD filing reaches external auditor evidence pack."
+                ),
+                "sla_hours": 24 if last_severity == "high" else 4,
+                "queue": "sponsor.sustainability_controller.exceptions",
+                "audit_artifacts_attached": [
+                    "adversarial_review (verdict + per-gate diagnostics)",
+                    "chain_hash",
+                    "specialists timeline",
+                    "peer_acks (park / sponsor / funder / neighbor)",
+                ],
+            }
+
     # Buffer-state context lets an auditor reason about completeness rather
     # than rely on a single heuristic flag. Codex flagged the prior heuristic
     # (len<=2) as missing partial-truncation cases.
@@ -169,6 +205,8 @@ def bundle_incident(incident_id: str) -> dict:
         "peer_acks": peer_acks,
         "adversarial_review": adversarial_review,
         "adversarial_reviews": adversarial_reviews,
+        "management_review_required": management_review_required,
+        "management_review": management_review,
         "timeline": evts,
         "suspicious_gap": suspicious_gap,
         "compliance_frameworks": ["TNFD", "CSRD-ESRS-E4", "CITES-MIKE"],

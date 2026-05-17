@@ -1,0 +1,95 @@
+{
+  "eval_set_id": "user_simulation_eval",
+  "name": "Multi-turn User Simulation (Sponsor + Ranger)",
+  "description": "Two user-simulation scenarios (v4 sub-move A4) that exercise the orchestrator's ability to hold context across multiple turns. Mirrors how a Fortune 500 sustainability analyst and a field ranger would actually interact with GUARDIAN.",
+  "eval_cases": [
+    {
+      "eval_id": "sustainability_analyst_q3_filing_review",
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              { "text": "It's Q3 close. Pull all material incidents from Serengeti Tag-22 sponsored by us this quarter, with Falsifier verdicts." }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              { "text": "Quarter incidents listed with incident_id, species_affected, severity, falsifier_verdict, TNFD filing_id, and board_slide_url. Each material incident links to a chain-of-custody bundle." }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              { "name": "transfer_to_agent", "args": { "agent_name": "court_evidence" } }
+            ]
+          }
+        },
+        {
+          "user_content": {
+            "parts": [
+              { "text": "On the GU-466F7A6FA1F3 incident — Falsifier dissented. Why? I need this for the audit committee." }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              { "text": "Falsifier dissented on GU-466F7A6FA1F3 because the audio_confidence × severity gate failed (0.41 × high). Dispatch proceeded — Falsifier is audit, not block — and the dissent record + per-gate diagnostics are in the court-evidence bundle at /court-evidence/GU-466F7A6FA1F3. Management Review Required workflow stub available." }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              { "name": "bundle_incident", "args": { "incident_id": "GU-466F7A6FA1F3" } }
+            ]
+          }
+        }
+      ],
+      "session_input": {
+        "app_name": "app",
+        "user_id": "sustainability_analyst@f500.example",
+        "state": { "role": "sustainability_analyst", "org": "fortune500_sponsor" }
+      }
+    },
+    {
+      "eval_id": "field_ranger_active_pursuit",
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              { "text": "Ranger PSR-5349 here, en route to Tag-22. Any audio updates since 23:47?" }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              { "text": "Tag-22 audio since 23:47: vehicle_engine confidence 0.78 at 23:51, distressed_herd 0.83 at 23:53. Suspects likely still in corridor. Forwarding to neighbor_park for east-flank cutoff." }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              { "name": "transfer_to_agent", "args": { "agent_name": "audio_agent" } }
+            ]
+          }
+        },
+        {
+          "user_content": {
+            "parts": [
+              { "text": "We've got eyes on a vehicle 800m east. Need cross-border ACK from Maasai Mara." }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              { "text": "Maasai Mara ACK received, mutual-aid en route to east corridor. Cross-border handoff logged in court-evidence chain." }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              { "name": "notify_neighbor_park", "args": { "origin_park": "Serengeti", "crossover_corridor": "Maasai Mara east flank" } }
+            ]
+          }
+        }
+      ],
+      "session_input": {
+        "app_name": "app",
+        "user_id": "ranger_psr5349@parks.go.tz",
+        "state": { "role": "field_ranger", "ranger_unit": "PSR-5349" }
+      }
+    }
+  ]
+}

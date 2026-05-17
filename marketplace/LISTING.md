@@ -47,6 +47,27 @@ Built on Vertex AI (Gemini 2.5 Pro orchestrator, Gemini multimodal specialists),
 
 ---
 
+## How GUARDIAN fits with existing tools
+
+GUARDIAN does NOT replace the biodiversity-data, ranger-operations, or carbon-disclosure platforms your organization already runs. It is the **multi-organization coordination + per-incident audit-grade evidence layer** that those tools were not built to produce.
+
+| You already run... | GUARDIAN's role |
+|---|---|
+| **IBAT** (IUCN/UNEP-WCMC/BirdLife corporate biodiversity assessment) | GUARDIAN treats IBAT as the authoritative species-and-site data source. The Species ID specialist's IUCN Red List grounding aligns with IBAT's data lineage. We coordinate; we do not re-derive. |
+| **SMART** / **EarthRanger** / **SERCA** (ranger-ops field tools) | GUARDIAN's Park Authority Agent A2A peer can register against your SMART/EarthRanger instance. Your rangers keep their tool. GUARDIAN handles the cross-organization fan-out (sponsor + funder + neighbor park) that SMART intentionally does not. |
+| **Sweep** / **Asuene** / your CSRD reporting suite | GUARDIAN's Sponsor Sustainability Agent files structured TNFD/CSRD-ESRS-E4 entries with a `compliance_frameworks` tag. Drops into your reporting suite's ingest endpoint. Your suite remains the disclosure system of record; GUARDIAN supplies incident-grade upstream evidence. |
+| **Your CFO's carbon disclosure module** | GUARDIAN is purpose-built for E4 (biodiversity/ecosystems) — the disclosure dimension the carbon module is structurally not designed to produce. |
+
+**The architectural insight worth pricing:** none of the above natively models the **sponsor ↔ park ↔ funder ↔ neighbor-park** four-way relationship that Fortune 500 conservation sponsorships actually have. GUARDIAN is the A2A-protocol coordination layer that connects them, with the per-incident chain-of-custody artifact that maps to your Big Four (Deloitte, PwC, EY, KPMG) auditor's testing evidence.
+
+---
+
+## Exception workflow (Management Review Required)
+
+When the Falsifier adversarial agent dissents on a high or critical incident, GUARDIAN auto-routes the disclosure to a Management Review Required queue inside the Sponsor Sustainability dashboard. Default routing: Sustainability Controller (or above), SLA 4 hours for critical / 24 hours for high. The court-evidence bundle attaches the adversarial review, chain hash, specialists timeline, and four peer acknowledgements. This is the named-reviewer sign-off Big Four Information Technology General Controls testing looks for. Live in v4 on every incident bundle (`management_review_required: bool`, `management_review: {...}` fields).
+
+---
+
 ## Categories
 
 - AI & ML → Generative AI

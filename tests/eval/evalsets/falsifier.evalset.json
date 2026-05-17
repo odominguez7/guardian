@@ -1,0 +1,128 @@
+{
+  "eval_set_id": "falsifier_eval",
+  "name": "Falsifier Adversarial Review Evaluation",
+  "description": "Golden trajectories for the Falsifier adversarial-review specialist (v4 sub-move A4). Verifies (1) orchestrator delegates to falsifier BEFORE calling any notify_* peer tool when a specialist returns requires_escalation, (2) falsifier invokes review_dispatch with the proposed dispatch params, and (3) the verdict (concur | dissent | abstain) ships in the Court-Evidence bundle and downstream A2A peer calls.",
+  "eval_cases": [
+    {
+      "eval_id": "falsifier_concur_high_severity_gunshot",
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "Audio Agent flagged a gunshot at Tag-22 corridor, Serengeti, 23:47 UTC, confidence 0.92. Severity: critical. Threat signals: gunshot, vehicle_engine. Material species: African elephant (Vulnerable). Escalate."
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Falsifier verdict: concur (4/4 gates passed). Ranger dispatch acknowledged by Park Service. TNFD entry filed by Sponsor Sustainability. Funder receipt issued. Neighbor park notified. Verdict appears in court-evidence chain of custody."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              { "name": "new_incident_id", "args": {} },
+              { "name": "transfer_to_agent", "args": { "agent_name": "falsifier" } },
+              {
+                "name": "review_dispatch",
+                "args": {
+                  "severity": "critical",
+                  "audio_confidence": 0.92,
+                  "threat_signals": ["gunshot", "vehicle_engine"]
+                }
+              },
+              { "name": "notify_park_service", "args": {} },
+              { "name": "notify_sponsor_sustainability", "args": {} }
+            ]
+          }
+        }
+      ],
+      "session_input": {
+        "app_name": "app",
+        "user_id": "eval_user",
+        "state": {}
+      }
+    },
+    {
+      "eval_id": "falsifier_dissent_low_confidence_audio",
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "Audio Agent flagged a possible gunshot at Etosha F-14 fenceline. Confidence: 0.41. Severity proposed: high. No corroborating threat signals. Escalate?"
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Falsifier verdict: dissent (audio_confidence × severity gate failed at 0.41 < 0.55 floor for high). Dispatch proceeds — Falsifier is audit, not block — but the dissent record ships in the chain of custody and the TNFD filing so the auditor sees both sides."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              { "name": "new_incident_id", "args": {} },
+              { "name": "transfer_to_agent", "args": { "agent_name": "falsifier" } },
+              {
+                "name": "review_dispatch",
+                "args": {
+                  "severity": "high",
+                  "audio_confidence": 0.41,
+                  "threat_signals": ["possible_gunshot"]
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "session_input": {
+        "app_name": "app",
+        "user_id": "eval_user",
+        "state": {}
+      }
+    },
+    {
+      "eval_id": "falsifier_abstain_stale_observation",
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [
+              {
+                "text": "Camera trap event from 3 hours ago — vehicle in restricted zone, Maasai Mara. Severity: medium. Threat signal: vehicle_intrusion. Observation timestamp 2026-05-17T20:14Z. Now: 2026-05-17T23:30Z."
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Falsifier verdict: abstain (observation freshness gate: 3h > 1h ceiling). Stale events route to backfill queue, not live dispatch. No Park Service paging."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              { "name": "transfer_to_agent", "args": { "agent_name": "falsifier" } },
+              {
+                "name": "review_dispatch",
+                "args": {
+                  "severity": "medium",
+                  "threat_signals": ["vehicle_intrusion"],
+                  "observation_timestamp": "2026-05-17T20:14Z"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "session_input": {
+        "app_name": "app",
+        "user_id": "eval_user",
+        "state": {}
+      }
+    }
+  ]
+}
