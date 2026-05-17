@@ -85,6 +85,10 @@ Items below are from the codex adversarial challenge after D1 work. P0 + 6 P1s w
 
 - **Mapbox token in build logs + shell history.** Token is passed via Cloud Build `--substitutions _MAPBOX_TOKEN=$MAPBOX_TOKEN` which logs to Cloud Build logs (visible to anyone with `roles/cloudbuild.builds.viewer`) and the make invocation lives in shell history. Mitigation already documented in `MAPBOX_USAGE_MONITORING.md` — when Omar's back, he creates a URL-restricted custom token; the leaked default token then becomes unusable from the wrong origin. ~15 min for the dashboard work.
 
+## Deferred P1 — Move 1 Falsifier (PLAN_V3.md)
+
+- **ADK eval trajectories for Falsifier (4)**. Codex Move 1 handshake flagged that PLAN_V3.md §3 Move 1.7 named "4 ADK eval trajectories" but we shipped 5 pytest integration tests instead. Reasonable substitution — the integration tests cover the gate logic + court_evidence integration end-to-end. But the planned `tests/eval/evalsets/falsifier.evalset.json` artifact is not in the repo. ~1 hr to author against the existing evalset format (see `tests/eval/evalsets/basic.evalset.json` for the schema). Defer to post-submission unless judges explicitly request it.
+
 ## Process
 
 - After D17 polish pass, this file should be empty or only contain items that genuinely don't matter for the submission. Anything left here on D22 morning is officially "won't fix for the hackathon."

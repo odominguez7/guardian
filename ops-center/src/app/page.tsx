@@ -40,6 +40,9 @@ export default function Home() {
   const [autoCycleActive, setAutoCycleActive] = useState(false);
   const lastActivityRef = useRef<number>(Date.now());
   const autoCycleIdxRef = useRef<number>(0);
+  // Buffer for Falsifier verdicts that arrive BEFORE their incident_event.
+  // Codex Move 1 handshake P1 fix. Adopted on next incident upsert.
+  const pendingFalsifierRef = useRef<Map<string, ActiveIncident["falsifier"]>>(new Map());
   // Codex challenge 2026-05-15: setTimeout was scheduled inside an event
   // handler without cleanup. On unmount (or rapid back-to-back triggers),
   // the timeout could fire on an unmounted component → React warning + leak.
@@ -111,6 +114,10 @@ export default function Home() {
           if (fanout.length > 0) setActivePeers(fanout);
           setIncidents((prev) => {
             const without = prev.filter((i) => i.incident_id !== latest.incident_id);
+            // Adopt any falsifier verdict that arrived before this event
+            // (P1 race fix, codex Move 1 handshake).
+            const buffered = pendingFalsifierRef.current.get(latest.incident_id!);
+            if (buffered) pendingFalsifierRef.current.delete(latest.incident_id!);
             const next = [
               ...without,
               {
@@ -121,6 +128,7 @@ export default function Home() {
                 narrative: (payload.narrative as string) ?? "",
                 startedAt: Date.now(),
                 expectedPeers: fanout,
+                ...(buffered ? { falsifier: buffered } : {}),
               },
             ];
             // Keep most recent N; drop oldest if we exceed the cap.
@@ -134,6 +142,9 @@ export default function Home() {
 
     // Falsifier verdict — populate the IncidentPanel chip from the
     // falsifier's tool_end event. PLAN_V3.md Move 1.5/1.6.
+    // Codex Move 1 handshake P1: in /demo/run, the falsifier event fires
+    // BEFORE the incident_event creates the inc record. Solution: buffer
+    // the verdict, replay on the next incident_event for the same id.
     if (
       latest.kind === "tool_end" &&
       latest.agent === "falsifier" &&
@@ -141,9 +152,6 @@ export default function Home() {
       latest.incident_id
     ) {
       const payload = latest.payload as Record<string, unknown>;
-      // tool_span wraps the actual result inside payload.result; the falsifier
-      // also emits directly via events.emit() with payload = the result dict.
-      // Handle both shapes defensively.
       const verdictPayload =
         (payload?.result as Record<string, unknown> | undefined) ?? payload;
       const v = verdictPayload?.verdict as string | undefined;
@@ -153,13 +161,21 @@ export default function Home() {
           (verdictPayload?.severity_0_5 as number | undefined) ?? 0;
         const reason =
           (verdictPayload?.dissent_reason as string | undefined) ?? "";
-        setIncidents((prev) =>
-          prev.map((inc) =>
-            inc.incident_id === latest.incident_id
-              ? { ...inc, falsifier: { verdict, severity_0_5, reason } }
-              : inc,
-          ),
-        );
+        const targetIid = latest.incident_id;
+        setIncidents((prev) => {
+          // If incident already exists, attach directly.
+          if (prev.some((inc) => inc.incident_id === targetIid)) {
+            return prev.map((inc) =>
+              inc.incident_id === targetIid
+                ? { ...inc, falsifier: { verdict, severity_0_5, reason } }
+                : inc,
+            );
+          }
+          // Otherwise, buffer the verdict so the next incident_event-driven
+          // upsert (see useEffect below) can adopt it.
+          pendingFalsifierRef.current.set(targetIid, { verdict, severity_0_5, reason });
+          return prev;
+        });
       }
     }
 

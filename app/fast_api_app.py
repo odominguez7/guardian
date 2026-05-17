@@ -198,6 +198,7 @@ from app.tools.a2a_peers import (  # noqa: E402
     notify_park_service,
     notify_sponsor_sustainability,
 )
+from app.tools.falsifier import review_dispatch  # noqa: E402
 
 _SCENARIOS = {
     "poacher_truck": {
@@ -548,6 +549,52 @@ async def run_scenario(scenario_id: str) -> dict:
                 latency_ms=step.get("duration_ms", 600),
             )
 
+        # Adversarial review (Falsifier) — PLAN_V3.md Move 1. The orchestrator's
+        # LLM path delegates to falsifier_agent before fan-out; the /demo/run
+        # fixture path must mirror that so the response carries the verdict
+        # and Sponsor Sustainability receives the adversarial_review_*
+        # fields. Telemetry is extracted from the pre_steps results:
+        #   - audio_confidence from any audio_agent step's result.confidence
+        #   - species_compliance_flag from species_id factsheet's compliance_flag
+        #   - threat_signals from stream_watcher step's threat_signals list
+        #     plus audio's secondary_sounds (deduped)
+        audio_conf: float | None = None
+        species_flag: str | None = None
+        threat_signals: list[str] = []
+        for step in scenario.get("pre_steps", []) or []:
+            r = step.get("result") or {}
+            if step["agent"] == "audio_agent":
+                if "confidence" in r:
+                    audio_conf = float(r["confidence"])
+                # Combine top-level sound_class + secondary_sounds into the
+                # threat_signal vocabulary the Falsifier checks against.
+                if r.get("sound_class"):
+                    threat_signals.append(r["sound_class"])
+                threat_signals.extend(r.get("secondary_sounds") or [])
+            if step["agent"] == "species_id" and step["tool"] == "lookup_species_factsheet":
+                species_flag = r.get("compliance_flag")
+            if step["agent"] == "stream_watcher":
+                # Normalize "vehicle silhouette" / "engine glow" to the hot-signal
+                # vocabulary so Gate 4 (hot threat signal for high+ severity)
+                # can resolve correctly.
+                for raw in r.get("threat_signals") or []:
+                    if "vehicle" in raw.lower() or "engine" in raw.lower():
+                        threat_signals.append("vehicle_engine")
+                    elif "gun" in raw.lower():
+                        threat_signals.append("gunshot")
+        # Dedupe while preserving order.
+        seen = set()
+        threat_signals = [t for t in threat_signals if not (t in seen or seen.add(t))]
+
+        review = review_dispatch(
+            incident_id=incident_id,
+            severity=scenario["park_args"]["severity"],
+            audio_confidence=audio_conf,
+            species_compliance_flag=species_flag,
+            threat_signals=threat_signals,
+            observation_timestamp=scenario.get("sponsor_args", {}).get("observation_timestamp"),
+        )
+
         # Dispatch only the peers listed in fanout for this scenario.
         # Default behavior for legacy scenarios (no fanout key) is the
         # original 2-peer fan-out for backwards compat.
@@ -558,8 +605,15 @@ async def run_scenario(scenario_id: str) -> dict:
                 notify_park_service(incident_id=incident_id, **scenario["park_args"])
             )
         if "sponsor_sustainability" in fanout:
+            # Sponsor peer gets the Falsifier verdict + severity so the
+            # TNFD entry's adversarial_review_passed field is populated.
             tasks["sponsor_sustainability"] = asyncio.create_task(
-                notify_sponsor_sustainability(incident_id=incident_id, **scenario["sponsor_args"])
+                notify_sponsor_sustainability(
+                    incident_id=incident_id,
+                    adversarial_review_verdict=review["verdict"],
+                    adversarial_review_severity_0_5=review["severity_0_5"],
+                    **scenario["sponsor_args"],
+                )
             )
         if "funder_reporter" in fanout:
             tasks["funder_reporter"] = asyncio.create_task(
@@ -605,6 +659,13 @@ async def run_scenario(scenario_id: str) -> dict:
             "incident_id": incident_id,
             "scenario_id": scenario_id,
             "title": scenario["title"],
+            "adversarial_review": {
+                "verdict": review["verdict"],
+                "dissent_reason": review["dissent_reason"],
+                "severity_0_5": review["severity_0_5"],
+                "audit_threshold_met": review["audit_threshold_met"],
+                "reviewer": "falsifier",
+            },
             **results,
         }
         _events.emit(

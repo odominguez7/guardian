@@ -93,22 +93,27 @@ def bundle_incident(incident_id: str) -> dict:
 
     specialists = []
     peer_acks = []
-    adversarial_review = None
+    # All falsifier reviews for this incident, chronological. The "current"
+    # top-level adversarial_review is the LAST one (latest decision wins),
+    # but every review is preserved in `adversarial_reviews` so an auditor
+    # can see the full dissent history — Big-4 chain-of-custody requirement
+    # if the orchestrator re-reviewed mid-incident. Codex Move 1 P2 fix.
+    adversarial_reviews: list[dict] = []
     for e in evts:
         kind = e.get("kind")
         if kind == "tool_end" and e.get("agent") == "falsifier":
-            # The Falsifier's verdict is part of the chain of custody. Pull
-            # it out as a top-level field so auditors don't have to dig
-            # through the timeline to find the dissent record.
             payload = e.get("payload") or {}
-            adversarial_review = {
+            adversarial_reviews.append({
                 "verdict": payload.get("verdict"),
                 "dissent_reason": payload.get("dissent_reason", ""),
                 "severity_0_5": payload.get("severity_0_5"),
                 "audit_threshold_met": payload.get("audit_threshold_met", {}),
                 "reviewed_at": payload.get("reviewed_at"),
                 "reviewer": "falsifier (GUARDIAN internal audit principal)",
-            }
+            })
+    adversarial_review = adversarial_reviews[-1] if adversarial_reviews else None
+    for e in evts:
+        kind = e.get("kind")
         if kind == "tool_end" and e.get("agent") in {
             "stream_watcher", "audio_agent", "species_id"
         }:
@@ -163,6 +168,7 @@ def bundle_incident(incident_id: str) -> dict:
         "specialists": specialists,
         "peer_acks": peer_acks,
         "adversarial_review": adversarial_review,
+        "adversarial_reviews": adversarial_reviews,
         "timeline": evts,
         "suspicious_gap": suspicious_gap,
         "compliance_frameworks": ["TNFD", "CSRD-ESRS-E4", "CITES-MIKE"],

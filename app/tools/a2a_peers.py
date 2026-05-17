@@ -434,6 +434,8 @@ async def notify_sponsor_sustainability(
     threat_type: str,
     severity: str,
     observation_timestamp: str,
+    adversarial_review_verdict: str = "",
+    adversarial_review_severity_0_5: int = 0,
 ) -> dict:
     """File a wildlife-incident TNFD entry with the Sponsor Sustainability peer.
 
@@ -457,6 +459,13 @@ async def notify_sponsor_sustainability(
             "audio_signal", "fence_breach", "other".
         severity: GUARDIAN severity — "low", "medium", "high", "critical".
         observation_timestamp: ISO 8601 timestamp from GUARDIAN's observation.
+        adversarial_review_verdict: Optional. Falsifier verdict to forward
+            to the Sponsor peer ("concur" | "dissent" | "abstain" | "").
+            Big-4 auditors require the dissent record to ship with the
+            disclosure; empty string here means "GUARDIAN did not run a
+            Falsifier review" — flagged at the peer.
+        adversarial_review_severity_0_5: Optional. Falsifier's confidence in
+            its position. Surfaced in the TNFD entry when verdict=dissent.
 
     Returns:
         Dict from the Sponsor Sustainability peer with status, filing_id,
@@ -488,6 +497,8 @@ async def notify_sponsor_sustainability(
         "threat_type": threat_type,
         "severity": severity,
         "observation_timestamp": observation_timestamp,
+        "adversarial_review_verdict": adversarial_review_verdict,
+        "adversarial_review_severity_0_5": adversarial_review_severity_0_5,
         "source": "GUARDIAN orchestrator",
     }
     instruction = (
