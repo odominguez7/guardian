@@ -32,7 +32,9 @@ const CAMS: CamProps[] = [
     // youtube-nocookie domain so no tracking cookies are dropped — answers
     // the F500 CSO's first question without prompting. Per CODEX_MOVE_7_V4
     // WARN on LiveCams iframe hardening.
-    embedUrl: "https://www.youtube-nocookie.com/embed/vr4o_AsrU1k?autoplay=1&mute=1&controls=0&loop=1&modestbranding=1&playsinline=1",
+    // v5.3: playlist=vr4o_AsrU1k added so non-live segments loop; live
+    // streams ignore loop but the param is harmless for them.
+    embedUrl: "https://www.youtube-nocookie.com/embed/vr4o_AsrU1k?autoplay=1&mute=1&controls=0&loop=1&playlist=vr4o_AsrU1k&modestbranding=1&playsinline=1&rel=0",
     subtitle: "Live African wildlife · YouTube 24/7",
     accent: "#10b981",
     realLive: true,
@@ -72,10 +74,14 @@ function CamTile({ cam }: { cam: CamProps }) {
           src={cam.embedUrl}
           className="absolute inset-0 w-full h-full"
           style={{ border: 0 }}
-          // Minimal capabilities for a muted wildlife video — no encrypted-media
-          // (DRM, not needed), no forms, no top navigation, no popups.
-          allow="autoplay; picture-in-picture"
-          sandbox="allow-scripts allow-same-origin allow-presentation"
+          // v5.3: producer flagged "live cam not working" 2026-05-17 — sandbox
+          // was too tight (player JS couldn't run). Restored the standard
+          // YouTube embed `allow` set per their oembed response, dropped
+          // sandbox. youtube-nocookie still gives us zero tracking cookies,
+          // which was the original security ask. allowFullScreen so users
+          // can pop the live stream out.
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowFullScreen
           loading="lazy"
           referrerPolicy="strict-origin-when-cross-origin"
           title={cam.label}
