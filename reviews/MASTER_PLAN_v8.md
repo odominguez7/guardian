@@ -117,6 +117,29 @@ NPS already gives us 4 working cams. Adding more is low-priority but easy. Best 
 
 **Recommendation:** stay with the 4 NPS cams we have. They reliably catch wildlife (Yellowstone bison/elk/wolves; Isle Royale moose/wolves). Adding more is purely cosmetic.
 
+## Codex handshake amendments (Day 1 absorptions)
+
+Codex returned CLEAR on the plan with 4 WARNs + 4 NITs absorbed below.
+
+**Demo timing front-loading (WARN)**: Days 7-10 had zero slack for script + render + capture + cut. Updated:
+- Day 7 — author brief + **start platform screen capture in parallel**
+- Day 8 — o22 render run + finish capture
+- Day 9 — assemble first rough cut + render second variant pack
+- Day 10 — finalize cut
+
+**Agent Engine + CI access (WARN)**: starting today (Day 1) — file Agent Engine allowlist request + create the GitHub Actions workflow skeleton so Day 3-4 has no infra surprises.
+
+**o22 budget reconciliation (WARN)**: producer's vendored o22-studio retail variant pack = $79 = ~$25 of compute per pack (~10× $0.04 Imagen + ~$24 Veo + ~$0.06 Lyria). A 2-min final cut needs ~1-2 full variant packs + 4-6 extra Veo body shots. Realistic budget: **$30-50 total** (matches the Risks section, not the $6 line in Day 8). Day 8 line corrected. Tier-1 Veo quota fits this volume.
+
+**Submission logistics (WARN)**: added Day 13.5 sub-task:
+- Devpost form field draft (description, tagline, technologies-used, video URL, public-repo URL, demo URL, team list, accept rules)
+- Judge access setup: ops-center URL is already public; document orchestrator A2A discovery URL + how to trigger Spot Now
+- Recording quality: verify the 2-min video file uploads under Devpost's 100MB limit + plays in their embedded player
+
+**Mission Bridge A/B fallback (NIT)**: keep current `/portraits/*.png` set in place as `*-v1.png` and ship new `*-v2.png` alongside. UI gets a `?bridge=v1` query param to swap back. If producer dislikes realistic faces, no Day 2 lost.
+
+**92.5 target framing (NIT)**: communicating internally as **stretch**. Realistic floor: **88-90**, which still lands Best-of-Theme zone.
+
 ## What's NOT in scope for v8
 
 - Residential-IP proxy to bypass YouTube anti-bot (~$20/mo, v9 if we want true literal-current-second YouTube)
