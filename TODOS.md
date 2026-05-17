@@ -89,6 +89,8 @@ Items below are from the codex adversarial challenge after D1 work. P0 + 6 P1s w
 
 - **ADK eval trajectories for Falsifier (4)**. Codex Move 1 handshake flagged that PLAN_V3.md §3 Move 1.7 named "4 ADK eval trajectories" but we shipped 5 pytest integration tests instead. Reasonable substitution — the integration tests cover the gate logic + court_evidence integration end-to-end. But the planned `tests/eval/evalsets/falsifier.evalset.json` artifact is not in the repo. ~1 hr to author against the existing evalset format (see `tests/eval/evalsets/basic.evalset.json` for the schema). Defer to post-submission unless judges explicitly request it.
 
+- **Codex Move 5 final-sweep P2 (2026-05-17):** the falsifier evalset above plus a PLAN_V3 amendment note saying "5 pytest integration tests substituted for 4 ADK eval trajectories — see TODOS.md for the deferred ADK eval artifact." Either author the JSON or amend the plan so future reviewers don't search for a missing file.
+
 ## Process
 
 - After D17 polish pass, this file should be empty or only contain items that genuinely don't matter for the submission. Anything left here on D22 morning is officially "won't fix for the hackathon."

@@ -28,7 +28,7 @@ GUARDIAN is a Gemini-native multi-agent platform that runs in production on the 
 1. **Park Authority Agent** - dispatches the on-call ranger unit at the host park.
 2. **Sponsor Sustainability Agent** - files a TNFD-aligned, CSRD-ESRS-E4 compliant biodiversity-impact entry directly into the sponsor's disclosure dashboard.
 3. **Funder Reporter Agent** - issues a program-tagged impact receipt for the conservation funder's quarterly impact report.
-4. **Neighbor Park Mutual-Aid Agent** - accepts a cross-border CITES-MIKE handoff when the incident may cross a trans-frontier conservation area.
+4. **Neighbor Park Mutual-Aid Agent** - accepts a cross-border Convention on International Trade in Endangered Species — Monitoring the Illegal Killing of Elephants (CITES-MIKE) handoff when the incident may cross a trans-frontier conservation area.
 
 Every incident produces a deterministic, chain-of-custody-grade evidence bundle. The same artifact serves the ranger response, the sponsor's regulator, the funder's quarterly impact report, and (when needed) the host country's wildlife court system.
 

@@ -2,7 +2,7 @@
 
 Real-time multi-agent system for biodiversity protection and corporate ESG reporting under the Taskforce on Nature-related Financial Disclosures (TNFD) and Corporate Sustainability Reporting Directive (CSRD). Built for the **Google for Startups AI Agents Challenge** — Track 3 (Refactor for Marketplace + Gemini Enterprise).
 
-**Submission deadline:** 2026-06-05 · **Status as of 2026-05-16:** core platform LIVE, demo video remains.
+**Submission deadline:** 2026-06-05 · **Status as of 2026-05-17:** core platform LIVE + final v2.1 demo video rendered + adversarial Falsifier agent shipped + Maya CSO board-ready slide auto-export live.
 
 ---
 
@@ -10,7 +10,7 @@ Real-time multi-agent system for biodiversity protection and corporate ESG repor
 
 A team of specialized AI agents watches conservation areas in real time, detects poaching threats before they happen, coordinates ranger response across agencies, and auto-files the TNFD/CSRD biodiversity reports Fortune 500 sustainability buyers are now legally required to deliver.
 
-**6 in-system agents** (Orchestrator, Stream Watcher, Audio, Species ID, Court-Evidence, + Pattern WIP) · **4 distinct A2A peers** (Park Authority, Sponsor Sustainability, Funder Reporter, Neighbor Park) · **Cinema-grade Ops Center** judges can click + screen-record.
+**6 in-system agents** (Orchestrator, Stream Watcher, Audio, Species ID, **Falsifier** (adversarial review), Court-Evidence) · **4 distinct A2A peers** (Park Service, Sponsor Sustainability, Funder Reporter, Neighbor Park) · **Cinema-grade Ops Center** judges can click + screen-record.
 
 ## Live endpoints
 
@@ -18,10 +18,10 @@ A team of specialized AI agents watches conservation areas in real time, detects
 |---|---|---|
 | GUARDIAN orchestrator | https://guardian-180171737110.us-central1.run.app | `guardian-00022-rs8` |
 | Ops Center (frontend) | https://guardian-ops-center-180171737110.us-central1.run.app | `guardian-ops-center-00012-rd9` |
-| A2A peer — Park Authority | https://guardian-park-service-180171737110.us-central1.run.app | `guardian-park-service-00004-2sk` |
+| A2A peer — Park Service | https://guardian-park-service-180171737110.us-central1.run.app | `guardian-park-service-00004-2sk` |
 | A2A peer — Sponsor Sustainability (TNFD) | https://guardian-sponsor-sustainability-180171737110.us-central1.run.app | `guardian-sponsor-sustainability-00004-729` |
-| A2A peer — Funder Reporter | live on Cloud Run | live |
-| A2A peer — Neighbor Park (Maasai Mara) | live on Cloud Run | live |
+| A2A peer — Funder Reporter | https://guardian-funder-reporter-180171737110.us-central1.run.app | `guardian-funder-reporter-00002-vfp` |
+| A2A peer — Neighbor Park (Maasai Mara) | https://guardian-neighbor-park-180171737110.us-central1.run.app | `guardian-neighbor-park-00002-nlg` |
 
 **A2A agent card:** `/a2a/app/.well-known/agent-card.json` · **API docs:** `/docs` · **Court-evidence packet:** `/demo/evidence/{id}` · **Evidence HTML:** `/demo/evidence/{id}/html` · **Board-ready slide (F500 CSO Q2 deck artifact):** `/board-slide/{filing_id}` · **Vendored html2canvas:** `/static/html2canvas.min.js`
 

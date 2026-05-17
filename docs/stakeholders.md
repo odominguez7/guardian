@@ -101,7 +101,7 @@ When writing demo VO / cards / Marketplace copy, mirror these phrasings:
 > "GUARDIAN's Sponsor Sustainability agent files your Taskforce on Nature-related Financial Disclosures (TNFD) entry the moment an incident is detected. Mapped to European Sustainability Reporting Standard E4: Biodiversity and Ecosystems (ESRS E4). Anchored to a Secure Hash Algorithm 256-bit (SHA-256) chain of custody that survives a Big Four audit. Your board slide auto-generates."
 
 ### To a Google judge (ADK/A2A):
-> "GUARDIAN ships four discoverable A2A peers — Park, Sponsor, Funder, Neighbor — each in a separate Cloud Run service with a public agent.json. The orchestrator fans out via A2A protocol v0.2. The Falsifier agent challenges every dispatch on Gemini 2.5 Flash; dissent is logged into the Court-Evidence bundle."
+> "GUARDIAN ships four discoverable A2A peers — Park, Sponsor, Funder, Neighbor — each in a separate Cloud Run service with a public agent.json. The orchestrator fans out via A2A protocol v0.3.0. The Falsifier agent challenges every dispatch on Gemini 2.5 Flash; dissent is logged into the Court-Evidence bundle."
 
 ### To any human:
 > "Cameras and microphones in wildlife reserves catch poaching threats in real time. AI agents confirm what they're seeing, argue about whether to act, and dispatch park rangers. Every action is recorded so the company sponsoring the protection has proof their money is working."
