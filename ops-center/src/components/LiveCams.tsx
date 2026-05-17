@@ -144,7 +144,10 @@ function CamTile({ cam }: { cam: CamProps }) {
   });
   const inFlightRef = useRef(false);
   const handleSpot = async () => {
-    if (!cam.youtubeId || spotState === "running") return;
+    if (!cam.youtubeId) return;
+    // v7.1 codex WARN fix: gate on inFlightRef (always current) instead of
+    // spotState (stale closure inside the auto-spot useEffect tick).
+    if (inFlightRef.current) return;
     setSpotState("running");
     setSpotMessage("Pulling fresh frame…");
     setSpotResult(null);
@@ -218,15 +221,17 @@ function CamTile({ cam }: { cam: CamProps }) {
     }
   };
 
-  // v7 auto-spot loop. Fires Spot Now every AUTO_SPOT_INTERVAL_MS while
-  // autoSpot is true. inFlightRef + spotState gates prevent overlap with
-  // manual clicks or a slow Gemini round-trip.
+  // v7.1 codex WARN fix: previous useEffect closed over `spotState` at
+  // mount, so toggling auto while a manual spot was "running" cached the
+  // stale value and every future tick aborted. Now the only re-entry gate
+  // is the inFlightRef ref (always current), and the effect only restarts
+  // when autoSpot or the cam id changes — not on every spotState tick.
   useEffect(() => {
     if (!autoSpot || !cam.youtubeId) return;
     let cancelled = false;
     const tick = async () => {
       if (cancelled) return;
-      if (inFlightRef.current || spotState === "running") return;
+      if (inFlightRef.current) return;
       inFlightRef.current = true;
       try {
         await handleSpot();

@@ -46,11 +46,24 @@ _YOUTUBE_ID_RE = re.compile(r"^[A-Za-z0-9_-]{6,16}$")
 # wants a fresh manifest each call; 60s is the right balance between
 # yt-dlp latency saved and segment staleness.
 _MANIFEST_TTL_S = 60.0
+_MANIFEST_CACHE_MAX = 32  # v7.1 codex NIT: prune so hammering many ids doesn't grow unbounded
 _manifest_cache: dict[str, tuple[float, str]] = {}
 _manifest_lock = Lock()
 
 
-def _resolve_hls_manifest(youtube_id: str, timeout_s: float = 6.0) -> str | None:
+def _prune_manifest_cache_locked(now: float) -> None:
+    """Drop expired manifest entries. Called inside _manifest_lock. v7.1."""
+    expired = [k for k, (ts, _) in _manifest_cache.items() if now - ts >= _MANIFEST_TTL_S]
+    for k in expired:
+        _manifest_cache.pop(k, None)
+    # Hard cap: if still over the max, drop oldest first.
+    if len(_manifest_cache) > _MANIFEST_CACHE_MAX:
+        ordered = sorted(_manifest_cache.items(), key=lambda kv: kv[1][0])
+        for k, _ in ordered[: len(_manifest_cache) - _MANIFEST_CACHE_MAX]:
+            _manifest_cache.pop(k, None)
+
+
+def _resolve_hls_manifest(youtube_id: str, timeout_s: float = 10.0) -> str | None:
     """Use yt-dlp to resolve the HLS m3u8 manifest URL for a live video.
 
     Returns the URL on success, None on failure (logged at WARNING).
@@ -58,6 +71,7 @@ def _resolve_hls_manifest(youtube_id: str, timeout_s: float = 6.0) -> str | None
     """
     now = time.monotonic()
     with _manifest_lock:
+        _prune_manifest_cache_locked(now)
         cached = _manifest_cache.get(youtube_id)
         if cached and now - cached[0] < _MANIFEST_TTL_S:
             return cached[1]
@@ -116,8 +130,8 @@ def _resolve_hls_manifest(youtube_id: str, timeout_s: float = 6.0) -> str | None
 def get_live_frame(
     youtube_id: str,
     *,
-    yt_dlp_timeout_s: float = 6.0,
-    ffmpeg_timeout_s: float = 8.0,
+    yt_dlp_timeout_s: float = 10.0,
+    ffmpeg_timeout_s: float = 12.0,
 ) -> bytes | None:
     """Extract one current JPEG frame from a YouTube live stream.
 

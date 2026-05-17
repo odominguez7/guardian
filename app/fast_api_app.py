@@ -710,11 +710,10 @@ from app.tools.vision import (  # noqa: E402
 from app.tools.livecam_frame import get_live_frame as _get_live_frame  # noqa: E402
 
 
-# v7: IUCN hot list (Endangered / Critically Endangered + CITES Appendix I/II
-# of the species GUARDIAN is likely to encounter on its sponsored reserves).
-# A spot escalates only when threat_signals are present OR a hot species
-# appears — peaceful waterhole drinks are LOGGED, not escalated.
-# Producer flagged 2026-05-17: "why is a fox at a waterhole escalated?"
+# v7 hot list (IUCN EN/CR + CITES Appendix I/II of the species GUARDIAN
+# realistically encounters on sponsored reserves). v7.1 codex WARN fix:
+# expanded to cover Grevy's zebra + African wild ass + a few others
+# previously slipping through.
 _HOT_SPECIES_LOWER = {
     # African big cats
     "leopard", "panthera pardus",
@@ -740,12 +739,49 @@ _HOT_SPECIES_LOWER = {
     # Other hot
     "pangolin", "manis",
     "saola", "pseudoryx nghetinhensis",
+    # v7.1 additions per codex WARN
+    "grevy's zebra", "grevys zebra", "equus grevyi",
+    "african wild ass", "equus africanus",
+    "addax", "addax nasomaculatus",
+    "dama gazelle", "nanger dama",
+    "hirola", "beatragus hunteri",
+    "scimitar oryx", "oryx dammah",
 }
+
+def _normalize_species_label(label: str) -> str:
+    """Normalize a Gemini-emitted species label for hot-list comparison.
+
+    - lowercases
+    - collapses internal whitespace
+    - strips trailing parenthetical clauses, e.g. "Elephant (Loxodonta)"
+      → "elephant"
+    - strips trailing taxonomic qualifiers (subspecies suffix patterns
+      like " ssp." / " sp.") to keep the core species/genus comparison
+      strict.
+    """
+    if not label:
+        return ""
+    s = str(label).lower().strip()
+    # Drop any "(...)" parenthetical clauses — common_name often includes
+    # the scientific name in parens.
+    while "(" in s and ")" in s:
+        a, b = s.index("("), s.index(")")
+        if a < b:
+            s = (s[:a] + s[b + 1:]).strip()
+        else:
+            break
+    # Collapse whitespace.
+    s = " ".join(s.split())
+    return s
 
 
 def _is_hot_species(species_list) -> tuple[bool, str]:
-    """Return (is_hot, matched_name) if any species in the list is on the
-    hot watchlist. Case-insensitive on both common_name AND scientific name.
+    """Return (is_hot, matched_name) if any species in the list is a hot
+    species. v7.1 codex WARN fix: prior substring match flagged
+    "Leopard tortoise" as a leopard. Now we do EXACT equality against the
+    hot set after normalization, so "Leopard tortoise" != "leopard" and
+    "African lionfish" != "lion". Gemini emits one species per row, so
+    label === species name → exact match is the right shape.
     """
     if not isinstance(species_list, list):
         return False, ""
@@ -753,14 +789,9 @@ def _is_hot_species(species_list) -> tuple[bool, str]:
         if not isinstance(s, dict):
             continue
         for key in ("common_name", "name"):
-            v = (s.get(key) or "").strip().lower()
+            v = _normalize_species_label(s.get(key) or "")
             if v and v in _HOT_SPECIES_LOWER:
                 return True, s.get("common_name") or s.get("name") or ""
-            # Also do a substring match so "African Elephant (subspecies)"
-            # still trips on "african elephant".
-            for hot in _HOT_SPECIES_LOWER:
-                if hot in v:
-                    return True, s.get("common_name") or s.get("name") or ""
     return False, ""
 
 
