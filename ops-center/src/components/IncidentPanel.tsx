@@ -233,7 +233,10 @@ export default function IncidentPanel({ incidents }: Props) {
           Active Incidents
         </h2>
       </div>
-      <div className="flex-1 overflow-y-auto p-3 space-y-3">
+      <div
+        className="flex-1 overflow-y-auto p-3 space-y-3 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-zinc-900 [&::-webkit-scrollbar-thumb]:bg-zinc-700 [&::-webkit-scrollbar-thumb]:rounded"
+        style={{ scrollbarWidth: "thin", scrollbarColor: "#3f3f46 #18181b" }}
+      >
         {incidents.length === 0 && (
           <div className="relative overflow-hidden rounded-lg border border-zinc-800 bg-black">
             {/* Veo 3.1 Fast hero loop — PLAN_V3.md Move 2.3. Plays in the

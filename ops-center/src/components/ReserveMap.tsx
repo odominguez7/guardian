@@ -39,8 +39,13 @@ export default function ReserveMap({ activeReserveId, fanOutFiring, activePeers 
     const map = new mapboxgl.Map({
       container: containerRef.current,
       style: "mapbox://styles/mapbox/dark-v11",
-      center: [25, -10],
-      zoom: 3.1,
+      // Re-centered for v3.2 — was [25,-10] which clipped Tanzania/Kenya off
+      // the visible viewport on most window sizes. New center sits over
+      // East Africa where the operating reserves cluster (Serengeti +
+      // Maasai Mara + Selous), and zoom relaxed so the whole continent
+      // is in frame.
+      center: [32, -3],
+      zoom: 2.6,
       attributionControl: true,
       cooperativeGestures: true,
     });

@@ -3,10 +3,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 
+import AgentTheater from "@/components/AgentTheater";
 import ChasePath from "@/components/ChasePath";
 import EventStream from "@/components/EventStream";
 import HeavyLifting from "@/components/HeavyLifting";
 import IncidentPanel, { type ActiveIncident } from "@/components/IncidentPanel";
+import LiveCams from "@/components/LiveCams";
+import TabStrip, { type TabId } from "@/components/TabStrip";
 import Toolbar from "@/components/Toolbar";
 import { FirehoseClient, type FirehoseStatus } from "@/lib/firehose";
 import { reserveForScenario } from "@/lib/reserves";
@@ -40,15 +43,14 @@ export default function Home() {
   const [activePeers, setActivePeers] = useState<string[]>([]);
   const [incidents, setIncidents] = useState<ActiveIncident[]>([]);
   const [autoCycleActive, setAutoCycleActive] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabId>("operations");
   const lastActivityRef = useRef<number>(Date.now());
   const autoCycleIdxRef = useRef<number>(0);
   // Buffer for Falsifier verdicts that arrive BEFORE their incident_event.
   // Codex Move 1 handshake P1 fix. Adopted on next incident upsert.
   const pendingFalsifierRef = useRef<Map<string, ActiveIncident["falsifier"]>>(new Map());
-  // Lyria 2 ambient bed (PLAN_V3.md Move 2.1). Browsers block autoplay until
-  // first user gesture; the ref lets us start it on the first pointerdown.
-  const ambientRef = useRef<HTMLAudioElement | null>(null);
-  const [ambientReady, setAmbientReady] = useState(false);
+  // v3.2 sub-move 7.5: ambientRef + ambientReady removed (Lyria bed killed
+  // from Ops Center; lives in the demo video only).
   // Codex challenge 2026-05-15: setTimeout was scheduled inside an event
   // handler without cleanup. On unmount (or rapid back-to-back triggers),
   // the timeout could fire on an unmounted component → React warning + leak.
@@ -421,41 +423,14 @@ export default function Home() {
 
   // 6. Any user pointer / keyboard activity counts as "still here" — pauses
   // Auto-Cycle so the user can read incident cards without interruption.
-  // ALSO: starts the Lyria ambient bed on the first user gesture (browsers
-  // block audio autoplay until first interaction).
+  // (v3.2 sub-move 7.5: ambient-bed kickoff removed; no more page-load audio.)
   useEffect(() => {
     const onActivity = () => {
       lastActivityRef.current = Date.now();
       setAutoCycleActive(false);
-      // First-gesture ambient bed start. fadeInPromise is fire-and-forget.
-      if (ambientRef.current && ambientRef.current.paused) {
-        ambientRef.current.volume = 0;
-        ambientRef.current
-          .play()
-          .then(() => {
-            setAmbientReady(true);
-            // Fade in to -28 dBFS (≈0.04 linear) over 3s.
-            const target = 0.04;
-            const step = target / 30;
-            const fade = setInterval(() => {
-              if (!ambientRef.current) return clearInterval(fade);
-              if (ambientRef.current.volume >= target) return clearInterval(fade);
-              ambientRef.current.volume = Math.min(
-                target,
-                ambientRef.current.volume + step,
-              );
-            }, 100);
-          })
-          .catch(() => {
-            // Autoplay-blocked or aborted; user can retry by interacting again.
-          });
-      }
     };
     window.addEventListener("pointerdown", onActivity);
     window.addEventListener("keydown", onActivity);
-    // Codex Move 2 P2: judges who only wheel-scroll never start the bed.
-    // Wheel + touchmove broaden the gesture surface so any browser
-    // interaction (including just looking around) thaws audio.
     window.addEventListener("wheel", onActivity, { passive: true });
     window.addEventListener("touchstart", onActivity, { passive: true });
     return () => {
@@ -468,43 +443,44 @@ export default function Home() {
 
   return (
     <div className="h-screen w-screen flex flex-col bg-black text-zinc-100">
-      {/* Lyria 2 ambient bed — PLAN_V3.md Move 2.1. Loops at -28 dBFS for
-          page atmosphere. Browsers block autoplay until a user gesture;
-          first pointer/keyboard event triggers a fade-in. */}
-      <audio
-        ref={ambientRef}
-        src="/ambient-30s.mp3"
-        loop
-        preload="auto"
-        aria-hidden="true"
-      />
+      {/* v3.2 sub-move 7.5: ambient bed removed from Ops Center. Producer
+          feedback "music doesn't make sense" + the agent narration via
+          ElevenLabs (added in sub-move 7.4) is the right per-scenario
+          audio cue. The Lyria bed remains in the demo VIDEO (Move 4)
+          where it has narrative purpose. */}
       <Toolbar
         scenarios={scenarios}
         onRunScenario={runScenario}
         runningId={runningScenarioId}
         autoCycleActive={autoCycleActive}
-        ambientReady={ambientReady}
+        leadingChrome={<TabStrip active={activeTab} onChange={setActiveTab} />}
       />
-      <div className="flex-1 grid grid-cols-[320px_1fr_360px] min-h-0">
-        <IncidentPanel incidents={incidents} />
-        <div className="relative">
-          <ReserveMap
-            activeReserveId={activeReserveId}
-            fanOutFiring={fanOutFiring}
-            activePeers={activePeers}
-          />
-          {/* PLAN_V3_1 sub-move 6.4 — Watch Dogs chase-path overlay. Reads
-              independent of the map renderer; even in headless / broken-
-              WebGL the narrative (truck closing distance to herd, ranger
-              intercepting) stays legible. */}
-          <ChasePath activeIncident={incidents.length > 0 ? incidents[incidents.length - 1] : null} />
+      {activeTab === "operations" && (
+        <div className="flex-1 grid grid-cols-[320px_1fr_360px] min-h-0">
+          <IncidentPanel incidents={incidents} />
+          <div className="relative">
+            <ReserveMap
+              activeReserveId={activeReserveId}
+              fanOutFiring={fanOutFiring}
+              activePeers={activePeers}
+            />
+            <ChasePath activeIncident={incidents.length > 0 ? incidents[incidents.length - 1] : null} />
+          </div>
+          <EventStream events={visibleEvents} status={status} />
         </div>
-        <EventStream events={visibleEvents} status={status} />
-      </div>
-      {/* PLAN_V3_1 sub-move 6.5 — Google heavy-lifting bottom strip.
-          Real-time aggregation of model + RAG + A2A calls happening live.
-          Answers the "feels pre-fabricated" complaint by surfacing the
-          real Google AI products doing the work. */}
+      )}
+      {activeTab === "live-cams" && (
+        <div className="flex-1 min-h-0">
+          <LiveCams />
+        </div>
+      )}
+      {activeTab === "agent-theater" && (
+        <div className="flex-1 min-h-0">
+          <AgentTheater />
+        </div>
+      )}
+      {/* Heavy-lifting strip persists across all tabs to keep the "Google
+          products at work" telemetry visible regardless of view. */}
       <HeavyLifting events={visibleEvents} />
     </div>
   );

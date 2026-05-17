@@ -38,10 +38,15 @@ demo-renders/
 *.mp4
 *.mov
 
-# Exception: ONLY the Ops Center Veo hero loop is force-tracked because it
-# ships in the Docker build (PLAN_V3.md Move 2.3). Tightened to the specific
-# filename so future large MP4 drops in public/ don't sneak into git.
+# Exception: Ops Center Veo assets are force-tracked because they ship in
+# the Docker build. Move 2.3 added the hero loop; PLAN_V3_2 adds 4 Live Cams
+# clips for the new tab. Tightened to specific filenames so future large
+# MP4 drops in public/ don't sneak into git.
 !ops-center/public/hero-6s.mp4
+!ops-center/public/cams/cheetah-crossing.mp4
+!ops-center/public/cams/elephant-dusk.mp4
+!ops-center/public/cams/trap-perspective.mp4
+!ops-center/public/cams/vehicle-night.mp4
 
 # Heavy video pipeline intermediates — regenerable from scripts/video/*.
 # Keep mp3 voice tracks tracked (small + locked to script).

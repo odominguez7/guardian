@@ -47,6 +47,37 @@ function severityDot(severity: string): string {
   return map[severity] ?? map.info;
 }
 
+// PLAN_V3_2 sub-move 7.6 — per-agent accent colors so the plain ticker
+// has the visual rhythm a 15-year-old can follow at a glance. Colors are
+// matched to the Imagen portrait accent palette from Move 2.2.
+function agentAccent(agent: string): { border: string; portrait: string | null } {
+  const portrait = `/portraits/${agent}.png`;
+  switch (agent) {
+    case "root_agent":
+      return { border: "border-l-amber-400", portrait };
+    case "stream_watcher":
+      return { border: "border-l-sky-400", portrait };
+    case "audio_agent":
+      return { border: "border-l-violet-400", portrait };
+    case "species_id":
+      return { border: "border-l-emerald-400", portrait };
+    case "falsifier":
+      return { border: "border-l-rose-400", portrait };
+    case "court_evidence":
+      return { border: "border-l-slate-400", portrait };
+    case "park_service":
+      return { border: "border-l-orange-400", portrait };
+    case "sponsor_sustainability":
+      return { border: "border-l-blue-400", portrait };
+    case "funder_reporter":
+      return { border: "border-l-fuchsia-300", portrait };
+    case "neighbor_park":
+      return { border: "border-l-teal-400", portrait };
+    default:
+      return { border: "border-l-zinc-700", portrait: null };
+  }
+}
+
 function formatTime(iso: string): string {
   try {
     const d = new Date(iso);
@@ -207,25 +238,38 @@ export default function EventStream({ events, status }: Props) {
             Waiting for events… try the demo button.
           </div>
         )}
-        {events.map((e, i) =>
-          mode === "plain" ? (
-            <div
-              key={e.id || `${e.kind}-${e.ts}-${i}`}
-              className="px-2 py-2 rounded hover:bg-zinc-800/40 flex items-start gap-3 text-[13px] leading-snug"
-            >
-              <div className={`w-1.5 h-1.5 rounded-full mt-2 flex-shrink-0 ${severityDot(e.severity)}`} />
-              <div className="flex-1 min-w-0">
-                <div className="text-zinc-200">{narrate(e)}</div>
-                <div className="text-[10px] text-zinc-500 mt-0.5 tabular-nums">
-                  {formatTime(e.ts)}
-                  {e.latency_ms != null && <> · {e.latency_ms}ms</>}
+        {events.map((e, i) => {
+          if (mode === "plain") {
+            const accent = agentAccent(e.agent);
+            return (
+              <div
+                key={e.id || `${e.kind}-${e.ts}-${i}`}
+                className={`pl-3 pr-2 py-2 rounded-r hover:bg-zinc-800/40 flex items-start gap-2.5 text-[13px] leading-snug border-l-2 ${accent.border}`}
+              >
+                {accent.portrait ? (
+                  <img
+                    src={accent.portrait}
+                    alt=""
+                    className="w-5 h-5 rounded-full object-cover flex-shrink-0 mt-0.5 ring-1 ring-white/10"
+                  />
+                ) : (
+                  <div className={`w-1.5 h-1.5 rounded-full mt-2 flex-shrink-0 ${severityDot(e.severity)}`} />
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="text-zinc-200">{narrate(e)}</div>
+                  <div className="text-[10px] text-zinc-500 mt-0.5 tabular-nums">
+                    {formatTime(e.ts)}
+                    {e.latency_ms != null && <> · {e.latency_ms}ms</>}
+                  </div>
                 </div>
               </div>
-            </div>
-          ) : (
+            );
+          }
+          return (
             <div
               key={e.id || `${e.kind}-${e.ts}-${i}`}
               className="px-2 py-1.5 rounded hover:bg-zinc-800/40 border border-transparent hover:border-zinc-700/50 font-mono text-xs"
+              data-event-i={i}
             >
               <div className="flex items-center gap-2">
                 {kindIcon(e.kind)}
@@ -245,8 +289,8 @@ export default function EventStream({ events, status }: Props) {
                 </div>
               )}
             </div>
-          )
-        )}
+          );
+        })}
       </div>
     </div>
   );

@@ -11,10 +11,12 @@ interface Props {
   onRunScenario: (id: string) => void;
   runningId: string | null;
   autoCycleActive?: boolean;
-  ambientReady?: boolean;
+  /** PLAN_V3_2 sub-move 7.1 — caller injects the top-level TabStrip here
+   *  so it sits between the wordmark and the scenario buttons. */
+  leadingChrome?: React.ReactNode;
 }
 
-export default function Toolbar({ scenarios, onRunScenario, runningId, autoCycleActive, ambientReady }: Props) {
+export default function Toolbar({ scenarios, onRunScenario, runningId, autoCycleActive, leadingChrome }: Props) {
   const [user, setUser] = useState<User | null>(null);
   const [authConfigured, setAuthConfigured] = useState(false);
 
@@ -50,14 +52,8 @@ export default function Toolbar({ scenarios, onRunScenario, runningId, autoCycle
           ● AUTO DEMO
         </span>
       )}
-      {ambientReady && (
-        <span
-          className="ml-2 px-2 py-0.5 rounded text-[10px] uppercase tracking-wider bg-zinc-800/60 text-zinc-400 ring-1 ring-zinc-700/40"
-          title="Lyria 2 ambient bed (Vertex AI)"
-        >
-          ♪ AMBIENT
-        </span>
-      )}
+
+      {leadingChrome && <div className="ml-6">{leadingChrome}</div>}
 
       <div className="ml-6 flex items-center gap-2">
         {scenarios.map((s) => (
