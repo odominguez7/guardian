@@ -11,6 +11,15 @@ Usage:
 Idempotent: skips agents whose PNG already exists. Override with --force.
 
 Cost: ~$0.04 / image × 10 = $0.40.
+
+Reproducibility caveat: Imagen 4 does not accept a seed parameter at the
+publisher-model surface — every regeneration is stochastic. The portraits
+in `ops-center/public/portraits/` are the COMMITTED canonical set. Do not
+re-run with --force unless you intend to replace them all; the committed
+PNGs are the source of truth for the deployed Ops Center, not this script.
+The Falsifier portrait took two attempts on 2026-05-17 (first try was
+flat white-bg; the noir prompt below produces dark-mode results
+reliably in our experience but is not guaranteed deterministic).
 """
 
 from __future__ import annotations

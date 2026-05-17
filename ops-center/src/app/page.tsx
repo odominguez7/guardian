@@ -427,9 +427,16 @@ export default function Home() {
     };
     window.addEventListener("pointerdown", onActivity);
     window.addEventListener("keydown", onActivity);
+    // Codex Move 2 P2: judges who only wheel-scroll never start the bed.
+    // Wheel + touchmove broaden the gesture surface so any browser
+    // interaction (including just looking around) thaws audio.
+    window.addEventListener("wheel", onActivity, { passive: true });
+    window.addEventListener("touchstart", onActivity, { passive: true });
     return () => {
       window.removeEventListener("pointerdown", onActivity);
       window.removeEventListener("keydown", onActivity);
+      window.removeEventListener("wheel", onActivity);
+      window.removeEventListener("touchstart", onActivity);
     };
   }, []);
 

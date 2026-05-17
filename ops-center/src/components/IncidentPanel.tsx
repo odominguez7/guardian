@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Siren, FileCheck2, ShieldAlert, Clock3, HandCoins, Map as MapIcon, Gavel } from "lucide-react";
+import { Siren, Clock3 } from "lucide-react";
 
 export interface ActiveIncident {
   incident_id: string;
