@@ -698,11 +698,70 @@ async def run_scenario(scenario_id: str) -> dict:
 # live streams and is sufficient for a Gemini Vision multi-class detection.
 # v7 will add the yt-dlp path once the demo loop is proven.
 
+import hashlib as _hashlib  # noqa: E402
 import urllib.request as _urllib_request  # noqa: E402
 import urllib.error as _urllib_error  # noqa: E402
 
 from pydantic import BaseModel as _BaseModel  # noqa: E402
-from app.tools.vision import analyze_image_frame as _analyze_image_frame  # noqa: E402
+from app.tools.vision import (  # noqa: E402
+    analyze_image_bytes as _analyze_image_bytes,
+    analyze_image_frame as _analyze_image_frame,
+)
+from app.tools.livecam_frame import get_live_frame as _get_live_frame  # noqa: E402
+
+
+# v7: IUCN hot list (Endangered / Critically Endangered + CITES Appendix I/II
+# of the species GUARDIAN is likely to encounter on its sponsored reserves).
+# A spot escalates only when threat_signals are present OR a hot species
+# appears — peaceful waterhole drinks are LOGGED, not escalated.
+# Producer flagged 2026-05-17: "why is a fox at a waterhole escalated?"
+_HOT_SPECIES_LOWER = {
+    # African big cats
+    "leopard", "panthera pardus",
+    "cheetah", "acinonyx jubatus",
+    "lion", "african lion", "panthera leo",
+    "snow leopard", "panthera uncia",
+    # African rhinos / elephants
+    "black rhino", "diceros bicornis",
+    "white rhino", "ceratotherium simum",
+    "african elephant", "loxodonta africana", "loxodonta cyclotis",
+    "asian elephant", "elephas maximus",
+    # Endangered canids
+    "african wild dog", "lycaon pictus",
+    "ethiopian wolf", "canis simensis",
+    # Great apes
+    "mountain gorilla", "gorilla beringei", "gorilla gorilla",
+    "orangutan", "pongo pygmaeus", "pongo abelii", "pongo tapanuliensis",
+    "chimpanzee", "pan troglodytes",
+    "bonobo", "pan paniscus",
+    # Big cats elsewhere
+    "tiger", "panthera tigris",
+    "jaguar", "panthera onca",
+    # Other hot
+    "pangolin", "manis",
+    "saola", "pseudoryx nghetinhensis",
+}
+
+
+def _is_hot_species(species_list) -> tuple[bool, str]:
+    """Return (is_hot, matched_name) if any species in the list is on the
+    hot watchlist. Case-insensitive on both common_name AND scientific name.
+    """
+    if not isinstance(species_list, list):
+        return False, ""
+    for s in species_list:
+        if not isinstance(s, dict):
+            continue
+        for key in ("common_name", "name"):
+            v = (s.get(key) or "").strip().lower()
+            if v and v in _HOT_SPECIES_LOWER:
+                return True, s.get("common_name") or s.get("name") or ""
+            # Also do a substring match so "African Elephant (subspecies)"
+            # still trips on "african elephant".
+            for hot in _HOT_SPECIES_LOWER:
+                if hot in v:
+                    return True, s.get("common_name") or s.get("name") or ""
+    return False, ""
 
 
 class _LivecamSpotRequest(_BaseModel):
@@ -777,19 +836,32 @@ async def livecam_spot(req: _LivecamSpotRequest) -> dict:
         )
     _livecam_last_run[youtube_id] = now
 
-    # v6.1 codex BLOCK fix: wrap the 7-URL HEAD probe in to_thread so the
-    # event loop isn't frozen for up to ~21s while we search for a frame.
-    thumbnail_url = await asyncio.to_thread(_pick_live_thumbnail, youtube_id)
-    if thumbnail_url is None:
-        raise HTTPException(
-            status_code=502,
-            detail=f"No fetchable thumbnail for youtube_id={youtube_id}",
+    # v7: pull a REAL current frame from the live HLS stream via
+    # yt-dlp + ffmpeg. Producer caught v6's bug 2026-05-17 — the
+    # maxresdefault_live.jpg URL we used previously is a static poster
+    # cached when the broadcast started, NOT a live thumbnail. Verified
+    # by 3 identical SHA hashes across 24s. The new path runs in 1.5-2.5s
+    # warm + 3-5s cold and returns genuinely fresh JPEG bytes every call.
+    frame_bytes = await asyncio.to_thread(_get_live_frame, youtube_id)
+    using_fresh_frame = frame_bytes is not None
+    thumbnail_url: str | None = None
+    if not using_fresh_frame:
+        # Degrade gracefully: if yt-dlp or ffmpeg failed (network blip,
+        # manifest expired, binary missing), fall back to the legacy
+        # poster path so the demo never fully breaks — and log the
+        # event so we know to investigate.
+        logger.log_struct(
+            {"event": "livecam_frame_fallback_to_poster", "youtube_id": youtube_id},
+            severity="WARNING",
         )
-    # v6.1 codex WARN fix: add a cache-buster query param. YouTube's CDN
-    # otherwise serves the same edge-cached crop, which would make every
-    # successive "Spot Now" click analyze the same image.
-    sep = "&" if "?" in thumbnail_url else "?"
-    thumbnail_url = f"{thumbnail_url}{sep}_ts={int(_time.time())}"
+        thumbnail_url = await asyncio.to_thread(_pick_live_thumbnail, youtube_id)
+        if thumbnail_url is None:
+            raise HTTPException(
+                status_code=502,
+                detail=f"Live frame + poster fallback both unavailable for {youtube_id}",
+            )
+        sep = "&" if "?" in thumbnail_url else "?"
+        thumbnail_url = f"{thumbnail_url}{sep}_ts={int(_time.time())}"
 
     # v6.1 codex WARN fix: incident_id seed now includes random entropy so
     # cross-pod / rapid-fire clicks can't collide on the same id. Same
@@ -801,6 +873,17 @@ async def livecam_spot(req: _LivecamSpotRequest) -> dict:
     # fix: sponsor / funder / neighbor all reject None timestamps with a
     # structured error envelope and the incident would silently not fan out.
     observation_iso = datetime.now(timezone.utc).isoformat()
+
+    # Frame SHA goes in the firehose so the producer can verify each spot
+    # is analyzing a different image — the bug v7 fixes was that we WEREN'T.
+    frame_sha = (
+        _hashlib.sha256(frame_bytes).hexdigest()[:16] if frame_bytes else "fallback"
+    )
+    frame_descriptor = (
+        f"fresh HLS frame · {len(frame_bytes)}B · sha={frame_sha}"
+        if using_fresh_frame
+        else f"fallback poster · {thumbnail_url}"
+    )
 
     # 1) Announce the spot on the firehose so the UI lights up immediately.
     _events.emit(
@@ -814,11 +897,15 @@ async def livecam_spot(req: _LivecamSpotRequest) -> dict:
             "title": f"Live Spot — {cam_label}",
             "narrative": (
                 f"Producer triggered Stream Watcher on a real frame from "
-                f"YouTube live cam {youtube_id}. Frame URL: {thumbnail_url}"
+                f"YouTube live cam {youtube_id}. Source: {frame_descriptor}"
             ),
-            "fanout": ["park_service", "sponsor_sustainability", "funder_reporter", "neighbor_park"],
+            # Fanout list is informational; the actual decision is made
+            # below based on threat_signals + hot-species detection.
+            "fanout": [],
             "source": "livecam",
             "youtube_id": youtube_id,
+            "frame_sha": frame_sha,
+            "frame_fresh": using_fresh_frame,
             "thumbnail_url": thumbnail_url,
             "pre_steps": ["stream_watcher:analyze_image_frame"],
         },
@@ -832,15 +919,27 @@ async def livecam_spot(req: _LivecamSpotRequest) -> dict:
         tool="analyze_image_frame",
         incident_id=incident_id,
         severity="info",
-        payload={"image_uri": thumbnail_url, "focus": "wildlife + threat detection"},
+        payload={
+            "source": frame_descriptor,
+            "frame_sha": frame_sha,
+            "focus": "wildlife + threat detection",
+        },
     )
     vision_started = _time.monotonic()
-    result = await asyncio.to_thread(
-        _analyze_image_frame,
-        thumbnail_url,
-        "identify wildlife species, count, behavior, and any threat signals "
-        "(humans, vehicles, gunshot residue, fences cut). Be specific.",
-    )
+    if using_fresh_frame:
+        result = await asyncio.to_thread(
+            _analyze_image_bytes,
+            frame_bytes,
+            "identify wildlife species, count, behavior, and any threat signals "
+            "(humans, vehicles, gunshot residue, fences cut). Be specific.",
+        )
+    else:
+        result = await asyncio.to_thread(
+            _analyze_image_frame,
+            thumbnail_url,
+            "identify wildlife species, count, behavior, and any threat signals "
+            "(humans, vehicles, gunshot residue, fences cut). Be specific.",
+        )
     latency_ms = int((_time.monotonic() - vision_started) * 1000)
     _events.emit(
         kind="tool_end",
@@ -852,14 +951,35 @@ async def livecam_spot(req: _LivecamSpotRequest) -> dict:
         latency_ms=latency_ms,
     )
 
-    # 3) Decide escalation from the vision result.
-    # v6.2 fix: the analyze_image_frame response schema uses `species` (list)
-    # + `total_animal_count`, NOT `primary_species`. v6.0 read the wrong
-    # fields and the fallback-escalation never fired on real sightings —
-    # the smoke test caught 5 ostriches + 1 oryx but didn't fan out.
-    requires_escalation = bool(result.get("requires_escalation"))
+    # 3) Decide escalation HONESTLY (v7 fix).
+    # Producer flagged 2026-05-17: v6 forced requires_escalation=True on any
+    # species count > 0, which meant a fox at a waterhole triggered a
+    # Park Service ranger dispatch + TNFD filing. That's not real life;
+    # that's the demo lying. Codex flagged the same as too hair-trigger.
+    #
+    # New rule: escalate only when EITHER
+    #   (a) Gemini's own assessment is requires_escalation=true (model
+    #       saw something genuinely concerning), OR
+    #   (b) any threat_signal is present (vehicle, human, gunshot, fence
+    #       breach — the things rangers actually care about), OR
+    #   (c) a hot-list species appears (IUCN EN/CR + CITES App I/II —
+    #       sponsor TNFD filings care about these specifically).
+    # Peaceful sightings of common species get LOGGED to the firehose
+    # (the spot is visible in the Ops Center) but DO NOT fan out to peers.
     species_list = result.get("species") or []
     threat_signals = result.get("threat_signals") or []
+    total_animal_count = int(result.get("total_animal_count") or 0)
+    gemini_escalation = bool(result.get("requires_escalation"))
+    threats_present = bool(threat_signals)
+    hot_match, hot_name = _is_hot_species(species_list)
+    requires_escalation = gemini_escalation or threats_present or hot_match
+    escalation_reason = (
+        "gemini_model" if gemini_escalation
+        else "threat_signal" if threats_present
+        else f"hot_species:{hot_name}" if hot_match
+        else "none"
+    )
+
     # Pick the highest-confidence common name as the headline species.
     species_headline: str = ""
     if isinstance(species_list, list) and species_list:
@@ -874,16 +994,6 @@ async def livecam_spot(req: _LivecamSpotRequest) -> dict:
                 species_headline = cn
         except (TypeError, ValueError):
             pass
-    total_animal_count = int(result.get("total_animal_count") or 0)
-    if not requires_escalation and (total_animal_count > 0 or threat_signals):
-        # Producer ergonomic: any live wildlife sighting is worth a fan-out
-        # so the demo shows the agentic chain reacting. If the vision tool
-        # is conservative, escalate to medium here so the peers always run.
-        requires_escalation = True
-    # v6.3 codex WARN fix: threat-only escalations (e.g. fence breach with
-    # no animals visible in the frame) used to ship "wildlife sighting" as
-    # species_affected on every peer payload — misleading on the TNFD
-    # filing. Now we derive a threat-specific label when species is empty.
     if not species_headline:
         if threat_signals:
             species_headline = f"scene event ({threat_signals[0]})"
@@ -909,6 +1019,24 @@ async def livecam_spot(req: _LivecamSpotRequest) -> dict:
     )
 
     if not requires_escalation:
+        # v7: peaceful sighting — log it visibly without firing the 4-peer
+        # fan-out. Sponsor TNFD filings only get created for incidents
+        # that actually matter. The firehose still shows the spot, the
+        # Ops Center cards still update, but no ranger gets paged.
+        _events.emit(
+            kind="incident_event",
+            agent="ops_center",
+            tool="livecam:spot:logged",
+            incident_id=incident_id,
+            severity="info",
+            payload={
+                "requires_escalation": False,
+                "vision_status": result.get("status"),
+                "headline": species_headline,
+                "total_animal_count": total_animal_count,
+                "logged_reason": "no_threat_signals_no_hot_species",
+            },
+        )
         _events.emit(
             kind="incident_event",
             agent="ops_center",
@@ -921,9 +1049,12 @@ async def livecam_spot(req: _LivecamSpotRequest) -> dict:
             "status": "ok",
             "incident_id": incident_id,
             "requires_escalation": False,
+            "escalation_reason": "none",
             "vision": result,
             "adversarial_review": review,
             "thumbnail_url": thumbnail_url,
+            "frame_sha": frame_sha,
+            "frame_fresh": using_fresh_frame,
         }
 
     # 5) Fan out to ALL four A2A peers in parallel — real LLM calls, real
@@ -1021,9 +1152,12 @@ async def livecam_spot(req: _LivecamSpotRequest) -> dict:
         "status": "ok",
         "incident_id": incident_id,
         "requires_escalation": True,
+        "escalation_reason": escalation_reason,
         "vision": result,
         "adversarial_review": review,
         "thumbnail_url": thumbnail_url,
+        "frame_sha": frame_sha,
+        "frame_fresh": using_fresh_frame,
         **results,
     }
 

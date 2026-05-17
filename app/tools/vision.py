@@ -103,6 +103,56 @@ def analyze_video_clip(video_uri: str) -> dict:
         return {"status": "error", "error": f"{type(e).__name__}: {e}"}
 
 
+def analyze_image_bytes(image_bytes: bytes, focus: Optional[str] = None, mime_type: str = "image/jpeg") -> dict:
+    """Analyze an in-memory image (JPEG/PNG bytes) — same contract as
+    `analyze_image_frame` but skips the URI fetch.
+
+    Used by the /livecam/spot path (v7+) where the frame is extracted from
+    a YouTube HLS stream via ffmpeg and passed straight into Gemini Vision
+    without ever touching GCS or being served over HTTP. Saves an upload
+    round-trip and guarantees the model sees exactly the bytes we
+    captured.
+
+    Args:
+        image_bytes: raw image data (JPEG bytes by default).
+        focus: optional focus instruction (same semantics as analyze_image_frame).
+        mime_type: MIME of the bytes. Defaults to image/jpeg.
+
+    Returns:
+        Same schema as analyze_image_frame.
+    """
+    if not isinstance(image_bytes, (bytes, bytearray)) or len(image_bytes) < 256:
+        return {"status": "error", "error": "image_bytes is required (≥256B)"}
+
+    instruction = _STREAM_WATCHER_PROMPT
+    if focus:
+        instruction += f"\n\nADDITIONAL FOCUS: {focus}"
+
+    try:
+        part = genai_types.Part.from_bytes(data=bytes(image_bytes), mime_type=mime_type)
+        response = _get_client().models.generate_content(
+            model=_DEFAULT_VISION_MODEL,
+            contents=[part, instruction],
+            config=genai_types.GenerateContentConfig(
+                response_mime_type="application/json",
+                temperature=0.1,
+            ),
+        )
+        parsed = json.loads(response.text)
+        parsed["status"] = "ok"
+        parsed["_source_uri"] = f"inline:{mime_type};{len(image_bytes)}B"
+        parsed["_model"] = _DEFAULT_VISION_MODEL
+        return parsed
+    except json.JSONDecodeError as e:
+        return {
+            "status": "error",
+            "error": f"Model returned non-JSON output: {e}",
+            "_raw_text": getattr(response, "text", "")[:500] if "response" in locals() else "",
+        }
+    except Exception as e:
+        return {"status": "error", "error": f"{type(e).__name__}: {e}"}
+
+
 def analyze_image_frame(image_uri: str, focus: Optional[str] = None) -> dict:
     """Analyze a single image frame from a camera trap or ranger photo.
 

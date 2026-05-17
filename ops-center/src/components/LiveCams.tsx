@@ -10,8 +10,8 @@
 // ask 2026-05-17: "is there a way to launch some agent in real life
 // when we spot something in the screen?" YES.
 
-import { useState, useRef } from "react";
-import { Sparkles } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Sparkles, Repeat } from "lucide-react";
 
 const ORCH_URL =
   process.env.NEXT_PUBLIC_ORCHESTRATOR_URL ?? "http://localhost:8000";
@@ -75,12 +75,15 @@ const CAMS: CamProps[] = [
 interface SpotResult {
   incident_id: string;
   requires_escalation: boolean;
+  escalationReason: string; // "gemini_model" | "threat_signal" | "hot_species:..." | "none"
   speciesLabel: string;
   totalCount: number;
   topConfidence: number;
   threatSignals: string[];
   behaviors: string[];
-  thumbnail_url: string;
+  thumbnail_url?: string;
+  frame_sha?: string;
+  frame_fresh?: boolean;
   falsifier: { verdict: string; severity_0_5?: number; reason?: string } | null;
   rangerUnit?: string;
   rangerEta?: number;
@@ -89,6 +92,8 @@ interface SpotResult {
   funderReceiptId?: string;
   neighborHandoffId?: string;
 }
+
+const AUTO_SPOT_INTERVAL_MS = 60_000;
 
 function pickTopSpecies(speciesArr: unknown): {
   label: string;
@@ -129,6 +134,15 @@ function CamTile({ cam }: { cam: CamProps }) {
   // tab switch. Producer flagged 2026-05-17: "We saw a real life animal
   // by agents didnt do nothing."
   const [spotResult, setSpotResult] = useState<SpotResult | null>(null);
+  // v7: auto-spot mode for the demo. Toggle on → fires Spot Now every
+  // 60s so judges who land on the URL see real agentic activity without
+  // clicking. Persists across reloads via localStorage.
+  const autoStorageKey = cam.youtubeId ? `guardian.autospot.${cam.youtubeId}` : null;
+  const [autoSpot, setAutoSpot] = useState<boolean>(() => {
+    if (typeof window === "undefined" || !autoStorageKey) return false;
+    return window.localStorage.getItem(autoStorageKey) === "1";
+  });
+  const inFlightRef = useRef(false);
   const handleSpot = async () => {
     if (!cam.youtubeId || spotState === "running") return;
     setSpotState("running");
@@ -172,12 +186,15 @@ function CamTile({ cam }: { cam: CamProps }) {
       setSpotResult({
         incident_id: String(body?.incident_id ?? ""),
         requires_escalation: escalated,
+        escalationReason: String(body?.escalation_reason ?? ""),
         speciesLabel,
         totalCount,
         topConfidence: top.confidence,
         threatSignals,
         behaviors,
-        thumbnail_url: String(body?.thumbnail_url ?? ""),
+        thumbnail_url: body?.thumbnail_url ? String(body.thumbnail_url) : undefined,
+        frame_sha: body?.frame_sha ? String(body.frame_sha) : undefined,
+        frame_fresh: typeof body?.frame_fresh === "boolean" ? body.frame_fresh : undefined,
         falsifier: body?.adversarial_review
           ? {
               verdict: String(body.adversarial_review.verdict ?? ""),
@@ -198,6 +215,42 @@ function CamTile({ cam }: { cam: CamProps }) {
     } catch (err) {
       setSpotMessage(err instanceof Error ? err.message : "Spot failed");
       setSpotState("error");
+    }
+  };
+
+  // v7 auto-spot loop. Fires Spot Now every AUTO_SPOT_INTERVAL_MS while
+  // autoSpot is true. inFlightRef + spotState gates prevent overlap with
+  // manual clicks or a slow Gemini round-trip.
+  useEffect(() => {
+    if (!autoSpot || !cam.youtubeId) return;
+    let cancelled = false;
+    const tick = async () => {
+      if (cancelled) return;
+      if (inFlightRef.current || spotState === "running") return;
+      inFlightRef.current = true;
+      try {
+        await handleSpot();
+      } finally {
+        inFlightRef.current = false;
+      }
+    };
+    tick(); // fire immediately when toggled on
+    const id = setInterval(tick, AUTO_SPOT_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoSpot, cam.youtubeId]);
+
+  const toggleAuto = () => {
+    if (!autoStorageKey) return;
+    const next = !autoSpot;
+    setAutoSpot(next);
+    try {
+      window.localStorage.setItem(autoStorageKey, next ? "1" : "0");
+    } catch {
+      // Private-mode browser etc. — toggle still works in-session.
     }
   };
   return (
@@ -277,14 +330,40 @@ function CamTile({ cam }: { cam: CamProps }) {
             backdropFilter: "blur(8px)",
           }}
         >
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/40 text-[9px] uppercase tracking-wider">
                 LIVE SPOT · {spotResult.incident_id}
               </span>
-              {spotResult.requires_escalation && (
-                <span className="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 ring-1 ring-rose-500/40 text-[9px] uppercase tracking-wider">
+              {spotResult.requires_escalation ? (
+                <span
+                  className="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 ring-1 ring-rose-500/40 text-[9px] uppercase tracking-wider"
+                  title={`escalation reason: ${spotResult.escalationReason || "unknown"}`}
+                >
                   ESCALATED
+                </span>
+              ) : (
+                <span
+                  className="px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-300 ring-1 ring-sky-500/40 text-[9px] uppercase tracking-wider"
+                  title="No threat signal, no IUCN hot-list species — logged but no peer fan-out"
+                >
+                  LOGGED
+                </span>
+              )}
+              {spotResult.frame_sha && (
+                <span
+                  className={`px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider ring-1 font-mono ${
+                    spotResult.frame_fresh
+                      ? "bg-emerald-500/10 text-emerald-200/80 ring-emerald-500/30"
+                      : "bg-amber-500/15 text-amber-200/80 ring-amber-500/30"
+                  }`}
+                  title={
+                    spotResult.frame_fresh
+                      ? "Fresh HLS frame (yt-dlp + ffmpeg) — v7"
+                      : "Fallback poster image — HLS extraction failed"
+                  }
+                >
+                  {spotResult.frame_fresh ? "FRESH" : "POSTER"} · {spotResult.frame_sha.slice(0, 8)}
                 </span>
               )}
             </div>
@@ -416,20 +495,39 @@ function CamTile({ cam }: { cam: CamProps }) {
             )}
           </div>
           {cam.realLive && cam.youtubeId && (
-            <button
-              type="button"
-              onClick={handleSpot}
-              disabled={spotState === "running"}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded text-[10px] font-semibold uppercase tracking-wider ring-1 transition-colors shrink-0 ${
-                spotState === "running"
-                  ? "bg-amber-500/20 text-amber-200 ring-amber-500/50 animate-pulse cursor-wait"
-                  : "bg-emerald-500/20 text-emerald-200 ring-emerald-500/50 hover:bg-emerald-500/30"
-              }`}
-              title="Run Gemini Vision on a fresh frame from this live cam, then fan out to all 4 A2A peers"
-            >
-              <Sparkles className="w-3 h-3" />
-              {spotState === "running" ? "Spotting…" : "Spot Now"}
-            </button>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={toggleAuto}
+                className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold uppercase tracking-wider ring-1 transition-colors ${
+                  autoSpot
+                    ? "bg-amber-500/30 text-amber-100 ring-amber-500/60 animate-pulse"
+                    : "bg-zinc-800/60 text-zinc-300 ring-zinc-600/60 hover:bg-zinc-700/60"
+                }`}
+                title={
+                  autoSpot
+                    ? `Auto-spot ON · runs every ${AUTO_SPOT_INTERVAL_MS / 1000}s · click to stop`
+                    : "Auto-spot the live cam every 60s. Real frames, real agents."
+                }
+              >
+                <Repeat className="w-3 h-3" />
+                {autoSpot ? "Auto: ON" : "Auto"}
+              </button>
+              <button
+                type="button"
+                onClick={handleSpot}
+                disabled={spotState === "running"}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded text-[10px] font-semibold uppercase tracking-wider ring-1 transition-colors ${
+                  spotState === "running"
+                    ? "bg-amber-500/20 text-amber-200 ring-amber-500/50 animate-pulse cursor-wait"
+                    : "bg-emerald-500/20 text-emerald-200 ring-emerald-500/50 hover:bg-emerald-500/30"
+                }`}
+                title="Pull a fresh frame from the live HLS, run Gemini Vision + Falsifier. Escalates only on threat or hot species."
+              >
+                <Sparkles className="w-3 h-3" />
+                {spotState === "running" ? "Spotting…" : "Spot Now"}
+              </button>
+            </div>
           )}
         </div>
       </div>

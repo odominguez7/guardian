@@ -14,6 +14,15 @@
 
 FROM python:3.11-slim
 
+# v7: ffmpeg for live-frame extraction from the YouTube HLS manifest
+# (replaces the stale-poster bug producer caught 2026-05-17). yt-dlp ships
+# as a Python dep via uv so it gets the freshest signature definitions.
+# Layer ordering: install ffmpeg BEFORE uv sync so dep-only rebuilds don't
+# reinvalidate the ~80MB apt layer.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ffmpeg ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
 RUN pip install --no-cache-dir uv==0.8.13
 
 WORKDIR /code
