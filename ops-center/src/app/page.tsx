@@ -20,6 +20,14 @@ const ORCH_URL = process.env.NEXT_PUBLIC_ORCHESTRATOR_URL ?? "http://localhost:8
 // DOM + memory bounded without losing the active scenario.
 const MAX_VISIBLE_INCIDENTS = 5;
 
+// Auto-Cycle Demo Mode: when a judge lands on the public URL and doesn't
+// click anything for AUTO_CYCLE_IDLE_MS, scenarios start firing automatically
+// so the page is always alive. Any manual scenario click counts as activity
+// and resets the idle clock — the cycle then picks back up after the next
+// idle window. Locked 2026-05-17 (PLAN_V3.md Move 0). Disabled in tests via
+// NEXT_PUBLIC_DISABLE_AUTOCYCLE=1 if it ever becomes a nuisance.
+const AUTO_CYCLE_IDLE_MS = 10_000;
+
 export default function Home() {
   const [events, setEvents] = useState<GuardianEvent[]>([]);
   const [status, setStatus] = useState<FirehoseStatus>("disconnected");
@@ -29,6 +37,9 @@ export default function Home() {
   const [fanOutFiring, setFanOutFiring] = useState(false);
   const [activePeers, setActivePeers] = useState<string[]>([]);
   const [incidents, setIncidents] = useState<ActiveIncident[]>([]);
+  const [autoCycleActive, setAutoCycleActive] = useState(false);
+  const lastActivityRef = useRef<number>(Date.now());
+  const autoCycleIdxRef = useRef<number>(0);
   // Codex challenge 2026-05-15: setTimeout was scheduled inside an event
   // handler without cleanup. On unmount (or rapid back-to-back triggers),
   // the timeout could fire on an unmounted component → React warning + leak.
@@ -259,6 +270,7 @@ export default function Home() {
 
   const runScenario = useCallback(
     async (id: string) => {
+      lastActivityRef.current = Date.now();
       setRunningScenarioId(id);
       // Codex challenge 2026-05-15 (final) flagged: if the firehose dies or
       // :complete event is never received, the toolbar stays disabled
@@ -302,12 +314,56 @@ export default function Home() {
     [events],
   );
 
+  // 5. Auto-Cycle Demo Mode. When the user is idle for AUTO_CYCLE_IDLE_MS
+  // and no scenario is running, fire the next scenario in rotation. Keeps
+  // the public demo URL alive for judges who land without clicking.
+  // Disabled if NEXT_PUBLIC_DISABLE_AUTOCYCLE=1 (e.g. for dev).
+  useEffect(() => {
+    if (process.env.NEXT_PUBLIC_DISABLE_AUTOCYCLE === "1") return;
+    if (scenarios.length === 0) return;
+
+    const checkInterval = setInterval(() => {
+      if (runningScenarioId !== null) {
+        // A scenario is in flight; treat that as activity so the cycle waits.
+        lastActivityRef.current = Date.now();
+        return;
+      }
+      const idle = Date.now() - lastActivityRef.current;
+      if (idle >= AUTO_CYCLE_IDLE_MS) {
+        const idx = autoCycleIdxRef.current % scenarios.length;
+        autoCycleIdxRef.current += 1;
+        setAutoCycleActive(true);
+        runScenario(scenarios[idx].id);
+      } else {
+        setAutoCycleActive(false);
+      }
+    }, 1000);
+
+    return () => clearInterval(checkInterval);
+  }, [scenarios, runningScenarioId, runScenario]);
+
+  // 6. Any user pointer / keyboard activity counts as "still here" — pauses
+  // Auto-Cycle so the user can read incident cards without interruption.
+  useEffect(() => {
+    const onActivity = () => {
+      lastActivityRef.current = Date.now();
+      setAutoCycleActive(false);
+    };
+    window.addEventListener("pointerdown", onActivity);
+    window.addEventListener("keydown", onActivity);
+    return () => {
+      window.removeEventListener("pointerdown", onActivity);
+      window.removeEventListener("keydown", onActivity);
+    };
+  }, []);
+
   return (
     <div className="h-screen w-screen flex flex-col bg-black text-zinc-100">
       <Toolbar
         scenarios={scenarios}
         onRunScenario={runScenario}
         runningId={runningScenarioId}
+        autoCycleActive={autoCycleActive}
       />
       <div className="flex-1 grid grid-cols-[320px_1fr_360px] min-h-0">
         <IncidentPanel incidents={incidents} />

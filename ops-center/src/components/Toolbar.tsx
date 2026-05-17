@@ -10,9 +10,10 @@ interface Props {
   scenarios: DemoScenario[];
   onRunScenario: (id: string) => void;
   runningId: string | null;
+  autoCycleActive?: boolean;
 }
 
-export default function Toolbar({ scenarios, onRunScenario, runningId }: Props) {
+export default function Toolbar({ scenarios, onRunScenario, runningId, autoCycleActive }: Props) {
   const [user, setUser] = useState<User | null>(null);
   const [authConfigured, setAuthConfigured] = useState(false);
 
@@ -42,6 +43,12 @@ export default function Toolbar({ scenarios, onRunScenario, runningId }: Props) 
           </div>
         </div>
       </div>
+
+      {autoCycleActive && (
+        <span className="ml-4 px-2 py-0.5 rounded text-[10px] uppercase tracking-wider bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/40 animate-pulse">
+          ● AUTO DEMO
+        </span>
+      )}
 
       <div className="ml-6 flex items-center gap-2">
         {scenarios.map((s) => (
