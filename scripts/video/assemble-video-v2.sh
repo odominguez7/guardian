@@ -118,12 +118,29 @@ fi
 # Mask two known UI artifacts in the live recording:
 #   - top-right auth banner: black box from x=1430,y=0 to x=1920,y=44
 #   - bottom-left issues bubble: black box from x=0,y=h-95 to x=200,y=h
+# Plus PLAN_V3.md Move 4.2 — telemetric HUD overlay in the bottom-right
+# corner during the demo beat. Real numbers from the live multimodal_pipeline
+# call (audio confidence 0.93, species_id 0.91, falsifier dissent severity
+# 4 per Move 1's deterministic gate engine).
 DEMO_DUR=60
 FOOTAGE_MASK="drawbox=x=1430:y=0:w=490:h=44:color=black@1.0:t=fill,drawbox=x=0:y=985:w=200:h=95:color=black@1.0:t=fill"
+# PLAN_V3.md Move 4.2 — telemetric HUD overlay. drawtext is unavailable in
+# this ffmpeg build (libfreetype not linked); we pre-render the HUD as a
+# transparent PNG via scripts/video/render-hud-overlay.py and overlay it
+# with the (always-available) overlay filter. Regenerate the PNG before
+# running this script if you change the HUD text.
+HUD_PNG="$CARDS/hud-overlay.png"
 if [[ -n "$FOOTAGE_WEBM" ]]; then
-  ffmpeg -y -loglevel error -ss 6 -i "$FOOTAGE_WEBM" -t "$DEMO_DUR" \
-    -vf "$VF_PAD,$FOOTAGE_MASK,tpad=stop_mode=clone:stop_duration=30" -r 30 \
-    -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -an "$TMP/v05.mp4"
+  if [[ -f "$HUD_PNG" ]]; then
+    ffmpeg -y -loglevel error -ss 6 -i "$FOOTAGE_WEBM" -loop 1 -t "$DEMO_DUR" -i "$HUD_PNG" -t "$DEMO_DUR" \
+      -filter_complex "[0:v]$VF_PAD,$FOOTAGE_MASK[bg];[bg][1:v]overlay=0:0:format=auto[v]" \
+      -map "[v]" -r 30 -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -an "$TMP/v05.mp4"
+  else
+    echo "  WARNING: HUD overlay missing; rendering demo without HUD. Run scripts/video/render-hud-overlay.py first."
+    ffmpeg -y -loglevel error -ss 6 -i "$FOOTAGE_WEBM" -t "$DEMO_DUR" \
+      -vf "$VF_PAD,$FOOTAGE_MASK,tpad=stop_mode=clone:stop_duration=30" -r 30 \
+      -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -an "$TMP/v05.mp4"
+  fi
 else
   still_to_clip "$ARCH/guardian-architecture.png" "$DEMO_DUR" "$TMP/v05.mp4"
 fi
@@ -211,13 +228,20 @@ ffmpeg -y -loglevel error -f concat -safe 0 -i "$TMP/concat-audio.txt" -c:a libm
 TOTAL_A=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$TMP/audio-vo.mp3")
 printf "  VO track duration: %.2fs\n" "$TOTAL_A"
 
-# ── MUSIC MIX (optional) ──
+# ── MUSIC MIX (Lyria 2 ambient bed at -28 dBFS — PLAN_V3.md Move 4.1) ──
+# The Lyria bed is 30s; loop it across the full 178s output with a 3s fade-in
+# at the start and 2s fade-out before the close beat. -28 dBFS sits below the
+# VO so words stay legible while the bed adds atmospheric weight.
 if [[ -n "$MUSIC" && -f "$MUSIC" ]]; then
-  echo "→ mixing music bed under VO"
-  ffmpeg -y -loglevel error -i "$MUSIC" -i "$TMP/audio-vo.mp3" -filter_complex \
-    "[0:a]volume=-22dB,afade=t=in:st=0:d=2,afade=t=out:st=178:d=2,atrim=0:180[mus]; \
+  echo "→ mixing Lyria 2 ambient bed under VO (loops 30s bed across full runtime)"
+  # normalize=0 disables amix's auto-division-by-input-count so the music
+  # stays at its target -22 dBFS instead of being halved to -28 dBFS by
+  # the mix (PLAN_V3.md Move 4.1 — initial mix had bed at -65 dB mean,
+  # below audibility on most speakers).
+  ffmpeg -y -loglevel error -stream_loop -1 -i "$MUSIC" -i "$TMP/audio-vo.mp3" -filter_complex \
+    "[0:a]volume=-22dB,afade=t=in:st=0:d=3,afade=t=out:st=176:d=2,atrim=0:180[mus]; \
      [1:a]volume=0dB[vo]; \
-     [mus][vo]amix=inputs=2:duration=longest:dropout_transition=0[mix]" \
+     [mus][vo]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[mix]" \
     -map "[mix]" -c:a libmp3lame -b:a 192k "$TMP/audio-track.mp3"
 else
   cp "$TMP/audio-vo.mp3" "$TMP/audio-track.mp3"
