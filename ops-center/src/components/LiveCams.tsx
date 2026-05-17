@@ -72,6 +72,50 @@ const CAMS: CamProps[] = [
   },
 ];
 
+interface SpotResult {
+  incident_id: string;
+  requires_escalation: boolean;
+  speciesLabel: string;
+  totalCount: number;
+  topConfidence: number;
+  threatSignals: string[];
+  behaviors: string[];
+  thumbnail_url: string;
+  falsifier: { verdict: string; severity_0_5?: number; reason?: string } | null;
+  rangerUnit?: string;
+  rangerEta?: number;
+  tnfdFilingId?: string;
+  boardSlideUrl?: string;
+  funderReceiptId?: string;
+  neighborHandoffId?: string;
+}
+
+function pickTopSpecies(speciesArr: unknown): {
+  label: string;
+  count: number;
+  confidence: number;
+} {
+  if (!Array.isArray(speciesArr) || speciesArr.length === 0) {
+    return { label: "wildlife sighting", count: 0, confidence: 0 };
+  }
+  let top: Record<string, unknown> | null = null;
+  let topConf = -1;
+  for (const s of speciesArr) {
+    if (s && typeof s === "object") {
+      const conf = Number((s as Record<string, unknown>).confidence ?? 0);
+      if (conf > topConf) {
+        topConf = conf;
+        top = s as Record<string, unknown>;
+      }
+    }
+  }
+  if (!top) return { label: "wildlife sighting", count: 0, confidence: 0 };
+  const label =
+    String(top.common_name ?? top.name ?? "").trim() || "wildlife sighting";
+  const count = Number(top.count ?? 0) || 0;
+  return { label, count, confidence: topConf };
+}
+
 function CamTile({ cam }: { cam: CamProps }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   // v6: "Spot Now" — POST the live thumbnail to /livecam/spot, which runs
@@ -79,10 +123,17 @@ function CamTile({ cam }: { cam: CamProps }) {
   // A2A peers if anything material is detected.
   const [spotState, setSpotState] = useState<"idle" | "running" | "done" | "error">("idle");
   const [spotMessage, setSpotMessage] = useState<string>("");
+  // v6.4: full result panel so producer sees the agent fan-out INLINE on
+  // the Live Cams tab. Prior version returned a one-line status that
+  // (a) read the wrong vision schema and (b) hid the fan-out behind a
+  // tab switch. Producer flagged 2026-05-17: "We saw a real life animal
+  // by agents didnt do nothing."
+  const [spotResult, setSpotResult] = useState<SpotResult | null>(null);
   const handleSpot = async () => {
     if (!cam.youtubeId || spotState === "running") return;
     setSpotState("running");
     setSpotMessage("Pulling fresh frame…");
+    setSpotResult(null);
     try {
       const res = await fetch(`${ORCH_URL}/livecam/spot`, {
         method: "POST",
@@ -91,9 +142,6 @@ function CamTile({ cam }: { cam: CamProps }) {
       });
       if (res.status === 429) {
         const body = (await res.json().catch(() => null)) as { detail?: string } | null;
-        // v6.1 codex WARN fix: fall back to a stable message when the server
-        // omits or renames the `detail` field — empty status strings looked
-        // like the button silently broke.
         setSpotMessage(
           body?.detail ?? "Live cam on cooldown — retry in a few seconds.",
         );
@@ -102,13 +150,50 @@ function CamTile({ cam }: { cam: CamProps }) {
       }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const body = await res.json();
-      const species = body?.vision?.primary_species?.common_name ?? "no clear subject";
-      const escalated = body?.requires_escalation;
+      // v6.4: read the current schema (species[] + total_animal_count, not
+      // the legacy primary_species).
+      const top = pickTopSpecies(body?.vision?.species);
+      const totalCount = Number(body?.vision?.total_animal_count ?? top.count) || top.count;
+      const threatSignals: string[] = Array.isArray(body?.vision?.threat_signals)
+        ? body.vision.threat_signals
+        : [];
+      const behaviors: string[] = Array.isArray(body?.vision?.behaviors)
+        ? body.vision.behaviors
+        : [];
+      const escalated = !!body?.requires_escalation;
+      // Headline: include count when > 1.
+      const speciesLabel =
+        totalCount > 1 ? `${totalCount} × ${top.label}` : top.label;
       setSpotMessage(
         escalated
-          ? `Spotted: ${species} → fanned out to all 4 A2A peers`
-          : `Spotted: ${species} (no escalation needed)`,
+          ? `Spotted ${speciesLabel} → all 4 peers responding`
+          : `Spotted ${speciesLabel} (no escalation needed)`,
       );
+      setSpotResult({
+        incident_id: String(body?.incident_id ?? ""),
+        requires_escalation: escalated,
+        speciesLabel,
+        totalCount,
+        topConfidence: top.confidence,
+        threatSignals,
+        behaviors,
+        thumbnail_url: String(body?.thumbnail_url ?? ""),
+        falsifier: body?.adversarial_review
+          ? {
+              verdict: String(body.adversarial_review.verdict ?? ""),
+              severity_0_5: Number(body.adversarial_review.severity_0_5 ?? 0) || 0,
+              reason: String(body.adversarial_review.dissent_reason ?? ""),
+            }
+          : null,
+        rangerUnit: body?.park_service?.ranger_unit,
+        rangerEta: body?.park_service?.estimated_arrival_minutes,
+        tnfdFilingId: body?.sponsor_sustainability?.filing_id,
+        boardSlideUrl: body?.sponsor_sustainability?.board_slide_url,
+        funderReceiptId:
+          body?.funder_reporter?.receipt_id ??
+          body?.funder_reporter?.impact_entry?.receipt_id,
+        neighborHandoffId: body?.neighbor_park?.handoff_id,
+      });
       setSpotState("done");
     } catch (err) {
       setSpotMessage(err instanceof Error ? err.message : "Spot failed");
@@ -180,6 +265,130 @@ function CamTile({ cam }: { cam: CamProps }) {
           </div>
         )}
       </div>
+      {/* v6.4 — Spot result overlay. Pops over the video when the agents
+          have responded so the producer doesn't have to switch tabs to see
+          the fan-out happen. Click X (or the next Spot Now) to dismiss. */}
+      {spotResult && spotState === "done" && (
+        <div
+          className="absolute inset-x-2 top-2 bottom-12 z-20 rounded-lg p-3 overflow-y-auto"
+          style={{
+            background: "rgba(0,0,0,0.86)",
+            border: "1px solid rgba(16,185,129,0.45)",
+            backdropFilter: "blur(8px)",
+          }}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/40 text-[9px] uppercase tracking-wider">
+                LIVE SPOT · {spotResult.incident_id}
+              </span>
+              {spotResult.requires_escalation && (
+                <span className="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 ring-1 ring-rose-500/40 text-[9px] uppercase tracking-wider">
+                  ESCALATED
+                </span>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setSpotResult(null);
+                setSpotState("idle");
+                setSpotMessage("");
+              }}
+              className="text-[11px] text-zinc-400 hover:text-zinc-100 px-1.5 leading-none"
+              aria-label="Dismiss spot result"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="text-base font-semibold text-zinc-100 leading-tight">
+            {spotResult.speciesLabel}
+            {spotResult.topConfidence > 0 && (
+              <span className="ml-1.5 text-[10px] text-zinc-400 font-normal">
+                · {Math.round(spotResult.topConfidence * 100)}% conf
+              </span>
+            )}
+          </div>
+          {spotResult.behaviors.length > 0 && (
+            <div className="text-[10px] text-zinc-400 mt-0.5">
+              behaviors: {spotResult.behaviors.join(", ")}
+            </div>
+          )}
+          {spotResult.threatSignals.length > 0 && (
+            <div className="text-[10px] text-rose-300 mt-0.5">
+              threat signals: {spotResult.threatSignals.join(", ")}
+            </div>
+          )}
+          {spotResult.falsifier && (
+            <div className="text-[10px] text-zinc-400 mt-2">
+              <span className="text-zinc-500">Falsifier:</span>{" "}
+              <span
+                className={
+                  spotResult.falsifier.verdict === "dissent"
+                    ? "text-rose-300"
+                    : spotResult.falsifier.verdict === "abstain"
+                      ? "text-amber-300"
+                      : "text-emerald-300"
+                }
+              >
+                {spotResult.falsifier.verdict}
+              </span>
+            </div>
+          )}
+          {spotResult.requires_escalation && (
+            <div className="mt-2 space-y-1 text-[10px]">
+              <div className="text-zinc-500 uppercase tracking-wider text-[9px]">
+                4-peer fan-out · all live
+              </div>
+              {spotResult.rangerUnit && (
+                <div className="flex items-baseline gap-2">
+                  <span className="text-emerald-400 shrink-0">●</span>
+                  <span className="text-zinc-300">
+                    Park Service: ranger <span className="font-mono">{spotResult.rangerUnit}</span>
+                    {spotResult.rangerEta ? ` · ETA ${spotResult.rangerEta}m` : ""}
+                  </span>
+                </div>
+              )}
+              {spotResult.tnfdFilingId && (
+                <div className="flex items-baseline gap-2">
+                  <span className="text-emerald-400 shrink-0">●</span>
+                  <span className="text-zinc-300">
+                    Sponsor TNFD:{" "}
+                    {spotResult.boardSlideUrl ? (
+                      <a
+                        href={spotResult.boardSlideUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-mono underline text-amber-200"
+                      >
+                        {spotResult.tnfdFilingId}
+                      </a>
+                    ) : (
+                      <span className="font-mono">{spotResult.tnfdFilingId}</span>
+                    )}
+                  </span>
+                </div>
+              )}
+              {spotResult.funderReceiptId && (
+                <div className="flex items-baseline gap-2">
+                  <span className="text-emerald-400 shrink-0">●</span>
+                  <span className="text-zinc-300">
+                    Funder: <span className="font-mono">{spotResult.funderReceiptId}</span>
+                  </span>
+                </div>
+              )}
+              {spotResult.neighborHandoffId && (
+                <div className="flex items-baseline gap-2">
+                  <span className="text-emerald-400 shrink-0">●</span>
+                  <span className="text-zinc-300">
+                    Neighbor Park: <span className="font-mono">{spotResult.neighborHandoffId}</span>
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
       {/* Bottom subtitle + v6 Spot Now button on the real live cam */}
       <div className="absolute bottom-0 left-0 right-0 px-3 py-2 bg-gradient-to-t from-black via-black/85 to-transparent z-10">
         <div className="flex items-end justify-between gap-2">
