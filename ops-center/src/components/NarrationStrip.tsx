@@ -31,11 +31,22 @@ interface Props {
   events: GuardianEvent[];
 }
 
-// v9 W2a will add `protocol_stack` to every emission. Until then we
-// derive a plausible chip from the event's tool + agent so the UI is
-// useful immediately. When W2a lands, this map becomes a fallback for
-// events that don't yet declare their stack explicitly.
+// v9 W2a — every emission carries `protocol_stack: string[]` and an
+// optional `model: string`. We prefer the explicit values when present,
+// and fall back to a derived chip for events buffered BEFORE the W2a
+// schema upgrade (so the strip stays useful during the rollover).
 function deriveProtocolChip(evt: GuardianEvent): string | null {
+  // v9 W2a — prefer the explicit protocol_stack the backend now emits.
+  // We surface the leading entry (most specific Google Cloud / Vertex
+  // AI protocol for this tool call). If a model is also tagged, prefix
+  // it so judges see "Gemini 2.5 Pro · Vertex AI Search · RAG".
+  const stack = Array.isArray(evt.protocol_stack) ? evt.protocol_stack : [];
+  if (stack.length > 0) {
+    const lead = stack[0];
+    const model = evt.model ? prettyModel(evt.model) : null;
+    return model ? `${model} · ${lead}` : lead;
+  }
+  // Legacy fallback (pre-W2a buffered events).
   const tool = evt.tool ?? "";
   if (!tool) return null;
   if (tool.includes("notify") || evt.agent?.includes("peer")) return "A2A v0.3";
@@ -46,6 +57,19 @@ function deriveProtocolChip(evt: GuardianEvent): string | null {
   if (tool.includes("falsifier") || tool.includes("review")) return "ADK 2.0 · SequentialAgent";
   if (tool.includes("board_slide")) return "Cloud Run · HTML render";
   return null;
+}
+
+function prettyModel(raw: string): string {
+  // gemini-2.5-flash → Gemini 2.5 Flash. Keep it succinct.
+  if (!raw) return "";
+  return raw
+    .replace(/^gemini-/, "Gemini ")
+    .replace(/^imagen-/, "Imagen ")
+    .replace(/^veo-/, "Veo ")
+    .replace(/^lyria-/, "Lyria ")
+    .replace(/-pro$/, " Pro")
+    .replace(/-flash$/, " Flash")
+    .replace(/-fast$/, " Fast");
 }
 
 interface LiveChip {

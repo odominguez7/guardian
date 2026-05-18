@@ -92,6 +92,39 @@ async def lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
     yield
 
 
+# v9 W2a — protocol stack helper. Producer issue #7: "show Google
+# protocols visibly while agents speak." Every emission point in
+# fast_api_app.py routes its (agent, tool) pair through this helper
+# so the Ops Center NarrationStrip + Mission Bridge can render real
+# protocol chips when an event arrives. The model field is set for
+# Gemini-invoking tools; protocol_stack is populated for every signal-
+# bearing emission.
+def _protocol_for(agent: str | None, tool: str | None) -> tuple[str | None, list[str]]:
+    a = (agent or "").lower()
+    t = (tool or "").lower()
+    if "stream_watcher" in a or "vision" in t or "analyze_image" in t:
+        return ("gemini-2.5-flash", ["Vertex AI · Gemini Vision", "Cloud Run"])
+    if "audio_agent" in a or "audio" in t or "classify_audio" in t:
+        return ("gemini-2.5-flash", ["Vertex AI · Gemini Audio", "Cloud Run"])
+    if "species_id" in a or "species" in t or "lookup_species" in t or "factsheet" in t:
+        return ("gemini-2.5-pro", ["Vertex AI Search · RAG", "Cloud Run"])
+    if "falsifier" in a or "review_dispatch" in t:
+        return ("gemini-2.5-flash", ["ADK 2.0 SequentialAgent", "SOP Gates", "Vertex AI"])
+    if "court_evidence" in a or "bundle_incident" in t or "evidence" in t:
+        return (None, ["BigQuery", "SHA-256 chain-of-custody"])
+    if "board_slide" in a or "board_slide" in t:
+        return (None, ["Cloud Run", "HTML render", "LRU cache"])
+    if t.startswith("notify_") or "peer" in a:
+        return (None, ["A2A v0.3.0", "Cloud Run", "ID-token auth"])
+    if a == "root_agent" or "orchestrator" in a:
+        return ("gemini-2.5-pro", ["Vertex AI · Gemini Pro", "ADK 2.0"])
+    if "livecam" in t:
+        return (None, ["Cloud Run", "yt-dlp + ffmpeg"])
+    if t.startswith("scenario:") or a == "ops_center":
+        return (None, ["GUARDIAN ops bus"])
+    return (None, [])
+
+
 app = FastAPI(
     title="guardian",
     description="API for interacting with the Agent guardian",
@@ -509,12 +542,15 @@ async def run_scenario(scenario_id: str) -> dict:
         _scenario_last_run[scenario_id] = now
 
         incident_id = mint_incident_id(scenario["seed"])
+        _scen_model, _scen_proto = _protocol_for("ops_center", f"scenario:{scenario_id}")
         _events.emit(
             kind="incident_event",
             agent="ops_center",
             tool=f"scenario:{scenario_id}",
             incident_id=incident_id,
             severity=scenario["park_args"]["severity"],
+            model=_scen_model,
+            protocol_stack=_scen_proto,
             payload={
                 "scenario_id": scenario_id,
                 "title": scenario["title"],
@@ -530,6 +566,7 @@ async def run_scenario(scenario_id: str) -> dict:
         # tool_start + tool_end pair on the firehose, with a tiny delay so
         # the cards stagger naturally instead of all appearing at once.
         for step in scenario.get("pre_steps", []) or []:
+            _step_model, _step_proto = _protocol_for(step["agent"], step["tool"])
             _events.emit(
                 kind="tool_start",
                 agent=step["agent"],
@@ -537,6 +574,8 @@ async def run_scenario(scenario_id: str) -> dict:
                 incident_id=incident_id,
                 severity=step.get("severity", "info"),
                 payload={"args_summary": step["tool"]},
+                model=_step_model,
+                protocol_stack=_step_proto,
             )
             await asyncio.sleep(step.get("duration_ms", 600) / 1000.0)
             _events.emit(
@@ -547,6 +586,8 @@ async def run_scenario(scenario_id: str) -> dict:
                 severity=step.get("severity", "info"),
                 payload=step["result"],
                 latency_ms=step.get("duration_ms", 600),
+                model=_step_model,
+                protocol_stack=_step_proto,
             )
 
         # Adversarial review (Falsifier) — PLAN_V3.md Move 1. The orchestrator's
@@ -1027,6 +1068,8 @@ async def livecam_spot(req: _LivecamSpotRequest) -> dict:
         tool="analyze_image_frame",
         incident_id=incident_id,
         severity="info",
+        model="gemini-2.5-flash",
+        protocol_stack=["Vertex AI · Gemini Vision", "Cloud Run"],
         payload={
             "source": frame_descriptor,
             "frame_sha": frame_sha,
@@ -1057,6 +1100,8 @@ async def livecam_spot(req: _LivecamSpotRequest) -> dict:
         severity="medium",
         payload=result,
         latency_ms=latency_ms,
+        model="gemini-2.5-flash",
+        protocol_stack=["Vertex AI · Gemini Vision", "Cloud Run"],
     )
 
     # 3) Decide escalation HONESTLY (v7 fix).

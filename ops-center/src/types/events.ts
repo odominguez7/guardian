@@ -22,6 +22,13 @@ export interface GuardianEvent {
   severity: Severity;
   payload: Record<string, unknown>;
   latency_ms: number | null;
+  // v9 W2a — protocol-stack signaling. Producer issue #7: surface Google
+  // Cloud / Vertex AI protocols in the UI while agents speak. The backend
+  // populates these in app/events.py emit() per emission site. Both
+  // fields are optional for backwards compatibility with events buffered
+  // before the W2a schema upgrade.
+  model?: string | null;
+  protocol_stack?: string[];
 }
 
 export interface DemoScenario {

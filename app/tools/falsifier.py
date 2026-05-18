@@ -195,6 +195,8 @@ def review_dispatch(
         incident_id=incident_id,
         severity="critical" if verdict == "dissent" and sev_out >= 3 else "info",
         payload=result,
+        model="gemini-2.5-flash",
+        protocol_stack=["ADK 2.0 SequentialAgent", "SOP Gates", "Vertex AI"],
     )
 
     return result

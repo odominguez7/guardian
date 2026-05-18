@@ -241,6 +241,7 @@ async def _call_peer(peer_name: str, instruction: str, *, incident_id: str | Non
         incident_id=incident_id,
         severity="high",
         payload={"peer": peer_name, "rpc_url": rpc_url},
+        protocol_stack=["A2A v0.3.0", "Cloud Run", "ID-token auth"],
     )
 
     headers: dict[str, str] = {}
@@ -264,6 +265,7 @@ async def _call_peer(peer_name: str, instruction: str, *, incident_id: str | Non
                 severity="error",
                 payload={"error": result["error"]},
                 latency_ms=(time.monotonic_ns() - t0) // 1_000_000,
+                protocol_stack=["A2A v0.3.0", "Cloud Run", "ID-token auth"],
             )
             return result
         headers["Authorization"] = f"Bearer {token}"
@@ -300,6 +302,7 @@ async def _call_peer(peer_name: str, instruction: str, *, incident_id: str | Non
                 "rpc_url": rpc_url,
                 "retry": attempt,
             },
+            protocol_stack=["A2A v0.3.0", "Cloud Run", "ID-token auth"],
         )
         retry_instruction = (
             f"[RETRY {attempt}] Previous attempt echoed the input JSON "
@@ -317,6 +320,7 @@ async def _call_peer(peer_name: str, instruction: str, *, incident_id: str | Non
         severity=severity,
         payload=result,
         latency_ms=(time.monotonic_ns() - t0) // 1_000_000,
+        protocol_stack=["A2A v0.3.0", "Cloud Run", "ID-token auth"],
     )
     return result
 

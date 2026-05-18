@@ -74,8 +74,22 @@ def emit(
     severity: str = "info",
     payload: dict[str, Any] | None = None,
     latency_ms: int | None = None,
+    model: str | None = None,
+    protocol_stack: list[str] | None = None,
 ) -> dict:
-    """Build + broadcast a structured event. Returns the event for inline use."""
+    """Build + broadcast a structured event. Returns the event for inline use.
+
+    v9 W2a additions:
+      model: the Google model invoked for this tool call (e.g.,
+        "gemini-2.5-pro", "imagen-4"). Optional — used by the Ops Center
+        NarrationStrip + Mission Bridge to render a live "[Gemini 2.5 Pro]"
+        chip when an event fires.
+      protocol_stack: ordered list of Google Cloud / Vertex AI protocols this
+        emission flows through (e.g., ["Vertex AI Gemini Vision",
+        "Cloud Run"]). The producer's "show Google protocols visibly while
+        agents speak" requirement (issue #7 in the 2026-05-17 critique) is
+        served by surfacing this list directly in the UI.
+    """
     event = {
         "id": _new_event_id(),
         "ts": _now_iso(),
@@ -86,6 +100,8 @@ def emit(
         "severity": severity,
         "payload": payload or {},
         "latency_ms": latency_ms,
+        "model": model,
+        "protocol_stack": protocol_stack or [],
     }
     _broadcast(event)
     return event
@@ -322,6 +338,7 @@ class tool_span:
     """
 
     __slots__ = ("agent", "tool", "incident_id", "severity", "payload",
+                 "model", "protocol_stack",
                  "_t_start", "_result", "_error")
 
     def __init__(
@@ -332,12 +349,16 @@ class tool_span:
         incident_id: str | None = None,
         severity: str = "info",
         payload: dict[str, Any] | None = None,
+        model: str | None = None,
+        protocol_stack: list[str] | None = None,
     ) -> None:
         self.agent = agent
         self.tool = tool
         self.incident_id = incident_id
         self.severity = severity
         self.payload = payload or {}
+        self.model = model
+        self.protocol_stack = protocol_stack or []
         self._t_start: int = 0
         self._result: Any = None
         self._error: BaseException | None = None
@@ -351,6 +372,8 @@ class tool_span:
             incident_id=self.incident_id,
             severity=self.severity,
             payload=self.payload,
+            model=self.model,
+            protocol_stack=self.protocol_stack,
         )
         return self
 
@@ -369,6 +392,8 @@ class tool_span:
                 severity="error",
                 payload={"error": f"{type(exc).__name__}: {exc}"},
                 latency_ms=latency_ms,
+                model=self.model,
+                protocol_stack=self.protocol_stack,
             )
             return False  # re-raise
         # Serialize result safely. Some tool results are large; truncate strings.
@@ -384,6 +409,8 @@ class tool_span:
             severity=self.severity,
             payload=payload,
             latency_ms=latency_ms,
+            model=self.model,
+            protocol_stack=self.protocol_stack,
         )
         return False
 
