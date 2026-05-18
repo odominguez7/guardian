@@ -32,6 +32,16 @@ OUT_DIR = Path("ops-center/public/voices")
 VOICE_ORCH = os.environ.get("ELEVENLABS_VOICE_ORCH", "pNInz6obpgDQGcFmaJgB")  # Adam
 VOICE_FALS = os.environ.get("ELEVENLABS_VOICE_FALSIFIER", "onwK4e9ZLuTAKqWW03F9")  # Daniel
 
+# v9 W2b — distinct voice per A2A peer. Producer issue #2 + #3 + #6:
+# "A2A peers have NO audio + barely explain themselves" + "Funder Reporter
+# unclear" + "voices boring/robotic." Four distinct voices give each peer
+# a recognizable identity; longer 12-18 word intros explain what the org
+# does + which Google protocol it uses.
+VOICE_PEER_PARK    = "VR6AewLTigWG4xSOukaG"  # Arnold — commanding officer
+VOICE_PEER_SPONSOR = "21m00Tcm4TlvDq8ikWAM"  # Rachel — F500 exec female
+VOICE_PEER_FUNDER  = "IKne3meq5aSn9XLyUdCD"  # Charlie — warm engaged male
+VOICE_PEER_NEIGHBOR = "AZnzlk1XvdvUeBnXmlld"  # Domi — mid-tier female
+
 LINES: list[tuple[str, str, str]] = [
     # (filename, voice_id, text)
     ("intro-root_agent.mp3", VOICE_ORCH,
@@ -53,6 +63,15 @@ LINES: list[tuple[str, str, str]] = [
      "Dissent. Audio confidence sits below the critical-severity threshold. The signal does not yet justify a critical-class response."),
     ("concur-clean-dispatch.mp3", VOICE_ORCH,
      "Falsifier concurs. All standard-operating-procedure gates pass. Dispatch authorized."),
+    # v9 W2b — A2A peers get distinct voices + longer org+protocol intros
+    ("intro-peer-park_service.mp3", VOICE_PEER_PARK,
+     "Park Service, Dar es Salaam. I dispatch ranger units over the A2A protocol within ninety seconds of a verified alert."),
+    ("intro-peer-sponsor_sustainability.mp3", VOICE_PEER_SPONSOR,
+     "Sponsor Sustainability, London. I file CSRD-E4 and TNFD-aligned disclosures to Fortune 500 boards over the A2A protocol."),
+    ("intro-peer-funder_reporter.mp3", VOICE_PEER_FUNDER,
+     "Funder Reporter, Geneva. I issue conservation-impact receipts to philanthropy desks and link every dollar to a verified incident."),
+    ("intro-peer-neighbor_park.mp3", VOICE_PEER_NEIGHBOR,
+     "Neighbor Park, Maasai Mara. I coordinate cross-border mutual aid over A2A. When a poacher crosses my fence, I respond."),
 ]
 
 
