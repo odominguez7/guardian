@@ -7,6 +7,7 @@ import MissionBridge from "@/components/MissionBridge";
 import ChasePath from "@/components/ChasePath";
 import EventStream from "@/components/EventStream";
 import BuiltOnGoogleCloud from "@/components/BuiltOnGoogleCloud";
+import Hero from "@/components/Hero";
 import IncidentPanel, { type ActiveIncident } from "@/components/IncidentPanel";
 import LiveCams from "@/components/LiveCams";
 import TabStrip, { type TabId } from "@/components/TabStrip";
@@ -43,7 +44,7 @@ export default function Home() {
   const [activePeers, setActivePeers] = useState<string[]>([]);
   const [incidents, setIncidents] = useState<ActiveIncident[]>([]);
   const [autoCycleActive, setAutoCycleActive] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabId>("operations");
+  const [activeTab, setActiveTab] = useState<TabId>("hero");
   const lastActivityRef = useRef<number>(Date.now());
   const autoCycleIdxRef = useRef<number>(0);
   // Buffer for Falsifier verdicts that arrive BEFORE their incident_event.
@@ -463,6 +464,15 @@ export default function Home() {
         autoCycleActive={autoCycleActive}
         leadingChrome={<TabStrip active={activeTab} onChange={setActiveTab} />}
       />
+      {activeTab === "hero" && (
+        <Hero
+          events={visibleEvents}
+          incidents={incidents}
+          activeReserveId={activeReserveId}
+          fanOutFiring={fanOutFiring}
+          activePeers={activePeers}
+        />
+      )}
       {activeTab === "operations" && (
         <div className="flex-1 grid grid-cols-[320px_1fr_360px] min-h-0">
           <IncidentPanel incidents={incidents} />
