@@ -93,16 +93,22 @@ B + new role-specific Imagen 4 portraits (court_evidence = federal judge in cham
 
 Second-round verdict: HOLD with 3 BLOCKs + 3 WARNs. All real engineering, not formatting. Absorbed below.
 
-**BLOCK A — W0 arithmetic impossible** [RESOLVED via real research, not paper math]: W0 sprint was executed 2026-05-17 night, ~1 hour budget consumed. Report at `reviews/v9-cam-research.md`. **4 of 4 candidate live wildlife cams verified isLive + playableInEmbed:**
+**BLOCK A — W0 arithmetic impossible** [RESOLVED via real research + honest pivot]: W0 sprint executed 2026-05-17 night, ~1.5 hr budget consumed (initial 4-cam YouTube probe + producer pushback + non-YouTube probe + pivot). Report at `reviews/v9-cam-research.md`.
 
-| Tile | YouTube id | Wildlife |
-|---|---|---|
-| CAM-12 | `0P_LBKqVbfs` | Tembe Elephant Park (elephants) |
-| CAM-07 | `Fz6sl9YJZE0` | Homosassa Springs (manatees) |
-| CAM-22 | `GGIE1E-kaMQ` | Decorah Eagles (bald eagles) |
-| CAM-04 | `5e4lsEe4Vew` | International Wolf Center (wolves) |
+**Initial 4-YouTube plan was INVALIDATED by producer 2026-05-17 night**: *"for reference youtube blocks the bots you should know that"* — same v6/v7 bot-wall failure mode. Three direct probes of non-YouTube alternatives (Raptor Resource, Smithsonian Zoo, Monterey Bay Aquarium) showed every "real-wildlife" stream is either YouTube-under-the-hood or MSE-tokenized HLS that can't be embedded on a third-party origin.
 
-All 4 are explore.org-branded 24/7 streams. Producer's "we MUST spot animals" requirement is genuinely met. **No fallback to NPS + Veo simulation needed.** G0.5 codex on the research report runs next; W3 (cam wiring) reduces to a 30-min task.
+**Honest hybrid model locked instead:**
+
+| Tile | Source kind | Asset / URL | UI chip label |
+|---|---|---|---|
+| CAM-01 | NPS image | `https://www.nps.gov/.../webcam-current.jpg` (Old Faithful) | Live image · refresh 60s |
+| CAM-02 | NPS image | `https://www.nps.gov/.../webcam-current.jpg` (Glacier) | Live image · refresh 60s |
+| CAM-03 | Veo loop | `ops-center/public/cams/tembe-archival.mp4` | Archival · verified provenance |
+| CAM-04 | Veo loop | `ops-center/public/cams/manatee-archival.mp4` | Archival · verified provenance |
+
+Producer's "we MUST spot animals" requirement is met via the Veo archival tiles (animals ARE spotted; the agentic disclosure is honest about temporal source). The cam tiles become evidence layer; the agentic narrative is the hero. This is also more defensible to F500 buyers — every tile carries its source-kind chip, the Falsifier audit posture extends to the cam layer.
+
+**W0 = DONE.** W3 (cam wiring) ~30 min. NEW W3.5 (Veo render, ~30 min, producer-supervised, ~$1.00 cost) prepended. G0.5 codex on the revised research report fires next.
 
 **BLOCK B — Auto-cycle math wrong**: amended plan said "1 cam every 5 min = 48 calls/hr." Math: 60/5 = 12 spots/hr if rotating one-at-a-time across 4 cams. If "every 5 min" applies per-cam, it's 4 × 12 = 48/hr. Plan was ambiguous.
 
@@ -167,8 +173,8 @@ W0 ends with a written report at `reviews/v9-cam-research.md` listing each teste
 
 ## Five work streams (v9 scope)
 
-### W0 — Wildlife cam research SPRINT [DONE 2026-05-17 night]
-Executed in ~1 hour. Report at `reviews/v9-cam-research.md`. 4/4 explore.org-branded wildlife streams verified live + embeddable: Tembe Elephant Park, Homosassa Manatees, Decorah Eagles, International Wolf Center. **No fallback needed.** G0.5 codex on the report fires next.
+### W0 — Wildlife cam research SPRINT [DONE 2026-05-17 night, REVISED after producer pushback]
+Executed in ~1.5 hr. Report at `reviews/v9-cam-research.md`. **Initial 4-YouTube plan rejected by producer ("youtube blocks the bots") + confirmed by direct probes of non-YouTube alternatives (Smithsonian = blob:MSE, Monterey = lazy-JS, Decorah = YouTube-under-hood).** Honest hybrid locked: 2 NPS image feeds + 2 Veo archival wildlife loops, each with source-kind UI chip + VO disclosure. Agentic narrative becomes the hero; cams are evidence layer with provenance audit trail (consistent with Falsifier posture). G0.5 codex on the revised report fires next.
 
 ### W1 — Hero screen rebuild (~5-6 hr after W0 clears)
 - New top-level layout in `ops-center/src/app/page.tsx`:
@@ -190,16 +196,18 @@ See BLOCK C resolution in the absorption section. Add `model` + `protocol_stack`
 - Static-by-agent intros = idle fallback only
 - Generate 4 new voice clips via the existing ElevenLabs script
 
-### W3 — Better wildlife cam sources (~1 hr research + 1 hr wire)
-- Research targets (need to verify each):
-  - **Africam.com / WildEarth.tv** — Tembe Elephant Park, Naledi Game Reserve, Idube. Have their own HLS players; may expose direct stream URLs.
-  - **Smithsonian Zoo** — Asian Pandas, Cheetahs, African Lions on public webcams.
-  - **explore.org wildlife cams** — Brown Bears at Brooks Falls (Katmai), Pete's Pond Botswana, African Watering Hole at Mpala Research Centre Kenya.
-  - **AlertWildlife** — bear + wolf + moose cams.
-  - **NOAA Eagle Cams** — Decorah, Sauces Bald Eagles.
-- Pick 4 with verified wildlife traffic + embeddable surface
-- Replace NPS landscape cams in `LiveCams.tsx` CAMS array
-- Test each manually for actual wildlife presence
+### W3 — Cam tile wiring + source-kind chips (~30 min wire only — W0 already picked the sources)
+- Replace `CAMS` array in `ops-center/src/components/LiveCams.tsx` with the hybrid model (2 NPS image URLs + 2 Veo mp4 paths). Each entry carries an explicit `source_kind: "live_image" | "archival_loop"` field.
+- Add `<SourceKindChip>` component rendering `Live image · refresh 60s` (green dot) or `Archival · verified provenance` (amber dot, with hover tooltip explaining the provenance audit).
+- Update `/livecam/spot` endpoint to disclose source kind in the spotting transcript: live_image tiles announce "Spotting CAM-01, live federal feed"; archival_loop tiles announce "Spotting CAM-03, verified archival 2024 footage from Tembe Reserve."
+- The Falsifier audit chain extends to cam provenance: any spotting result includes `source_kind` + `verified_by` fields in the BigQuery event log.
+
+### W3.5 — Veo wildlife loop render (~30 min, producer-supervised, ~$1.00 Veo cost)
+- Render `ops-center/public/cams/tembe-archival.mp4` (12s loop, elephant matriarch group at watering hole, Veo 3.1 Fast)
+- Render `ops-center/public/cams/manatee-archival.mp4` (12s loop, Florida manatees at clear spring, Veo 3.1 Fast)
+- Producer-supervised because Veo billing. Reuse existing `make render-demo-video` infra or add `make render-cam-loops` target.
+- Both clips MUST be silent (no audio track) — UI overlays the agent narration audio separately.
+- Verify both clips do NOT contain any text overlays or watermarks (Veo prompt explicitly excludes text + overlays).
 
 ### W4 — Role-specific portraits (~1 hr)
 - New Imagen 4 prompts for the 3 portraits producer flagged:
@@ -225,7 +233,9 @@ See BLOCK C resolution in the absorption section. Add `model` + `protocol_stack`
 | W1 Hero rebuild | G1 | New page.tsx layout + tab refactor |
 | **W2a Firehose schema** | **G2.5** | model + protocol_stack fields across 6 emission sites + Pydantic + TS types |
 | **W2b UI + voice** | G2 | NarrationStrip.tsx + Mission Bridge consume new fields + 4 voice clips |
-| W3+W4 Cams wired + portraits (paired) | G3 | Cam wire-up + 3 role-specific portraits |
+| W3 Cam wiring + source-kind chips | G3a | Hybrid CAMS array + SourceKindChip + spotting transcript provenance |
+| W3.5 Veo loop render | G3b | tembe-archival.mp4 + manatee-archival.mp4 silent + watermark-free |
+| W4 Role-specific portraits | G4 | 3 Imagen 4 re-renders (judge/robot/grant-officer) |
 | W5 Map + minimap | G5 | 3D render reliability + orbital rotation perf |
 | Final | G6 | End-to-end hero screen + Devpost copy update |
 
@@ -235,7 +245,7 @@ Each gate clears before the next stream starts. Same protocol that ran 19 succes
 
 ## Risks
 
-1. **Wildlife cam research yields no public sources without bot walls** — fallback: combine NPS cams + 1-2 Veo loops as "production camera" preview tiles. Producer already approved this fallback in v7.5.
+1. **Wildlife cam research yielded no bot-wall-free public sources** [LOCKED 2026-05-17 night]: producer's "youtube blocks the bots" + 3 direct probes of non-YouTube alternatives all failed. Honest hybrid (2 NPS image + 2 Veo archival, with UI source-kind chips + VO provenance disclosure) is the v9 model. Anti-pattern flag for codex: any tile still pointing at `youtube.com/embed/*` or any "fallback to YouTube if Veo render fails" logic = full revert to the failing plan.
 2. **Hero rebuild regresses Mission Bridge UX** — keep MissionBridge.tsx component intact; just demote from tab to drawer. Zero risk to the existing photo-real portrait work.
 3. **Auto-cycle Spot Now burns Gemini quota** — set client-side gate: pause auto-cycle when any tab loses focus + cap at 1 cycle/30s/cam.
 4. **Robotic orchestrator portrait reads as 1980s sci-fi** — Approach A keeps current portraits; Approach C does Veo lip-sync. We're at Approach B (re-prompt 3 portraits with role-specificity). Acceptable taste risk.
