@@ -46,67 +46,57 @@ interface CamProps {
   productionCam?: boolean;
 }
 
+// v9 W0 — Producer override 2026-05-17 night: ONLY real wildlife cams,
+// no NPS landscape, no Veo simulations. YouTube iframes bot-wall on
+// cloud-hosted origins, so we proxy frames server-side via
+// `/cams/{youtube_id}/frame.jpg` on the orchestrator. The browser sees
+// a plain <img src> from our own domain — no iframe = no bot wall.
+// Backend tries live HLS frame first (via yt-dlp + mobile extractor args
+// from v7.2), falls back to YouTube's public CDN thumbnail. Either way,
+// real wildlife from real cams.
 const CAMS: CamProps[] = [
   {
-    // v5.4 — Producer flagged "this live stream recording is not available"
-    // 2026-05-17. Africam's vr4o_AsrU1k stream returns oembed metadata but
-    // YouTube's embed shows the unavailable splash (channel disabled embed
-    // for that asset OR archived the live broadcast). Replaced with NamibiaCam
-    // waterhole stream (ydYDqZQpim8) — verified live + playableInEmbed:true
-    // at swap time. Same vibe (24/7 wildlife waterhole), known stable.
-    // v7.6: real public webcam from the US National Park Service.
-    // Yellowstone Mount Washburn NE — known wildlife corridor (elk,
-    // bison, bears, wolves visible regularly). NPS refreshes the JPEG
-    // every few minutes; no anti-bot wall, no iframe issues. Backend
-    // Spot Now fetches the same URL + runs real Gemini Vision.
-    id: "nps-washburn-ne",
-    label: "CAM-12 · YELLOWSTONE · Mount Washburn NE",
-    imageUrl: "https://www.nps.gov/webcams-yell/washburn_ne.jpg",
-    imageRefreshS: 60,
-    subtitle: "Wildlife corridor · NPS public cam · refreshes every minute",
+    id: "yt-tembe-elephants",
+    label: "CAM-12 · TEMBE ELEPHANT PARK · South Africa",
+    imageUrl: `${ORCH_URL}/cams/0P_LBKqVbfs/frame.jpg`,
+    imageRefreshS: 30,
+    subtitle: "African elephants 24/7 · explore.org / Africam · waterhole + savanna",
     accent: "#10b981",
     realLive: true,
+    youtubeId: "0P_LBKqVbfs",
     productionCam: true,
   },
   {
-    // v7.7: real public webcam — Glacier National Park, Apgar Village.
-    // Lower-elevation cam at the south end of Lake McDonald, captures
-    // wildlife traffic + visitors. Grizzly + black bear country. NPS
-    // refreshes every minute or two.
-    id: "nps-glacier-apgar",
-    label: "CAM-07 · GLACIER · Apgar Village",
-    imageUrl: "https://www.nps.gov/webcams-glac/ApgarVillage.jpg",
-    imageRefreshS: 60,
-    subtitle: "Lake McDonald shoreline · NPS public cam",
-    accent: "#f59e0b",
-    realLive: true,
-    productionCam: true,
-  },
-  {
-    // v7.6: second real NPS cam — Yellowstone West Entrance. Heavy
-    // wildlife traffic at the park boundary. Auto-spot here too so
-    // producer can see two independent real-cam analyses interleaving.
-    id: "nps-west-gate",
-    label: "CAM-22 · YELLOWSTONE · West Entrance",
-    imageUrl: "https://www.nps.gov/webcams-yell/west_gate.jpg",
-    imageRefreshS: 60,
-    subtitle: "Park boundary · NPS public cam · refreshes every minute",
-    accent: "#f43f5e",
-    realLive: true,
-    productionCam: true,
-  },
-  {
-    // v7.7: real public webcam — Isle Royale National Park (Lake Superior).
-    // Middle Islands cam. Isle Royale is the longest-running predator-prey
-    // study in the world; the only large mammals are gray wolves + moose.
-    // Best chance of catching a wolf or moose on screen.
-    id: "nps-isle-royale-middle",
-    label: "CAM-04 · ISLE ROYALE · Middle Islands",
-    imageUrl: "https://www.nps.gov/webcams-isro/middleislands.jpg",
-    imageRefreshS: 60,
-    subtitle: "Wolf + moose habitat · NPS public cam",
+    id: "yt-homosassa-manatees",
+    label: "CAM-07 · HOMOSASSA SPRINGS · Florida USA",
+    imageUrl: `${ORCH_URL}/cams/Fz6sl9YJZE0/frame.jpg`,
+    imageRefreshS: 30,
+    subtitle: "Underwater manatee cam · explore.org · IUCN Vulnerable species",
     accent: "#0ea5e9",
     realLive: true,
+    youtubeId: "Fz6sl9YJZE0",
+    productionCam: true,
+  },
+  {
+    id: "yt-decorah-eagles",
+    label: "CAM-22 · DECORAH NORTH NEST · Iowa USA",
+    imageUrl: `${ORCH_URL}/cams/GGIE1E-kaMQ/frame.jpg`,
+    imageRefreshS: 30,
+    subtitle: "Bald eagle nest cam · Raptor Resource Project · 24/7 4K",
+    accent: "#f59e0b",
+    realLive: true,
+    youtubeId: "GGIE1E-kaMQ",
+    productionCam: true,
+  },
+  {
+    id: "yt-intl-wolf-center",
+    label: "CAM-04 · INTERNATIONAL WOLF CENTER · Minnesota USA",
+    imageUrl: `${ORCH_URL}/cams/5e4lsEe4Vew/frame.jpg`,
+    imageRefreshS: 30,
+    subtitle: "Gray wolf ambassador pack · 24/7 research center cam",
+    accent: "#f43f5e",
+    realLive: true,
+    youtubeId: "5e4lsEe4Vew",
     productionCam: true,
   },
 ];

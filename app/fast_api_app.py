@@ -1270,6 +1270,113 @@ async def livecam_spot(req: _LivecamSpotRequest) -> dict:
     }
 
 
+# ----- v9 W0 — Real wildlife cam frame proxy --------------------------------
+# Producer override 2026-05-17 night: ops-center MUST show real wildlife cams,
+# no Veo simulations. YouTube iframes bot-wall on Cloud Run egress IPs (v6/v7
+# observation), so we proxy fresh frames server-side. The browser sees a
+# plain <img src>, never an iframe, never an embed sign-in wall.
+#
+# Source priority per fetch:
+#   1. Live HLS frame via yt-dlp + ffmpeg (uses v7.2 mobile-client extractor
+#      args to bypass YouTube's bot wall on Cloud Run egress IPs).
+#   2. YouTube CDN thumbnail (i.ytimg.com/vi/<id>/maxresdefault.jpg) — public,
+#      no auth, channel-curated frame from the live stream. Used when (1)
+#      fails. Honest provenance: served with X-Guardian-Source: yt_thumbnail
+#      so the UI can label tiles "Live · <ts>" vs "Recent · <ts>".
+#   3. 502 if both fail. Frontend renders an offline placeholder.
+#
+# Cache: 30s per youtube_id (matches the thumbnail refresh cadence AND keeps
+# yt-dlp subprocess pressure low if many judges land on the page at once).
+
+import time as _time_v9  # noqa: E402
+from fastapi.responses import Response as _ResponseV9  # noqa: E402
+
+_FRAME_CACHE_TTL_S = 30.0
+_FRAME_CACHE_MAX = 16
+_frame_cache: dict[str, tuple[float, bytes, str]] = {}
+_frame_cache_lock = asyncio.Lock()
+
+# Same id alphabet as livecam_frame._YOUTUBE_ID_RE — duplicated here to
+# avoid importing a private symbol. 11-char canonical id, 6-16 tolerance.
+import re as _re_v9  # noqa: E402
+_YT_ID_RE_V9 = _re_v9.compile(r"^[A-Za-z0-9_-]{6,16}$")
+
+
+def _fetch_thumbnail_bytes(url: str) -> bytes | None:
+    """Pull the YouTube CDN thumbnail JPEG for a live stream. Returns the
+    image bytes or None on failure. Validates JPEG SOI marker so a 200-OK
+    HTML error page doesn't sneak through.
+    """
+    try:
+        req = _urllib_request.Request(
+            url,
+            headers={"User-Agent": "GUARDIAN/1.0 (+wildlife-cam-proxy)"},
+        )
+        with _urllib_request.urlopen(req, timeout=5) as resp:
+            if resp.status != 200:
+                return None
+            data = resp.read()
+            if len(data) < 1024 or data[:2] != b"\xff\xd8":
+                return None
+            return data
+    except (_urllib_error.URLError, _urllib_error.HTTPError, TimeoutError, Exception):
+        return None
+
+
+@app.get("/cams/{youtube_id}/frame.jpg")
+async def cam_frame(youtube_id: str) -> _ResponseV9:
+    """Serve a fresh JPEG frame from a YouTube wildlife live cam.
+
+    Tries the live HLS path first (yt-dlp + ffmpeg, ~1.5-2.5s cold);
+    falls back to the public thumbnail CDN. Server-side cached for 30s.
+    Sets X-Guardian-Source so the UI can show honest live-vs-recent chips.
+    """
+    if not _YT_ID_RE_V9.match(youtube_id):
+        raise HTTPException(status_code=400, detail="invalid youtube id")
+
+    now = _time_v9.monotonic()
+    async with _frame_cache_lock:
+        cached = _frame_cache.get(youtube_id)
+        if cached and now - cached[0] < _FRAME_CACHE_TTL_S:
+            ts, data, source = cached
+            return _ResponseV9(
+                content=data,
+                media_type="image/jpeg",
+                headers={
+                    "Cache-Control": "public, max-age=20",
+                    "X-Guardian-Source": source,
+                    "X-Guardian-Age-S": f"{now - ts:.1f}",
+                },
+            )
+
+    data = await asyncio.to_thread(_get_live_frame, youtube_id)
+    source = "live_hls"
+    if data is None:
+        thumb_url = await asyncio.to_thread(_pick_live_thumbnail, youtube_id)
+        if thumb_url:
+            data = await asyncio.to_thread(_fetch_thumbnail_bytes, thumb_url)
+            source = "yt_thumbnail"
+
+    if not data:
+        raise HTTPException(status_code=502, detail="cam offline")
+
+    async with _frame_cache_lock:
+        _frame_cache[youtube_id] = (now, data, source)
+        if len(_frame_cache) > _FRAME_CACHE_MAX:
+            oldest = min(_frame_cache.items(), key=lambda kv: kv[1][0])
+            _frame_cache.pop(oldest[0], None)
+
+    return _ResponseV9(
+        content=data,
+        media_type="image/jpeg",
+        headers={
+            "Cache-Control": "public, max-age=20",
+            "X-Guardian-Source": source,
+            "X-Guardian-Age-S": "0.0",
+        },
+    )
+
+
 # ----- Court-Evidence endpoints ---------------------------------------------
 # Surface the chain-of-custody bundle (JSON + HTML) for any incident that
 # still has events in the firehose ring buffer. Used by:
