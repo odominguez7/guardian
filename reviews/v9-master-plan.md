@@ -93,13 +93,16 @@ B + new role-specific Imagen 4 portraits (court_evidence = federal judge in cham
 
 Second-round verdict: HOLD with 3 BLOCKs + 3 WARNs. All real engineering, not formatting. Absorbed below.
 
-**BLOCK A — W0 arithmetic impossible**: 6 sources × 30-min observation = 3 hr just observation, against 2-hr W0 budget. Plus some sources (WildEarth) require subscription/legal review.
+**BLOCK A — W0 arithmetic impossible** [RESOLVED via real research, not paper math]: W0 sprint was executed 2026-05-17 night, ~1 hour budget consumed. Report at `reviews/v9-cam-research.md`. **4 of 4 candidate live wildlife cams verified isLive + playableInEmbed:**
 
-Resolution: **W0 trimmed to 3 sources, 10-min observation each (=30 min observation + 30 min wire/report = 1 hr total).** Concrete success bar: ≥1 wildlife capture within the 10-min window OR no go. Sources tested in priority order:
-1. explore.org African Watering Hole (most consistent wildlife density per producer industry knowledge)
-2. explore.org Pete's Pond
-3. Africam Naledi Game Reserve direct
-**If 0 of 3 work**, FALLBACK = 2 best wildlife-likely NPS cams (Yellowstone Lamar Valley, Glacier Many Glacier) + 2 Veo loops labeled "production camera simulation." No more pretending; the demo's honesty wins.
+| Tile | YouTube id | Wildlife |
+|---|---|---|
+| CAM-12 | `0P_LBKqVbfs` | Tembe Elephant Park (elephants) |
+| CAM-07 | `Fz6sl9YJZE0` | Homosassa Springs (manatees) |
+| CAM-22 | `GGIE1E-kaMQ` | Decorah Eagles (bald eagles) |
+| CAM-04 | `5e4lsEe4Vew` | International Wolf Center (wolves) |
+
+All 4 are explore.org-branded 24/7 streams. Producer's "we MUST spot animals" requirement is genuinely met. **No fallback to NPS + Veo simulation needed.** G0.5 codex on the research report runs next; W3 (cam wiring) reduces to a 30-min task.
 
 **BLOCK B — Auto-cycle math wrong**: amended plan said "1 cam every 5 min = 48 calls/hr." Math: 60/5 = 12 spots/hr if rotating one-at-a-time across 4 cams. If "every 5 min" applies per-cam, it's 4 × 12 = 48/hr. Plan was ambiguous.
 
@@ -108,7 +111,14 @@ Resolution: **Exact intent locked in**: 1 spot total every 5 minutes (rotating r
 **BLOCK C — Protocol-badge schema gap**: events.py emits `agent` + `tool` + opaque payload. No authoritative `model` or `protocol_stack` field. Frontend can't render `[Gemini 2.5 Pro · Vertex AI Vision]` from current schema.
 
 Resolution: **W2 split into W2a (backend schema) + W2b (UI/voice polish)** with new **G2.5 gate** between them.
-- **W2a — firehose contract extension** (~45 min): `events.emit()` signature gains optional `model: str | None = None` and `protocol_stack: list[str] | None = None`. Tool emission sites updated: `stream_watcher.analyze_image_bytes` → `model="gemini-2.5-flash"` (real model used per `_DEFAULT_VISION_MODEL`), `protocol_stack=["Vertex AI Gemini Vision","Cloud Run"]`. `a2a_peers.notify_*` → `protocol_stack=["A2A v0.3.0","Cloud Run","ID-token auth"]`. `species_id.lookup_species_factsheet` → adds `"Vertex AI Search"`. Pydantic event types extended to match. G2.5 codex sweep on the schema diff.
+- **W2a — firehose contract extension** (~60 min): `events.emit()` signature gains optional `model: str | None = None` and `protocol_stack: list[str] | None = None`. Tool emission sites updated:
+  - `stream_watcher.analyze_image_bytes`/`analyze_image_frame` → `model="gemini-2.5-flash"`, `protocol_stack=["Vertex AI Gemini Vision","Cloud Run"]`
+  - `audio_agent.classify_audio` → `model="gemini-2.5-flash"`, `protocol_stack=["Vertex AI Gemini Audio","Cloud Run"]`
+  - `species_id.lookup_species_factsheet` → `protocol_stack=["Vertex AI Search","Cloud Run"]`
+  - `falsifier.review_dispatch` → `model="gemini-2.5-flash"`, `protocol_stack=["ADK 2.0 SequentialAgent","SOP Gates"]`
+  - `court_evidence.bundle_incident` → `protocol_stack=["SHA-256","BigQuery"]`
+  - `a2a_peers.notify_*` (all 4) → `protocol_stack=["A2A v0.3.0","Cloud Run","ID-token auth"]`
+  - TypeScript types in `ops-center/src/types/events.ts` extended to match. Pydantic event types extended to match. G2.5 codex sweep on the schema diff.
 - **W2b — UI consumes the new fields** (~75 min): Mission Bridge speech bubble + new NarrationStrip.tsx render the protocol chips from `event.protocol_stack` when an event matching the speaking agent fires. Static intro = idle fallback.
 
 **WARN A — Drawer width 35-40%**: locked at `width: clamp(420px, 38vw, 560px)`.
@@ -157,8 +167,8 @@ W0 ends with a written report at `reviews/v9-cam-research.md` listing each teste
 
 ## Five work streams (v9 scope)
 
-### W0 — Wildlife cam research SPRINT (~2 hr, G0.5 gate before W1)
-Spike each candidate source above. Output a written report at `reviews/v9-cam-research.md` with: source name, embed surface tested, HLS / iframe / image URL, observed wildlife density (≥3 captures with animals on screen across a 30-min observation window), license posture. Pick 4 winners. Decline gracefully on the rest. Run G0.5 codex on the report before any W1 layout change ships.
+### W0 — Wildlife cam research SPRINT [DONE 2026-05-17 night]
+Executed in ~1 hour. Report at `reviews/v9-cam-research.md`. 4/4 explore.org-branded wildlife streams verified live + embeddable: Tembe Elephant Park, Homosassa Manatees, Decorah Eagles, International Wolf Center. **No fallback needed.** G0.5 codex on the report fires next.
 
 ### W1 — Hero screen rebuild (~5-6 hr after W0 clears)
 - New top-level layout in `ops-center/src/app/page.tsx`:
@@ -169,13 +179,16 @@ Spike each candidate source above. Output a written report at `reviews/v9-cam-re
 - Auto-cycle agent-driven Spot Now: **1 cam every 5 minutes** (rotating through 4 cams = 1 spot per cam per 20 min). Pause on tab blur. SHA-skip if image hasn't changed since prior cycle. Manual Spot Now always honored. Sustainable on Gemini 2.5 Pro daily quota.
 - Click any cam → fullscreen expand with overlay agent narration
 
-### W2 — A2A peer storytelling + LIVE protocol signaling (~2 hr)
+### W2a — Firehose contract extension (~60 min, G2.5 before W2b)
+See BLOCK C resolution in the absorption section. Add `model` + `protocol_stack` fields to events.emit + Pydantic event types + TypeScript types. Update 6 emission sites (vision, audio, species_id, falsifier, court_evidence, a2a_peers). G2.5 codex sweep verifies schema before W2b consumes it.
+
+### W2b — A2A peer storytelling + LIVE protocol UI (~75 min, after G2.5)
 - Each peer gets:
   - Distinct ElevenLabs voice (separate voice ID per peer)
-  - Longer intro line (~12-18 words) explaining what the org does + which protocol it uses ("I'm the Funder Reporter. When a hot-species incident fires, I issue a program-tagged impact receipt to the conservation foundation's quarterly report via A2A v0.3.")
-- **Protocol callouts wired to the firehose** (not decoration): Mission Bridge speech bubble + new narration strip subscribe to the WebSocket. When a tool_start event fires with `agent=stream_watcher` + `tool=analyze_image_bytes`, the active panel renders `[Gemini 2.5 Pro · Vertex AI Vision]` LIVE. When an `a2a_request` event fires, `[A2A v0.3 · Cloud Run]` badge appears next to the peer. Static-by-agent intros stay as the idle fallback when no event is active.
+  - Longer intro line (~12-18 words) explaining what the org does + which protocol it uses
+- Mission Bridge speech bubble + new `NarrationStrip.tsx` subscribe to firehose, render protocol chips LIVE from `event.protocol_stack` when an event matching the speaking agent fires
+- Static-by-agent intros = idle fallback only
 - Generate 4 new voice clips via the existing ElevenLabs script
-- Update `MissionBridge.tsx` + new `NarrationStrip.tsx` to consume firehose events
 
 ### W3 — Better wildlife cam sources (~1 hr research + 1 hr wire)
 - Research targets (need to verify each):
@@ -207,10 +220,11 @@ Spike each candidate source above. Output a written report at `reviews/v9-cam-re
 
 | Stream | Codex gate | What gets audited |
 |---|---|---|
-| Plan itself | **G0** | This document (HOLD on first round; CLEAR target after this amendment) |
-| W0 Cam research | G0.5 | reviews/v9-cam-research.md report |
+| Plan itself | **G0/G0.2/G0.3/G0.4** | This document (G0+G0.2+G0.3 HOLDs absorbed; G0.4 fires after this commit) |
+| W0 Cam research [DONE] | G0.5 | reviews/v9-cam-research.md report |
 | W1 Hero rebuild | G1 | New page.tsx layout + tab refactor |
-| W2 A2A storytelling + live protocol | G2 | 4 voice clips + firehose-driven badges + intro length |
+| **W2a Firehose schema** | **G2.5** | model + protocol_stack fields across 6 emission sites + Pydantic + TS types |
+| **W2b UI + voice** | G2 | NarrationStrip.tsx + Mission Bridge consume new fields + 4 voice clips |
 | W3+W4 Cams wired + portraits (paired) | G3 | Cam wire-up + 3 role-specific portraits |
 | W5 Map + minimap | G5 | 3D render reliability + orbital rotation perf |
 | Final | G6 | End-to-end hero screen + Devpost copy update |
