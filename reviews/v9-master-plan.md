@@ -89,24 +89,60 @@ B + new role-specific Imagen 4 portraits (court_evidence = federal judge in cham
 
 ---
 
+## Codex G0 absorption (2026-05-17 evening)
+
+Codex G0 returned HOLD with 2 BLOCKs + 4 WARNs + 3 NITs. Plan amended below.
+
+**BLOCK 1 absorbed — W0 prepended (research SPRINT before W1)**: rather than treat wildlife-cam research as a 1-hr sub-task inside W3, promote it to a **standalone W0 sprint** that runs FIRST and gates W1. Concrete sources to test (with the legal-or-bot-wall risk explicitly named):
+
+| Source | Risk | Test |
+|---|---|---|
+| Africam.com (Tembe Elephant Park, Naledi) | Was YouTube-walled v6; check their native site for direct HLS | `curl -sI https://www.africam.com/wildlife/africam-live-stream-tembe-elephant-park` → look for `.m3u8` |
+| WildEarth.tv | Subscription player (paid); embed may need partner agreement | Probe site for guest preview embed |
+| explore.org (Brooks Falls bears, Pete's Pond) | Uses proprietary CDN; URL may be exposed via their iframe player | Inspect player network tab in Devtools |
+| Smithsonian National Zoo (panda, cheetah) | iframe-based; check `<source>` tag URLs | Same as above |
+| AlertWildlife — Brown Bear Webcam (Brooks River) | Public stream | Probe known endpoint |
+| NOAA Bald Eagle cams (Decorah, Sauces) | Public mjpeg | Probe known endpoint |
+| **Fallback if research yields <4 wildlife-rich sources**: keep NPS cams BUT replace 2 of them with the highest-wildlife-density NPS cams (Glacier Many Glacier, Yellowstone Lamar Valley, Katmai if NPS hosts it). Add a 3rd-party Veo loop tile labeled "production camera" so we still hit "4 cams" with 2-3 verified wildlife sources + 1-2 production-grade stand-ins. |
+
+W0 ends with a written report at `reviews/v9-cam-research.md` listing each tested source + verdict. G0.5 codex sweep on the report before W1 starts.
+
+**BLOCK 2 absorbed — auto-cycle cadence revised**: 30s × 4 cams was 480 calls/hr (Gemini 429 territory). New cadence: **1 cam every 5 minutes** = 12 calls/hr per cam = 48/hr total. Sustainable on quota. Producer-facing language: "agent-active rotation" so it doesn't sound constrained. Additional safeguards:
+- Pause auto-cycle when the browser tab loses focus
+- Hash-based gate: skip the cycle if the cam image SHA matches the prior cycle's SHA (no change means no new wildlife)
+- Manual Spot Now button always works (no rate-limit for human-triggered)
+
+**WARN 1 absorbed — W1 budget revised to 5-6 hr** (was 3). Total v9 budget moves from 9-12 hr to 12-16 hr. Still fits inside v8's Days 15-20 buffer.
+
+**WARN 2 absorbed — protocol callouts are firehose-driven, not decoration**: W2 now requires Mission Bridge + the narration strip to subscribe to the WebSocket firehose and render protocol badges (`[A2A v0.3]`, `[Vertex AI Search]`, etc.) when actual events come through with that protocol's tag. Static-by-agent intros stay as the idle fallback. This makes the "live" beat REAL.
+
+**WARN 3 absorbed — Mission Bridge drawer discoverability**: persistent right-edge tab on the hero view labeled "Agent Roster · 10 agents" with `Cmd+M` hotkey. Drawer auto-opens once on first-visit to onboard judges to the topology, then collapses.
+
+**WARN 4 absorbed — dynamic protocol signaling promoted into scope**: this is exactly what producer's "feels recorded" critique was asking for. Now W2 ships REAL protocol signaling not decorative badges.
+
+**NITs absorbed**: W2 budget bumped to 2 hr to cover review loops · G3/G4 paired (now G3 covers W3+W4 together since both are content work).
+
 ## Five work streams (v9 scope)
 
-### W1 — Hero screen rebuild (~3 hr)
+### W0 — Wildlife cam research SPRINT (~2 hr, G0.5 gate before W1)
+Spike each candidate source above. Output a written report at `reviews/v9-cam-research.md` with: source name, embed surface tested, HLS / iframe / image URL, observed wildlife density (≥3 captures with animals on screen across a 30-min observation window), license posture. Pick 4 winners. Decline gracefully on the rest. Run G0.5 codex on the report before any W1 layout change ships.
+
+### W1 — Hero screen rebuild (~5-6 hr after W0 clears)
 - New top-level layout in `ops-center/src/app/page.tsx`:
   - Replace 3-tab strip with: Hero (default) · Mission Bridge (drawer) · Library (current 3 tabs accessible from a menu)
   - 2×2 cam grid as visual center
   - Right side rail: minimap (slow rotation) + active-agent portrait + 4 peer ack chips
   - Bottom narration strip with protocol-aware ticker
-- Auto-cycle agent-driven Spot Now (every 30s by default, with a pause toggle)
+- Auto-cycle agent-driven Spot Now: **1 cam every 5 minutes** (rotating through 4 cams = 1 spot per cam per 20 min). Pause on tab blur. SHA-skip if image hasn't changed since prior cycle. Manual Spot Now always honored. Sustainable on Gemini 2.5 Pro daily quota.
 - Click any cam → fullscreen expand with overlay agent narration
 
-### W2 — A2A peer storytelling (~1.5 hr)
+### W2 — A2A peer storytelling + LIVE protocol signaling (~2 hr)
 - Each peer gets:
   - Distinct ElevenLabs voice (separate voice ID per peer)
   - Longer intro line (~12-18 words) explaining what the org does + which protocol it uses ("I'm the Funder Reporter. When a hot-species incident fires, I issue a program-tagged impact receipt to the conservation foundation's quarterly report via A2A v0.3.")
-  - Protocol stack badge visible while speaking: `[A2A v0.3]` `[Gemini 2.5 Pro]` `[Vertex AI Search]` `[Cloud Run]`
+- **Protocol callouts wired to the firehose** (not decoration): Mission Bridge speech bubble + new narration strip subscribe to the WebSocket. When a tool_start event fires with `agent=stream_watcher` + `tool=analyze_image_bytes`, the active panel renders `[Gemini 2.5 Pro · Vertex AI Vision]` LIVE. When an `a2a_request` event fires, `[A2A v0.3 · Cloud Run]` badge appears next to the peer. Static-by-agent intros stay as the idle fallback when no event is active.
 - Generate 4 new voice clips via the existing ElevenLabs script
-- Update `MissionBridge.tsx` AGENTS array intros + add voice files
+- Update `MissionBridge.tsx` + new `NarrationStrip.tsx` to consume firehose events
 
 ### W3 — Better wildlife cam sources (~1 hr research + 1 hr wire)
 - Research targets (need to verify each):
@@ -138,11 +174,11 @@ B + new role-specific Imagen 4 portraits (court_evidence = federal judge in cham
 
 | Stream | Codex gate | What gets audited |
 |---|---|---|
-| Plan itself | **G0** | This document |
+| Plan itself | **G0** | This document (HOLD on first round; CLEAR target after this amendment) |
+| W0 Cam research | G0.5 | reviews/v9-cam-research.md report |
 | W1 Hero rebuild | G1 | New page.tsx layout + tab refactor |
-| W2 A2A storytelling | G2 | 4 voice clips + protocol badges + intro length |
-| W3 Wildlife cams | G3 | Source legitimacy + embed-license posture + reliability |
-| W4 Portraits | G4 | Photo realism + role legibility (no uncanny) |
+| W2 A2A storytelling + live protocol | G2 | 4 voice clips + firehose-driven badges + intro length |
+| W3+W4 Cams wired + portraits (paired) | G3 | Cam wire-up + 3 role-specific portraits |
 | W5 Map + minimap | G5 | 3D render reliability + orbital rotation perf |
 | Final | G6 | End-to-end hero screen + Devpost copy update |
 
@@ -178,7 +214,7 @@ Day 4: W2 A2A storytelling → G2
 Day 5: W5 map fixes → G5
 Day 6: Integration + G6 end-to-end + Devpost copy update
 
-~6 calendar days, ~9-12 CC hours, plus producer time for the Day 8-11 Veo render.
+~6-7 calendar days, ~12-16 CC hours (revised up per codex WARN 1), plus producer time for the Day 8-11 Veo render.
 
 This compresses cleanly into v8's Days 15-20 buffer — no submission-deadline impact.
 
