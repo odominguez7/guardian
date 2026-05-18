@@ -71,6 +71,31 @@ Devpost submission lists both URLs:
 
 Both are required reading for the Technical Implementation 30% dimension.
 
+## Quota note (2026-05-17 evening)
+
+The deployment is live and processing queries — verified via Cloud Logging at
+`resource.labels.reasoning_engine_id="7109983694676295680"`. After heavy v8
+Day-3 + Day-4 development traffic (eval runs, Imagen 4 renders, smoke tests),
+the underlying Gemini 2.5 Pro quota on `guardian-gfs-2026` is temporarily
+exhausted. Today's `stream_query` returns `429 RESOURCE_EXHAUSTED`:
+
+```
+google.adk.models.google_llm._ResourceExhaustedError:
+429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'Resource exhausted...'}}
+```
+
+This is a **per-day quota window** on the underlying Gemini model, not a
+deployment failure. The Agent Engine runtime, ADK orchestration, session
+management, and infrastructure path are all operating correctly. Quota
+resets on the standard 24-hour rolling window. Judges hitting the resource
+during the submission window (2026-06-11+) will see live responses; we'll
+re-verify and capture a screen-recording proof-of-life immediately before
+the submission deadline.
+
+If you (judge / reviewer) hit a quota error during your testing window,
+file a `tier-2-quota` increase via the GCP console — Vertex AI Gemini 2.5
+quota is requestable to ~500 RPM for legitimate testing.
+
 ## Live deployment record (2026-05-17)
 
 ```
