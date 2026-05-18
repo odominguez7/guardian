@@ -46,10 +46,52 @@ export default function ReserveMap({ activeReserveId, fanOutFiring, activePeers 
       // is in frame.
       center: [32, -3],
       zoom: 2.6,
+      // v9 W5 — producer issue #8: "Map doesn't reliably render 3D" +
+      // issue #11: "Map should be small + rotating + reference." Init
+      // with a 45° pitch so 3D terrain reads on first paint, not after
+      // user interaction. setTerrain runs in the style.load handler
+      // below so the DEM source attaches BEFORE the first render — fixes
+      // the race that made terrain render only after a window resize.
+      pitch: 45,
+      bearing: 0,
       attributionControl: true,
       cooperativeGestures: true,
     });
     mapRef.current = map;
+
+    // v9 W5 — terrain must attach BEFORE the first render or the dark-v11
+    // basemap composites without elevation. style.load fires once when
+    // the style sheet completes; that's the right anchor (load fires
+    // later, after all layers have rendered, and is too late for terrain
+    // to take effect on the first frame).
+    map.on("style.load", () => {
+      // DEM raster source backing the terrain — Mapbox-hosted, free for
+      // tile reads on standard accounts. Idempotent: skip if a prior
+      // style swap already added it.
+      if (!map.getSource("mapbox-dem")) {
+        map.addSource("mapbox-dem", {
+          type: "raster-dem",
+          url: "mapbox://mapbox.mapbox-terrain-dem-v1",
+          tileSize: 512,
+          maxzoom: 14,
+        });
+      }
+      map.setTerrain({ source: "mapbox-dem", exaggeration: 1.6 });
+      // Sky atmosphere — gives the 3D pitch context (horizon glow,
+      // sun-side warm tint). Producer mention "rotating reference":
+      // the bearing rotation below reads as motion against this sky.
+      if (!map.getLayer("sky")) {
+        map.addLayer({
+          id: "sky",
+          type: "sky",
+          paint: {
+            "sky-type": "atmosphere",
+            "sky-atmosphere-sun": [0.0, 90.0],
+            "sky-atmosphere-sun-intensity": 8,
+          },
+        });
+      }
+    });
 
     map.on("load", () => {
       // Add reserve markers
@@ -114,6 +156,34 @@ export default function ReserveMap({ activeReserveId, fanOutFiring, activePeers 
       mapRef.current = null;
     };
   }, [token]);
+
+  // v9 W5 — slow bearing rotation when idle. Producer issue #11: "Map
+  // should be small + rotating + reference, not center." We tick bearing
+  // ~0.04° / frame (~2.4° / sec) while no fan-out is firing, which
+  // reads as a subtle reference-globe rotation. Pauses cleanly when a
+  // scenario lands so the audience's eye follows the fan-out lines
+  // instead of competing with the rotation.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (fanOutFiring || activeReserveId) {
+      // Don't fight the flyTo / fan-out animation.
+      return;
+    }
+    let raf = 0;
+    let prev = performance.now();
+    const tick = (now: number) => {
+      const dt = now - prev;
+      prev = now;
+      // 2.4°/s. The %360 keeps the float bounded so we don't drift into
+      // float-precision weirdness over multi-hour sessions.
+      const next = (map.getBearing() + (dt * 0.0024)) % 360;
+      map.setBearing(next);
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [fanOutFiring, activeReserveId]);
 
   // Pulse the active reserve marker
   useEffect(() => {
