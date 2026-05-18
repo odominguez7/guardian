@@ -1368,6 +1368,113 @@ def _fetch_thumbnail_bytes(url: str) -> bytes | None:
         return None
 
 
+# v9 W0-v2 — direct HLS frame extraction for Camzone (San Diego Zoo
+# Wildlife Alliance) cams. Producer hard rule 2026-05-17 night: no
+# proxies, no YouTube. The cam TILES embed the Camzone iframe directly
+# (real HLS video in the browser, no bot wall). The orchestrator still
+# needs JPEG frames for /livecam/spot Gemini Vision → ffmpeg pulls one
+# frame from the public HLS playlist URL. No yt-dlp involved; the
+# HLS URLs are static + auth-free (Camzone serves them to the SDZ
+# website's public player).
+import shlex as _shlex_v9  # noqa: E402
+import shutil as _shutil_v9  # noqa: E402
+import subprocess as _subprocess_v9  # noqa: E402
+import urllib.parse as _urlparse_v9  # noqa: E402
+
+_HLS_FRAME_TTL_S = 8.0  # Live wildlife — fresher than the 30s YT thumbnail cache
+_HLS_ALLOWED_HOSTS = {
+    "hls.camzonecdn.com",
+    # Any subdomain of camzonecdn.com. Wildcard handled at validation time.
+}
+
+
+@app.get("/cams/hls-frame.jpg")
+async def cam_hls_frame(url: str) -> _ResponseV9:
+    """Extract one JPEG frame from a public HLS playlist URL.
+
+    Validates the host against an allow-list (camzonecdn.com subdomains
+    only — narrow surface, no SSRF). ffmpeg pulls the first segment
+    + emits one JPEG. Cached server-side ~8s so a 4-tile auto-spot
+    cycle doesn't hammer ffmpeg.
+    """
+    if not isinstance(url, str) or not url.startswith("https://"):
+        raise HTTPException(status_code=400, detail="https url required")
+    try:
+        parsed = _urlparse_v9.urlparse(url)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="invalid url")
+    host = (parsed.hostname or "").lower()
+    if not host.endswith(".camzonecdn.com"):
+        raise HTTPException(status_code=400, detail="host not on allow-list")
+    if not parsed.path.endswith(".m3u8"):
+        raise HTTPException(status_code=400, detail="must point at an .m3u8 playlist")
+
+    now = _time_v9.monotonic()
+    async with _frame_cache_lock:
+        cached = _frame_cache.get(url)
+        if cached and now - cached[0] < _HLS_FRAME_TTL_S:
+            ts, data, source = cached
+            return _ResponseV9(
+                content=data,
+                media_type="image/jpeg",
+                headers={
+                    "Cache-Control": "public, max-age=4",
+                    "X-Guardian-Source": source,
+                    "X-Guardian-Age-S": f"{now - ts:.1f}",
+                },
+            )
+
+    def _extract() -> bytes | None:
+        if _shutil_v9.which("ffmpeg") is None:
+            return None
+        try:
+            result = _subprocess_v9.run(
+                [
+                    "ffmpeg",
+                    "-loglevel", "error",
+                    "-y",
+                    "-fflags", "+genpts+discardcorrupt",
+                    "-i", url,
+                    "-vframes", "1",
+                    "-q:v", "3",
+                    "-f", "image2pipe",
+                    "-c:v", "mjpeg",
+                    "pipe:1",
+                ],
+                capture_output=True,
+                timeout=14,
+                check=False,
+            )
+        except (_subprocess_v9.TimeoutExpired, OSError):
+            return None
+        if result.returncode != 0 or not result.stdout:
+            return None
+        data = result.stdout
+        if len(data) < 1024 or data[:2] != b"\xff\xd8":
+            return None
+        return data
+
+    data = await asyncio.to_thread(_extract)
+    if not data:
+        raise HTTPException(status_code=502, detail="hls frame extraction failed")
+
+    async with _frame_cache_lock:
+        _frame_cache[url] = (now, data, "camzone_hls")
+        if len(_frame_cache) > _FRAME_CACHE_MAX:
+            oldest = min(_frame_cache.items(), key=lambda kv: kv[1][0])
+            _frame_cache.pop(oldest[0], None)
+
+    return _ResponseV9(
+        content=data,
+        media_type="image/jpeg",
+        headers={
+            "Cache-Control": "public, max-age=4",
+            "X-Guardian-Source": "camzone_hls",
+            "X-Guardian-Age-S": "0.0",
+        },
+    )
+
+
 @app.get("/cams/{youtube_id}/frame.jpg")
 async def cam_frame(youtube_id: str) -> _ResponseV9:
     """Serve a fresh JPEG frame from a YouTube wildlife live cam.

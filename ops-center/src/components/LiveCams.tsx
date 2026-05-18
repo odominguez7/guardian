@@ -41,62 +41,68 @@ interface CamProps {
   /** Absolute URL of a bundled Veo MP4 the backend can fetch + analyze
    *  via ffmpeg → Gemini Vision when youtubeId is absent. v7.5. */
   mp4Url?: string;
+  /** v9 W0-v2 — public HLS playlist URL. Each cam tile EMBEDS the
+   *  upstream player iframe (Camzone in v9). The orchestrator pulls
+   *  a JPEG frame for Spot Now Gemini Vision via /cams/hls-frame.jpg
+   *  with ?url=<this>. Allow-listed to camzonecdn.com on the backend. */
+  hlsUrl?: string;
   /** When true, render a small "REAL · 24/7" pill — visual signal that
    *  this is a production cam (vs the rendered teaching tiles). */
   productionCam?: boolean;
 }
 
-// v9 W0 — Producer override 2026-05-17 night: ONLY real wildlife cams,
-// no NPS landscape, no Veo simulations. YouTube iframes bot-wall on
-// cloud-hosted origins, so we proxy frames server-side via
-// `/cams/{youtube_id}/frame.jpg` on the orchestrator. The browser sees
-// a plain <img src> from our own domain — no iframe = no bot wall.
-// Backend tries live HLS frame first (via yt-dlp + mobile extractor args
-// from v7.2), falls back to YouTube's public CDN thumbnail. Either way,
-// real wildlife from real cams.
+// v9 W0-v2 — Producer hard rule 2026-05-17 night: NO PROXIES. YouTube
+// bot-walls on cloud-hosted origins (known). Source must be a real
+// non-YouTube wildlife livestream. Solution: 4 San Diego Zoo Wildlife
+// Alliance cams served via camzonecdn.com (Camzone Stream Player + HLS).
+// Each tile embeds the Camzone iframe DIRECTLY — the browser plays
+// real HLS video, no bot wall, no proxy. Backend pulls JPEG frames
+// for Spot Now Gemini Vision via /cams/hls-frame.jpg?url=<hls>.
+//
+// Species choice = conservation flagships matching GUARDIAN's hot-list:
+//  · Giant Panda  (IUCN Vulnerable · CITES Appendix I)
+//  · Tiger        (IUCN Endangered · CITES Appendix I)
+//  · Elephant     (IUCN Endangered · CITES Appendix I)
+//  · Polar Bear   (IUCN Vulnerable · climate icon)
 const CAMS: CamProps[] = [
   {
-    id: "yt-tembe-elephants",
-    label: "CAM-12 · TEMBE ELEPHANT PARK · South Africa",
-    imageUrl: `${ORCH_URL}/cams/0P_LBKqVbfs/frame.jpg`,
-    imageRefreshS: 30,
-    subtitle: "African elephants 24/7 · explore.org / Africam · waterhole + savanna",
+    id: "sdz-panda",
+    label: "CAM-12 · SDZWA · GIANT PANDA RIDGE",
+    embedUrl: "https://zssd-panda2024.secureplayer.camzonecdn.com/v1.3/CamzoneStreamPlayer?iframe=yes&channel=zssd-panda2024&muted=yes&mutebutton=no&czlogo=",
+    hlsUrl: "https://zssd-panda2024.hls.camzonecdn.com/CamzoneStreams/zssd-panda2024/Playlist.m3u8",
+    subtitle: "Giant Panda · IUCN Vulnerable · CITES App. I · San Diego Zoo Wildlife Alliance",
     accent: "#10b981",
     realLive: true,
-    youtubeId: "0P_LBKqVbfs",
     productionCam: true,
   },
   {
-    id: "yt-homosassa-manatees",
-    label: "CAM-07 · HOMOSASSA SPRINGS · Florida USA",
-    imageUrl: `${ORCH_URL}/cams/Fz6sl9YJZE0/frame.jpg`,
-    imageRefreshS: 30,
-    subtitle: "Underwater manatee cam · explore.org · IUCN Vulnerable species",
-    accent: "#0ea5e9",
-    realLive: true,
-    youtubeId: "Fz6sl9YJZE0",
-    productionCam: true,
-  },
-  {
-    id: "yt-decorah-eagles",
-    label: "CAM-22 · DECORAH NORTH NEST · Iowa USA",
-    imageUrl: `${ORCH_URL}/cams/GGIE1E-kaMQ/frame.jpg`,
-    imageRefreshS: 30,
-    subtitle: "Bald eagle nest cam · Raptor Resource Project · 24/7 4K",
+    id: "sdz-tiger",
+    label: "CAM-07 · SDZWA · SUMATRAN TIGER",
+    embedUrl: "https://zssd-tiger.player.camzonecdn.com/v1.5/CamzoneStreamPlayer?channel=zssd-tiger&iframe=yes",
+    hlsUrl: "https://zssd-tiger.hls.camzonecdn.com/CamzoneStreams/zssd-tiger/Playlist.m3u8",
+    subtitle: "Tiger · IUCN Endangered · CITES App. I · San Diego Zoo Wildlife Alliance",
     accent: "#f59e0b",
     realLive: true,
-    youtubeId: "GGIE1E-kaMQ",
     productionCam: true,
   },
   {
-    id: "yt-intl-wolf-center",
-    label: "CAM-04 · INTERNATIONAL WOLF CENTER · Minnesota USA",
-    imageUrl: `${ORCH_URL}/cams/5e4lsEe4Vew/frame.jpg`,
-    imageRefreshS: 30,
-    subtitle: "Gray wolf ambassador pack · 24/7 research center cam",
+    id: "sdz-elephant",
+    label: "CAM-22 · SDZWA · AFRICAN ELEPHANT",
+    embedUrl: "https://zssd-elephant-2025.player.camzonecdn.com/v2.1/CamzoneStreamPlayer?channel=zssd-elephant-2025&iframe=yes",
+    hlsUrl: "https://zssd-elephant-2025.hls.camzonecdn.com/CamzoneStreams/zssd-elephant-2025/Playlist.m3u8",
+    subtitle: "African Elephant · IUCN Endangered · CITES App. I · San Diego Zoo Wildlife Alliance",
     accent: "#f43f5e",
     realLive: true,
-    youtubeId: "5e4lsEe4Vew",
+    productionCam: true,
+  },
+  {
+    id: "sdz-polar-bear",
+    label: "CAM-04 · SDZWA · POLAR BEAR PLUNGE",
+    embedUrl: "https://polarplunge.secureplayer.camzonecdn.com/v1.3/CamzoneStreamPlayer?iframe=yes&channel=polarplunge&muted=yes&mutebutton=no&czlogo=",
+    hlsUrl: "https://polarplunge.hls.camzonecdn.com/CamzoneStreams/polarplunge/Playlist.m3u8",
+    subtitle: "Polar Bear · IUCN Vulnerable · climate-impact icon · San Diego Zoo Wildlife Alliance",
+    accent: "#0ea5e9",
+    realLive: true,
     productionCam: true,
   },
 ];
@@ -195,14 +201,16 @@ function CamTile({ cam }: { cam: CamProps }) {
   // v7: auto-spot mode for the demo. Toggle on → fires Spot Now every
   // 60s so judges who land on the URL see real agentic activity without
   // clicking. Persists across reloads via localStorage.
-  const autoStorageKey = cam.youtubeId ? `guardian.autospot.${cam.youtubeId}` : null;
+  // v9 W0-v2: auto-spot key now uses cam.id (not youtubeId) since the
+  // Camzone cams don't have a YouTube id. cam.id is stable.
+  const autoStorageKey = `guardian.autospot.${cam.id}`;
   const [autoSpot, setAutoSpot] = useState<boolean>(() => {
     if (typeof window === "undefined" || !autoStorageKey) return false;
     return window.localStorage.getItem(autoStorageKey) === "1";
   });
   const inFlightRef = useRef(false);
   const handleSpot = async () => {
-    if (!cam.youtubeId && !cam.mp4Url && !cam.imageUrl) return;
+    if (!cam.youtubeId && !cam.mp4Url && !cam.imageUrl && !cam.hlsUrl) return;
     // v7.3 codex BLOCK fix: handleSpot now owns inFlightRef itself —
     // sets it true on entry, false in finally. Previous v7.1/v7.2
     // version checked the ref but never set it, so the auto-spot tick
@@ -218,15 +226,22 @@ function CamTile({ cam }: { cam: CamProps }) {
       // Exactly one is set per cam. Backend dispatches to the matching
       // frame-fetch path.
       const reqBody: Record<string, string> = { cam_label: cam.label };
-      if (cam.youtubeId) reqBody.youtube_id = cam.youtubeId;
-      if (cam.mp4Url) {
+      // v9 W0-v2 priority: hlsUrl (Camzone HLS) → image_url pointing at
+      // /cams/hls-frame.jpg; legacy youtubeId / mp4Url / imageUrl kept
+      // for older cam configs.
+      if (cam.hlsUrl) {
+        reqBody.image_url = `${ORCH_URL}/cams/hls-frame.jpg?url=${encodeURIComponent(cam.hlsUrl)}`;
+      } else if (cam.youtubeId) {
+        reqBody.youtube_id = cam.youtubeId;
+      } else if (cam.mp4Url) {
         const absoluteMp4 =
           cam.mp4Url.startsWith("http")
             ? cam.mp4Url
             : `${window.location.origin}${cam.mp4Url}`;
         reqBody.mp4_url = absoluteMp4;
+      } else if (cam.imageUrl) {
+        reqBody.image_url = cam.imageUrl;
       }
-      if (cam.imageUrl) reqBody.image_url = cam.imageUrl;
       const res = await fetch(`${ORCH_URL}/livecam/spot`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -303,7 +318,7 @@ function CamTile({ cam }: { cam: CamProps }) {
   // just checks the ref; handleSpot handles the lock + unlock.
   // v7.5: allow auto-spot for either YouTube or MP4 sources.
   useEffect(() => {
-    if (!autoSpot || (!cam.youtubeId && !cam.mp4Url && !cam.imageUrl)) return;
+    if (!autoSpot || (!cam.youtubeId && !cam.mp4Url && !cam.imageUrl && !cam.hlsUrl)) return;
     let cancelled = false;
     const tick = async () => {
       if (cancelled) return;
@@ -608,7 +623,7 @@ function CamTile({ cam }: { cam: CamProps }) {
               </div>
             )}
           </div>
-          {cam.realLive && (cam.youtubeId || cam.mp4Url || cam.imageUrl) && (
+          {cam.realLive && (cam.youtubeId || cam.mp4Url || cam.imageUrl || cam.hlsUrl) && (
             <div className="flex items-center gap-1.5 shrink-0">
               <button
                 type="button"
@@ -659,7 +674,7 @@ export default function LiveCams() {
             Live Field Cameras
           </h2>
           <p className="text-[11px] text-zinc-500 mt-0.5">
-            4 real wildlife live cams · server-side frame proxy · what the Stream Watcher & Audio Agent see in production
+            4 real wildlife livestreams · San Diego Zoo Wildlife Alliance · Camzone HLS · what the Stream Watcher & Audio Agent see in production
           </p>
         </div>
         <div className="text-[10px] text-zinc-500 font-mono">
@@ -673,11 +688,11 @@ export default function LiveCams() {
       </div>
       <div className="px-6 py-2 border-t border-zinc-900 text-[10px] text-zinc-500 flex items-center justify-between">
         <span>
-          4 real wildlife streams · server-side frame proxy via{" "}
-          <span className="text-zinc-300">yt-dlp + ffmpeg</span>{" "}
-          on Cloud Run · no browser iframe = no bot wall
+          4 real wildlife livestreams · embedded{" "}
+          <span className="text-zinc-300">Camzone HLS</span>{" "}
+          (San Diego Zoo Wildlife Alliance) · Spot Now extracts a JPEG via ffmpeg → Gemini Vision
         </span>
-        <span className="font-mono">Tembe · Homosassa · Decorah · Intl Wolf Center</span>
+        <span className="font-mono">Panda · Tiger · Elephant · Polar Bear</span>
       </div>
     </div>
   );
