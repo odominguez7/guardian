@@ -48,11 +48,17 @@ _BASE_STYLE = (
 # a global multi-org coordination team, not one demographic.
 PORTRAITS = {
     "root_agent": (
-        "A composed senior operations director in their 40s of South Asian "
-        "descent, dark blazer over an open collar, looking calmly at the "
-        "camera from a dim control center, amber wallscreens glowing "
-        "softly out of focus behind them. Trustworthy authority, "
-        "system-wide oversight."
+        # v9 W4 — producer 2026-05-17 asked for a cinematic robotic
+        # conductor. Frame still uses headshot composition for visual
+        # consistency with the rest of the v2 cast, but the subject
+        # is unambiguously an AI orchestrator persona.
+        "A cinematic close-up of a sleek anthropomorphic conductor robot "
+        "in their command position — burnished gunmetal head with subtle "
+        "warm amber under-light at the seams, calm focused expression, "
+        "softly-glowing horizontal slit \"eyes,\" dark control-room "
+        "atmosphere behind with amber wallscreens softly out of focus. "
+        "Reads as confident system-wide orchestrator AI, not robotic-"
+        "weapon trope. No text, no logos."
     ),
     "stream_watcher": (
         "A focused Black female computer vision engineer in her 30s "
@@ -73,11 +79,17 @@ PORTRAITS = {
         "looking at the camera with curious expertise."
     ),
     "court_evidence": (
-        "A meticulous archival forensic analyst in their 40s, Middle "
-        "Eastern descent, wearing wire-frame glasses and a slate-blue "
-        "button-down, holding a sealed chain-of-custody envelope just "
-        "visible at the bottom of the frame, looking at the camera with "
-        "careful attention, courtroom-noir lighting."
+        # v9 W4 — producer 2026-05-17 asked for a federal judge in
+        # chambers reading as formal courtroom authority, not a generic
+        # forensic analyst. The chain-of-custody role lands better when
+        # the portrait reads as judicial.
+        "A composed senior federal judge in their late 50s of Middle "
+        "Eastern descent, wearing the black judicial robe over a white "
+        "collar, seated in chambers with a leather-bound law volume just "
+        "in frame, looking straight at the camera with measured judicial "
+        "gravity, warm tungsten chamber lighting, a sliver of polished "
+        "wood bench in the foreground. Reads unmistakably as a federal "
+        "court judge, not a forensic analyst. No text, no logos."
     ),
     "falsifier": (
         "A respected senior internal auditor in their 50s of European "
@@ -102,10 +114,19 @@ PORTRAITS = {
         "background, subtle gold accent light."
     ),
     "funder_reporter": (
-        "A compassionate conservation foundation program officer in "
-        "their 50s of European descent, silver hair, wearing a soft "
-        "lavender knit, looking at the camera with empathetic resolve, "
-        "warm Geneva office light filtering through window blinds behind."
+        # v9 W4 — producer 2026-05-17: Funder Reporter unclear.
+        # Strengthen the "philanthropy program officer" visual signal:
+        # documents in foreground, foundation office cues, posture +
+        # warmth of a grant officer, not a generic boardroom face.
+        "A senior conservation foundation program officer in their 50s "
+        "of European descent, silver hair, wearing a soft lavender "
+        "knit over a crisp collar, sitting at a tidy desk with a binder "
+        "of grant impact reports just in frame, slim charcoal "
+        "fountain pen in hand poised over a signature line, warm "
+        "Geneva office light filtering through window blinds behind, "
+        "looking at the camera with empathetic resolve. Reads "
+        "unmistakably as a foundation grant officer — philanthropy "
+        "program officer, not a generic banker. No text, no logos."
     ),
     "neighbor_park": (
         "A Kenyan cross-border park liaison in their 30s, wearing field "
