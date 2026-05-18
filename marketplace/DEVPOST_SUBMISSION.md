@@ -30,7 +30,7 @@ I built GUARDIAN because the technology to solve this — Google's ADK 2.0, Vert
 
 GUARDIAN is a multi-agent biodiversity defense platform deployed on Google Cloud (Cloud Run + Vertex AI Agent Engine) that runs in production on the conservation areas a Fortune 500 firm sponsors.
 
-When the operator clicks **Spot Now** on a live wildlife camera (e.g., Yellowstone Mount Washburn NE on the live demo), GUARDIAN executes the full agentic chain in real time:
+When the operator clicks **Spot Now** on any of the 4 real wildlife live cams (Tembe Elephant Park · South Africa · African elephants; Homosassa Springs · Florida · Manatees; Decorah North Nest · Iowa · Bald eagles; International Wolf Center · Minnesota · Gray wolves — all sourced server-side via a `/cams/{youtube_id}/frame.jpg` proxy so the browser never embeds YouTube), GUARDIAN executes the full agentic chain in real time:
 
 1. **Stream Watcher** (Gemini 2.5 Pro multimodal) analyzes the fresh camera frame for species + threat signals
 2. **Falsifier** (Gemini 2.5 Flash) runs an adversarial 4-gate SOP review of the proposed dispatch and returns concur / dissent / abstain
@@ -67,7 +67,7 @@ The same artifact serves the ranger response, the sponsor's external auditor, th
 
 Three real obstacles, three engineering responses:
 
-**1. YouTube blocks Cloud Run egress IPs.** v6 used a YouTube live cam with yt-dlp + ffmpeg pulling fresh HLS frames server-side. YouTube's anti-bot wall fires on every cloud-IP request. Solution in v7.6: switched to NPS public webcam JPEGs (Yellowstone, Glacier, Isle Royale). No anti-bot, ~60s refresh, real wildlife. Live demo works because the source doesn't have YouTube's policy.
+**1. YouTube blocks Cloud Run egress IPs.** v6 tried YouTube iframes for live cams; the in-browser embed hit "Sign in to confirm you're not a bot." v7 tried server-side yt-dlp + ffmpeg; YouTube blocked the cloud-egress IPs as well. v8 fell back to NPS landscape webcams (no anti-bot wall but no animals). v9 solved it: a `/cams/{youtube_id}/frame.jpg` proxy endpoint on the orchestrator pulls the YouTube CDN thumbnail (live frame, no auth needed) and serves it from our domain as plain `<img>`. Browser never embeds YouTube; bot wall can't fire. 4 real wildlife cams (Tembe elephants, Homosassa manatees, Decorah eagles, Wolf Center wolves) now stream in production with explicit `X-Guardian-Source` provenance disclosure.
 
 **2. Vertex AI Agent Engine cloudpickle won't tolerate `threading.Lock`.** Track 3 names Agent Engine as a valid infra target. The natural deploy path pickles the agent and ships it to GCP. Our firehose has a module-level lock necessary for WebSocket fan-out, and `cloudpickle` can't serialize it. Solution: shipped a slim `app/agent_engine_root.py` with no firehose, no subprocesses — just the orchestrator identity prompt. 3.6 KB pickle. Deployment now live.
 
@@ -96,7 +96,7 @@ Second lesson: **deploy on Agent Engine even if you don't have to.** Cloud Run a
 
 Third lesson: **codex handshake per Move.** Treating an independent AI reviewer as a §4.5 quality gate caught real bugs at every commit. 14 successful handshakes; 0 silent regressions through to v8 Day 8.
 
-Fourth lesson: **honest beats clever.** When YouTube blocked Cloud Run, the right move wasn't a residential proxy hack — it was switching to NPS public webcams and being honest in the UI ("refreshes every minute") rather than overclaiming "real-time." Judges and procurement officers both reward honest framing.
+Fourth lesson: **honest beats clever.** When YouTube blocked Cloud Run, the right move wasn't a residential proxy hack — it was a server-side frame proxy (no iframe, no bot wall, real animals) plus explicit `X-Guardian-Source` headers so the UI labels every tile by source kind. Judges and procurement officers both reward honest framing over over-claimed real-time.
 
 ---
 
