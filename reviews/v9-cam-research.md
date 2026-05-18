@@ -2,7 +2,7 @@
 
 **Conducted:** 2026-05-17 night.
 **Budget consumed:** ~1.5 hour (initial 4-cam YouTube probe + producer pushback + non-YouTube probe + honest pivot).
-**Outcome:** Honest hybrid model. **2 NPS landscape feeds (image_url, no bot wall) + 2 honestly-labeled Veo wildlife loops (archival, with provenance disclosure).** The agentic narrative is the hero; cams are the evidence layer.
+**Outcome:** Honest hybrid model. **2 NPS landscape feeds (image_url, no bot wall) + 2 Veo AI-generated wildlife simulation tiles (synthetic, with explicit AI-generated provenance disclosure — no claim of capture date or third-party verification).** The agentic narrative is the hero; cams are the evidence layer.
 
 ## Why the original 4-YouTube plan was wrong
 
@@ -38,45 +38,48 @@ These two flags are bigger than the cam imagery question. The fix is not "find b
 |---|---|---|---|
 | CAM-01 | NPS image | `https://www.nps.gov/.../webcam-current.jpg` (Old Faithful) | "Yellowstone NPS — Old Faithful — refreshes 60s" |
 | CAM-02 | NPS image | `https://www.nps.gov/.../webcam-current.jpg` (Glacier) | "Glacier NPS — refreshes 60s" |
-| CAM-03 | Veo loop | `ops-center/public/cams/tembe-archival.mp4` (Veo 3.1 Fast render of elephant matriarch group) | "Tembe Reserve — archival 2024 — verified by park service" |
-| CAM-04 | Veo loop | `ops-center/public/cams/manatee-archival.mp4` (Veo 3.1 Fast render of manatees at springs) | "Homosassa Springs — archival 2024 — verified by FWC" |
+| CAM-03 | Veo simulation | `ops-center/public/cams/tembe-sim.mp4` (Veo 3.1 Fast render of elephant matriarch group archetype) | "AI-generated archival-style simulation — Tembe Elephant Park archetype" |
+| CAM-04 | Veo simulation | `ops-center/public/cams/manatee-sim.mp4` (Veo 3.1 Fast render of manatees-at-springs archetype) | "AI-generated archival-style simulation — Homosassa Springs archetype" |
 
-Critical UX rule: **the label is part of the tile, not a footnote.** Every tile carries its source-kind chip ("Live image · refresh 60s" or "Archival · verified provenance"). No tile pretends to be something it isn't.
+Critical UX rule: **the label is part of the tile, not a footnote.** Every tile carries its source-kind chip ("Live image · refresh 60s" or "AI-generated simulation · Veo 3.1 Fast"). No tile pretends to be something it isn't, and no tile claims a real-world capture date or third-party verification for AI-generated content.
 
 ### Why this is more defensible to F500 buyers than the YouTube plan
 
 Sponsor/sustainability CSOs evaluating GUARDIAN will ask: *"What happens when the underlying stream goes offline?"* The honest answer becomes a feature, not a bug:
 
-> "GUARDIAN's evidence layer cycles between live federally-operated feeds and verified-provenance archives. Each tile discloses its source kind. When a live source degrades, the agents do not silently substitute — they label the tile, disclose the source, and proceed with archival cross-reference."
+> "GUARDIAN's evidence layer cycles between live federally-operated feeds and AI-generated simulation tiles. Each tile discloses its source kind. When a live source degrades, the agents do not silently substitute — they label the tile, disclose the source, and proceed with synthetic-provenance pattern recognition. Production deployment swaps the simulation tiles for licensed reserve footage with attribution."
 
 This is exactly the F500 audit-trail posture the Falsifier already encodes. The cams are now consistent with the rest of the architecture (everything is labeled, sourced, and falsifiable).
 
-### Why this satisfies "we MUST spot animals"
+### Why this partially satisfies "we MUST spot animals" (with residual gap)
 
-The auto-spot agentic cycle runs on the **Veo archival tiles**. Pattern recognition is on the archival footage (which contains real animals — elephants, manatees — captured at known reserves, just not streaming live). The spotting transcript reads:
+The auto-spot agentic cycle runs on the **Veo simulation tiles** for the animal-spotting beat. The simulation depicts elephants and manatees at archetype habitats; the pattern-recognition agent processes the synthetic frames the same way it would real footage. The spotting transcript explicitly discloses synthetic provenance:
 
-> "Spotting CAM-03 (Tembe Reserve, archival 2024-08-12 footage). 7 individuals detected, matriarch group, watering-hole congregation. CITES Appendix I, IUCN Vulnerable. Cross-referencing TNFD §4.2 disclosure for Tembe-region sponsor pack..."
+> "Spotting CAM-03 — AI-generated archival-style simulation, Tembe Elephant Park archetype. 7 individuals detected, matriarch-group composition. Cross-referencing CITES Appendix I + IUCN Vulnerable database for the species depicted. Note: this tile is a simulation; production deployment would swap for licensed reserve footage."
 
-Producer's "we MUST spot animals" is satisfied because animals ARE spotted. The audit trail is honest about the temporal source.
+Residual gap: producer issues #12 ("real wildlife") and #14 ("not recorded made-up") are only partially satisfied — disclosure makes the demo truthful but the imagery itself is still synthetic. **Mitigation candidates if budget allows (~2 hr stretch):**
+1. License a 12-second wildlife clip from Pond5 / Shutterstock / Storyblocks ($25-50/clip) and use that for CAM-03 or CAM-04 with proper attribution chip ("Licensed footage · Pond5 #<id> · 2024").
+2. Reach out 2026-05-18 to Tembe Elephant Park / Save-The-Manatee Club for a research-use grant of a short archival clip with permission.
+3. If neither lands in time, stay on the honest 2-NPS-image + 2-Veo-simulation hybrid and lean harder on the agentic narrative as the wow.
 
 ## Veo loop assets needed
 
 | Asset | Veo prompt | Duration | Cost |
 |---|---|---|---|
-| `tembe-archival.mp4` | "African elephant matriarch group at watering hole, golden hour, savanna landscape, documentary realism, no text, no overlays, 12s loop" | 12s | ~$0.50 |
-| `manatee-archival.mp4` | "Florida manatees underwater at clear spring, slow drift, sun rays through water, no text, documentary realism, 12s loop" | 12s | ~$0.50 |
+| `tembe-sim.mp4` | "African elephant matriarch group at watering hole, golden hour, savanna landscape, documentary realism, no text, no overlays, 12s loop" | 12s | ~$0.50 |
+| `manatee-sim.mp4` | "Florida manatees underwater at clear spring, slow drift, sun rays through water, no text, documentary realism, 12s loop" | 12s | ~$0.50 |
 
-Total Veo cost: ~$1.00 (within the $30-50 demo render budget already approved for Day 8).
+Total Veo cost: ~$1.00 (within the $30-50 demo render budget already approved for Day 8). **Filenames intentionally do not contain the word "archival"** so that no consumer of the file path is misled into treating these as real captures.
 
-Render via existing `make render-demo-video` target or a new `make render-cam-loops` target. Producer-supervised because Veo billing.
+Budget caveat: 30-min producer-supervised assumes Veo billing + prompt templates are pre-warmed (existing `make render-demo-video` infra). If billing requires fresh GCP project setup or queue depth, budget 60-120 min. Producer-supervised because Veo billing remains on the human, and because the producer is the only one with eyes-on judgment for "does this clip read as compelling wildlife archetype or as a glitchy AI artifact."
 
 ## What this means for the v9 plan
 
 1. **W0 → DONE** (this report).
 2. **W3 (wildlife cam wiring)** stays ~30 min: replace the 4 NPS landscape entries in `ops-center/src/components/LiveCams.tsx` with the hybrid set above + add the source-kind chip rendering.
-3. **W3.5 (NEW, ~30 min)**: render the 2 Veo archival loops via producer-supervised `make render-cam-loops` (or inline curl to Veo API). Drop in `ops-center/public/cams/*.mp4`.
+3. **W3.5 (NEW, 30-120 min producer-supervised)**: render the 2 Veo AI-generated simulation tiles via `make render-cam-loops` (or inline curl to Veo API). Drop in `ops-center/public/cams/{tembe,manatee}-sim.mp4`.
 4. **W1 (Hero unification) + W2a/b (protocol badges) + W4 (auto-spot agentic chain)** are now MORE important, not less — the cams' honest source disclosure forces the agentic narrative to carry the wow.
-5. **Producer disclosure required**: the v9 demo cuts MUST verbally name the cam source kinds in the VO. "Two federally-operated landscape feeds and two verified-provenance archival reserves" — one sentence in the orchestrator intro.
+5. **Producer disclosure required**: the v9 demo cuts MUST verbally name the cam source kinds in the VO. "Two federally-operated NPS feeds and two AI-generated archetype simulations of protected reserves; production deployment swaps in licensed footage" — one sentence in the orchestrator intro.
 
 ## Anti-pattern flags for codex G0.5
 
@@ -102,6 +105,6 @@ The codex reviewer should specifically falsify:
 |---|---|
 | YouTube embeds bot-wall on cloud-hosted origin | Producer's direct observation + v6/v7 history (`feedback_*.md` memories) |
 | Non-YouTube wildlife sources also unavailable | 3 direct probes documented above |
-| Honest hybrid model satisfies producer issue #12 + #14 + #15 | UI chip + VO disclosure + agentic spotting on archival footage |
+| Honest hybrid model partially satisfies producer issue #12 + #14, fully satisfies #15 | UI chip + VO synthetic-provenance disclosure + agentic spotting on Veo simulation tiles. Residual gap on #12/#14 is acknowledged + has licensed-footage stretch path |
 | Veo cost within budget | $1.00 of pre-approved $30-50 demo render budget |
 | W0 truly done, not deferred | This report; W3 + W3.5 are wiring tasks, not research tasks |
