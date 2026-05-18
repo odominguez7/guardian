@@ -611,7 +611,7 @@ export default function LiveCams() {
             Live Field Cameras
           </h2>
           <p className="text-[11px] text-zinc-500 mt-0.5">
-            3 Veo 3.1 Fast loops + 1 live YouTube embed · what the Stream Watcher & Audio Agent see in production
+            4 real wildlife live cams · server-side frame proxy · what the Stream Watcher & Audio Agent see in production
           </p>
         </div>
         <div className="text-[10px] text-zinc-500 font-mono">
@@ -625,11 +625,11 @@ export default function LiveCams() {
       </div>
       <div className="px-6 py-2 border-t border-zinc-900 text-[10px] text-zinc-500 flex items-center justify-between">
         <span>
-          1 real (YouTube live · Wild Africa) · 3 rendered via{" "}
-          <span className="text-zinc-300">Veo 3.1 Fast</span>{" "}
-          (Vertex AI) · audio-off · 16:9 1080p
+          4 real wildlife streams · server-side frame proxy via{" "}
+          <span className="text-zinc-300">yt-dlp + ffmpeg</span>{" "}
+          on Cloud Run · no browser iframe = no bot wall
         </span>
-        <span className="font-mono">3 × $0.60 Veo · 1 × $0 YouTube embed</span>
+        <span className="font-mono">Tembe · Homosassa · Decorah · Intl Wolf Center</span>
       </div>
     </div>
   );
