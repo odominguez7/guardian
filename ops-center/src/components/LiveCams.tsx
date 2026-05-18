@@ -11,7 +11,7 @@
 // when we spot something in the screen?" YES.
 
 import { useState, useRef, useEffect } from "react";
-import { Sparkles, Repeat } from "lucide-react";
+import { Sparkles, Repeat, Maximize2, X } from "lucide-react";
 
 const ORCH_URL =
   process.env.NEXT_PUBLIC_ORCHESTRATOR_URL ?? "http://localhost:8000";
@@ -152,6 +152,25 @@ function pickTopSpecies(speciesArr: unknown): {
 
 function CamTile({ cam }: { cam: CamProps }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  // v9 W1 #10 — fullscreen-expand. Producer asked for clickable +
+  // expandable cams. Click anywhere on the tile (outside the action
+  // buttons) opens a fixed-viewport overlay. ESC or the X button
+  // closes. While expanded the same auto-spot loop continues to run
+  // — the audience just sees a bigger frame + the agent fan-out.
+  const [expanded, setExpanded] = useState(false);
+  useEffect(() => {
+    if (!expanded) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setExpanded(false); };
+    window.addEventListener("keydown", onKey);
+    // Lock body scroll while a tile is fullscreen so the page doesn't
+    // jitter behind the overlay.
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [expanded]);
   // v7.6: cache-buster for image-source cams — bumps every refresh tick
   // so the browser re-fetches even when the underlying CDN caches
   // aggressively.
@@ -312,9 +331,22 @@ function CamTile({ cam }: { cam: CamProps }) {
   };
   return (
     <div
-      className="relative rounded-lg overflow-hidden border bg-black min-h-0"
-      style={{ borderColor: `${cam.accent}40` }}
+      className={
+        expanded
+          ? "fixed inset-0 z-[100] bg-black/95 backdrop-blur-md flex items-center justify-center p-6 overflow-y-auto"
+          : "relative rounded-lg overflow-hidden border bg-black min-h-0 cursor-zoom-in group"
+      }
+      style={expanded ? undefined : { borderColor: `${cam.accent}40` }}
+      onClick={() => !expanded && setExpanded(true)}
     >
+      <div
+        className={
+          expanded
+            ? "relative rounded-xl overflow-hidden border bg-black w-full max-w-6xl aspect-video shadow-[0_30px_120px_rgba(0,0,0,0.6)]"
+            : "absolute inset-0"
+        }
+        style={expanded ? { borderColor: `${cam.accent}60` } : undefined}
+      >
       {cam.imageUrl ? (
         <img
           // v7.6: cache-buster query param forces a real fetch on every
@@ -374,8 +406,23 @@ function CamTile({ cam }: { cam: CamProps }) {
           {cam.label}
         </div>
       </div>
+      {/* v9 W1 #10 — expand/close button. pointer-events-auto since
+          the parent div is pointer-events-none. Lives in the same
+          top-right cluster as the LIVE chip. */}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setExpanded((v) => !v);
+        }}
+        className="absolute top-2 right-2 z-30 p-1.5 rounded-md bg-black/55 hover:bg-black/80 text-white/80 hover:text-white transition-colors backdrop-blur-sm ring-1 ring-white/10"
+        aria-label={expanded ? "Close fullscreen" : "Open fullscreen"}
+        title={expanded ? "Close (Esc)" : "Fullscreen"}
+      >
+        {expanded ? <X className="w-4 h-4" /> : <Maximize2 className="w-3.5 h-3.5" />}
+      </button>
       {/* Top-right LIVE — v4 sub-move A1 distinguishes REAL vs Veo */}
-      <div className="absolute top-2 right-2 z-10 pointer-events-none flex flex-col items-end gap-1">
+      <div className={`absolute ${expanded ? "top-2 right-12" : "top-2 right-10"} z-10 pointer-events-none flex flex-col items-end gap-1`}>
         <div className="text-[9px] font-mono text-rose-400 uppercase tracking-wider">
           ● live
         </div>
@@ -598,6 +645,7 @@ function CamTile({ cam }: { cam: CamProps }) {
           )}
         </div>
       </div>
+      </div>{/* /inner content wrapper added in v9 W1 #10 */}
     </div>
   );
 }
