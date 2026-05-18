@@ -89,6 +89,39 @@ B + new role-specific Imagen 4 portraits (court_evidence = federal judge in cham
 
 ---
 
+## Codex G0.2 absorption (2026-05-17 night)
+
+Second-round verdict: HOLD with 3 BLOCKs + 3 WARNs. All real engineering, not formatting. Absorbed below.
+
+**BLOCK A — W0 arithmetic impossible**: 6 sources × 30-min observation = 3 hr just observation, against 2-hr W0 budget. Plus some sources (WildEarth) require subscription/legal review.
+
+Resolution: **W0 trimmed to 3 sources, 10-min observation each (=30 min observation + 30 min wire/report = 1 hr total).** Concrete success bar: ≥1 wildlife capture within the 10-min window OR no go. Sources tested in priority order:
+1. explore.org African Watering Hole (most consistent wildlife density per producer industry knowledge)
+2. explore.org Pete's Pond
+3. Africam Naledi Game Reserve direct
+**If 0 of 3 work**, FALLBACK = 2 best wildlife-likely NPS cams (Yellowstone Lamar Valley, Glacier Many Glacier) + 2 Veo loops labeled "production camera simulation." No more pretending; the demo's honesty wins.
+
+**BLOCK B — Auto-cycle math wrong**: amended plan said "1 cam every 5 min = 48 calls/hr." Math: 60/5 = 12 spots/hr if rotating one-at-a-time across 4 cams. If "every 5 min" applies per-cam, it's 4 × 12 = 48/hr. Plan was ambiguous.
+
+Resolution: **Exact intent locked in**: 1 spot total every 5 minutes (rotating round-robin through cams) = **12 spots/hr total**. Per-session/tab throttle: max 20 spots/hr globally (covers manual + auto). Pause on tab blur. SHA-skip if cam image unchanged. Multiple judge tabs do NOT multiply — server-side cooldown at `_LIVECAM_COOLDOWN_S=12s` already enforces. Sustainable on Gemini 2.5 Pro daily quota; confirms Day 14's 429 won't repeat.
+
+**BLOCK C — Protocol-badge schema gap**: events.py emits `agent` + `tool` + opaque payload. No authoritative `model` or `protocol_stack` field. Frontend can't render `[Gemini 2.5 Pro · Vertex AI Vision]` from current schema.
+
+Resolution: **W2 split into W2a (backend schema) + W2b (UI/voice polish)** with new **G2.5 gate** between them.
+- **W2a — firehose contract extension** (~45 min): `events.emit()` signature gains optional `model: str | None = None` and `protocol_stack: list[str] | None = None`. Tool emission sites updated: `stream_watcher.analyze_image_bytes` → `model="gemini-2.5-flash"` (real model used per `_DEFAULT_VISION_MODEL`), `protocol_stack=["Vertex AI Gemini Vision","Cloud Run"]`. `a2a_peers.notify_*` → `protocol_stack=["A2A v0.3.0","Cloud Run","ID-token auth"]`. `species_id.lookup_species_factsheet` → adds `"Vertex AI Search"`. Pydantic event types extended to match. G2.5 codex sweep on the schema diff.
+- **W2b — UI consumes the new fields** (~75 min): Mission Bridge speech bubble + new NarrationStrip.tsx render the protocol chips from `event.protocol_stack` when an event matching the speaking agent fires. Static intro = idle fallback.
+
+**WARN A — Drawer width 35-40%**: locked at `width: clamp(420px, 38vw, 560px)`.
+
+**WARN B — Business-model on screen**: NarrationStrip gets a fixed first slot for the compliance pitch — rotates between three lines:
+1. "Every incident here lands in a SHA-256 chain-of-custody bundle."
+2. "Fortune 500 sustainability officers file CSRD-E4 + TNFD disclosures from this stream."
+3. "Four enterprise organizations coordinate live over A2A v0.3."
+
+These rotate every 8s. Live protocol badges from the firehose appear adjacent.
+
+**WARN C — G2.5 gate added** (between W2a backend and W2b UI). Total gates now: G0/G0.5/G1/G2a-G2.5-G2b/G3/G5/G6 = 8.
+
 ## Codex G0 absorption (2026-05-17 evening)
 
 Codex G0 returned HOLD with 2 BLOCKs + 4 WARNs + 3 NITs. Plan amended below.
